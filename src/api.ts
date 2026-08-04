@@ -231,6 +231,7 @@ export const kitsuApi = {
       cast: [],
       reviews: [],
       episodeCount: item.attributes?.episodeCount || 0,
+      status: item.attributes?.status || "finished",
       episodes: (item.attributes?.episodeCount || 0) <= 100 ? Array.from({ length: item.attributes?.episodeCount || 0 }, (_, i) => ({
         id: `ep-${i + 1}`,
         season: 1,

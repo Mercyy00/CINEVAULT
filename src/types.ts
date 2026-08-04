@@ -56,6 +56,7 @@ export interface Movie {
   progress?: number; // 0-100 for continue watching
   malId?: string;
   episodeCount?: number;
+  status?: string;
 }
 
 export interface ContinueWatchingItem {

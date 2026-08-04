@@ -9,6 +9,10 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
   const { updateContinueWatching, userProfile } = useApp();
   const [movie, setMovie] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);
+
+  const [selectedChunk, setSelectedChunk] = useState<number>(0);
+  const [chunkOptions, setChunkOptions] = useState<{label: string, start: number, end: number}[]>([]);
+
   const [jumpEpisode, setJumpEpisode] = useState<string>('');
   const [jumpError, setJumpError] = useState<string | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
@@ -74,20 +78,79 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
           const internalMovie = kitsuApi.mapKitsuToInternal(res.data, res.included);
           setMovie(internalMovie);
           
-          let epList = internalMovie.episodes || [];
-          setEpisodes(epList);
+          let episodesData: any[] = [];
+          try {
+             const searchRes = await fetch(`https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(internalMovie.title)}`);
+             if (searchRes.ok) {
+               const searchData = await searchRes.json();
+               if (searchData?.results?.length > 0) {
+                 const anikotoId = searchData.results[0].id;
+                 const seriesRes = await fetch(`https://anikotoapi.site/series/${anikotoId}`);
+                 if (seriesRes.ok) {
+                   const seriesData = await seriesRes.json();
+                   if (seriesData?.episodes) {
+                     episodesData = seriesData.episodes.map((ep: any) => ({
+                       id: ep.id || `ep-${ep.number}`,
+                       number: ep.number,
+                       episode: ep.number,
+                       title: ep.title || `Episode ${ep.number}`,
+                       image: ep.image || '',
+                       isReleased: true
+                     }));
+                   }
+                 }
+               }
+             }
+           } catch (e) {
+             console.error("Anikoto proxy fetch failed", e);
+           }
+           
+           if (episodesData.length === 0) {
+             const count = internalMovie.episodeCount || 0;
+             episodesData = Array.from({ length: count }, (_, i) => ({
+               id: `ep-${i + 1}`,
+               number: i + 1,
+               episode: i + 1,
+               title: `Episode ${i + 1}`,
+               image: '',
+               isReleased: true
+             }));
+           }
+           
+           setEpisodes(episodesData);
+           
+           if (episodesData.length > 100) {
+             const chunks = [];
+             for (let i = 0; i < episodesData.length; i += 100) {
+               chunks.push({
+                 label: `Episodes ${i + 1}-${Math.min(i + 100, episodesData.length)}`,
+                 start: i,
+                 end: Math.min(i + 100, episodesData.length)
+               });
+             }
+             setChunkOptions(chunks);
+             
+             // Set chunk based on current episode
+             const epNum = parseInt(episode || '1');
+             const chunkIdx = Math.max(0, Math.floor((epNum - 1) / 100));
+             setSelectedChunk(chunkIdx < chunks.length ? chunkIdx : 0);
+           } else {
+             setChunkOptions([]);
+             setSelectedChunk(0);
+           }
           
           const epNum = parseInt(episode);
-          let targetEp = epList.find((e: any) => e.episode === epNum);
+          let targetEp = episodesData.find((e: any) => e.number === epNum);
           
           if (!targetEp) {
              targetEp = {
                 id: `ep-${epNum}`,
                 season: 1,
                 episode: epNum,
+                number: epNum,
                 title: `Episode ${epNum}`,
                 duration: '24m',
-                thumbnail: 'https://picsum.photos/300/150',
+                image: '',
                 description: `Episode ${epNum} of ${internalMovie.title}`
              };
           }
@@ -95,7 +158,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
           if (targetEp) {
             setSelectedEpisode(targetEp);
             setLanguage(language);
-            updateIframeSrc(targetEp.episode, language, server, internalMovie.malId, internalMovie.title);
+            updateIframeSrc(targetEp.number, language, server, internalMovie.malId, internalMovie.title);
           }
         }
       } catch (err) {

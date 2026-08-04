@@ -11,6 +11,10 @@ export function AnimeDetail({ id }: { id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, setAmbientColor } = useApp();
   const [movie, setMovie] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);
+
+  const [selectedChunk, setSelectedChunk] = useState<number>(0);
+  const [chunkOptions, setChunkOptions] = useState<{label: string, start: number, end: number}[]>([]);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jumpEpisode, setJumpEpisode] = useState<string>('');
@@ -42,7 +46,62 @@ export function AnimeDetail({ id }: { id: string }) {
         if (isMounted && res && res.data) {
            const mappedMovie = kitsuApi.mapKitsuToInternal(res.data, res.included);
            setMovie(mappedMovie);
-           setEpisodes(mappedMovie.episodes || []);
+           
+           // Hybrid Fetch: Anikoto
+           let episodesData: any[] = [];
+           try {
+             const searchRes = await fetch(`https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(mappedMovie.title)}`);
+             if (searchRes.ok) {
+               const searchData = await searchRes.json();
+               if (searchData?.results?.length > 0) {
+                 const anikotoId = searchData.results[0].id;
+                 const seriesRes = await fetch(`https://anikotoapi.site/series/${anikotoId}`);
+                 if (seriesRes.ok) {
+                   const seriesData = await seriesRes.json();
+                   if (seriesData?.episodes) {
+                     episodesData = seriesData.episodes.map((ep: any) => ({
+                       id: ep.id || `ep-${ep.number}`,
+                       number: ep.number,
+                       title: ep.title || `Episode ${ep.number}`,
+                       image: ep.image || '',
+                       isReleased: true
+                     }));
+                   }
+                 }
+               }
+             }
+           } catch (e) {
+             console.error("Anikoto proxy fetch failed", e);
+           }
+           
+           if (episodesData.length === 0) {
+             const count = mappedMovie.episodeCount || 0;
+             episodesData = Array.from({ length: count }, (_, i) => ({
+               id: `ep-${i + 1}`,
+               number: i + 1,
+               title: `Episode ${i + 1}`,
+               image: '',
+               isReleased: true
+             }));
+           }
+           
+           setEpisodes(episodesData);
+           
+           if (episodesData.length > 100) {
+             const chunks = [];
+             for (let i = 0; i < episodesData.length; i += 100) {
+               chunks.push({
+                 label: `Episodes ${i + 1}-${Math.min(i + 100, episodesData.length)}`,
+                 start: i,
+                 end: Math.min(i + 100, episodesData.length)
+               });
+             }
+             setChunkOptions(chunks);
+             setSelectedChunk(chunks.length - 1);
+           } else {
+             setChunkOptions([]);
+             setSelectedChunk(0);
+           }
         }
       } catch (err) {
         console.error(err);
@@ -259,33 +318,74 @@ export function AnimeDetail({ id }: { id: string }) {
 
             {/* Episodes */}
             <div className="mb-16">
-              <h3 className="text-2xl font-serif font-bold text-cv-cream mb-6 flex items-center gap-2">
-                <Play className="w-6 h-6 text-cv-gold" /> Episodes
-              </h3>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
-                {episodes.map((ep: any) => (
-                  <button
-                    key={ep.id}
-                    onClick={() => {
-                      window.location.hash = `#watch/ani/${id}/${ep.number}`;
-                    }}
-                    className="w-full text-left flex items-center gap-4 p-4 rounded-xl transition-all group bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/20 cursor-pointer"
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+                {movie.status === 'current' && (
+                <div className="w-full bg-gradient-to-r from-cv-gold/20 to-transparent border-l-4 border-cv-gold p-4 mb-6 rounded-r-xl flex items-center justify-between">
+                   <div className="flex flex-col">
+                     <span className="text-cv-gold font-bold text-sm tracking-widest uppercase">Next Episode</span>
+                     <span className="text-cv-cream text-lg font-serif">Airing soon!</span>
+                   </div>
+                   <Calendar className="w-8 h-8 text-cv-gold/50" />
+                </div>
+              )}
+                <h3 className="text-2xl font-serif font-bold text-cv-cream flex items-center gap-2">
+                  <Play className="w-6 h-6 text-cv-gold" /> Episodes
+                </h3>
+                {chunkOptions.length > 0 && (
+                  <select 
+                    value={selectedChunk} 
+                    onChange={(e) => setSelectedChunk(Number(e.target.value))}
+                    className="bg-white/5 border border-white/10 text-cv-cream px-4 py-2 rounded-lg outline-none focus:border-cv-gold glass-panel appearance-none cursor-pointer"
                   >
-                    <div className="w-16 h-16 rounded-lg bg-black/50 flex items-center justify-center shrink-0 border border-white/10 group-hover:border-cv-gold/50 transition-colors">
-                       <Play className="w-6 h-6 text-cv-gold/50 group-hover:text-cv-gold transition-colors fill-current" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="text-lg font-bold text-cv-cream group-hover:text-cv-gold transition-colors truncate">
-                        {ep.number}. {ep.title}
-                      </h4>
-                      {ep.jp_title && (
-                        <p className="text-sm text-cv-slate truncate">{ep.jp_title}</p>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                    {chunkOptions.map((chunk, idx) => (
+                      <option key={idx} value={idx} className="bg-cv-bg text-cv-cream">{chunk.label}</option>
+                    ))}
+                  </select>
+                )}
               </div>
+              
+              <AnimatePresence mode="wait">
+                <motion.div 
+                  key={selectedChunk}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ duration: 0.3 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4"
+                >
+                  {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
+                    <button
+                      key={ep.id}
+                      onClick={() => {
+                        window.location.hash = `#watch/ani/${id}/${ep.number}`;
+                      }}
+                      className="w-full text-left flex items-center gap-4 p-4 rounded-xl transition-all group bg-white/5 border border-transparent hover:bg-white/10 hover:border-cv-gold/50 cursor-pointer overflow-hidden relative"
+                    >
+                      <div className="w-32 aspect-video rounded-lg bg-black/50 flex items-center justify-center shrink-0 border border-white/10 group-hover:border-cv-gold/50 transition-colors overflow-hidden relative">
+                         {ep.image ? (
+                           <img src={ep.image} alt={ep.title} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500" />
+                         ) : (
+                           <span className="text-cv-gold font-bold text-xl">{ep.number}</span>
+                         )}
+                         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                           <Play className="w-8 h-8 text-cv-gold fill-current drop-shadow-[0_0_8px_rgba(212,168,83,0.8)]" />
+                         </div>
+                      </div>
+                      <div className="flex-1 min-w-0 z-10">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-xs font-bold px-2 py-1 bg-white/10 text-cv-slate rounded-md">EP {ep.number}</span>
+                        </div>
+                        <h4 className="text-base font-bold text-cv-cream group-hover:text-cv-gold transition-colors truncate">
+                          {ep.title}
+                        </h4>
+                      </div>
+                      
+                      {/* Hover effect background highlight */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-cv-gold/0 to-cv-gold/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+                    </button>
+                  ))}
+                </motion.div>
+              </AnimatePresence>
             </div>
             
           </div>
