@@ -189,7 +189,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const clearWatchlist = () => {
-    setWatchlist([]);
+    setWatchlist([]); setContinueWatching([]);
     showToast('Watchlist cleared');
   };
 
