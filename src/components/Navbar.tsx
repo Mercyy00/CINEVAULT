@@ -90,7 +90,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   return (
     <>
       {/* Top Header */}
-      <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2.5 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full overflow-hidden">
+      <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2.5 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full">
         <a 
           href="#home" 
           className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
