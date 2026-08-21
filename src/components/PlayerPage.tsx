@@ -22,6 +22,16 @@ const SERVERS: ServerOption[] = [
       : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=hindi` 
   },
   { 
+    id: '18', 
+    name: 'ModiPlay Hindi (IMDb)', 
+    quality: '4K' as const, 
+    latency: 10, 
+    status: 'working' as const, 
+    url: (id: string | number, s?: number, e?: number, imdbId?: string) => s && e 
+      ? `https://rozgarlelo.modiplay.xyz/embed/imdb/tv?id=${imdbId || id}&s=${s}&e=${e}` 
+      : `https://rozgarlelo.modiplay.xyz/embed/imdb/movie?id=${imdbId || id}` 
+  },
+  { 
     id: '17', 
     name: 'ScreenScape English (Ad-Free)', 
     quality: '4K' as const, 
@@ -89,26 +99,29 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
 
+  const [imdbId, setImdbId] = useState<string>('');
+
   const [showControls, setShowControls] = useState(true);
   const [showNextEpisode, setShowNextEpisode] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(5);
   const controlsTimeoutRef = useRef<NodeJS.Timeout>();
 
-  const updateIframeSrc = (server: ServerOption, s?: number, e?: number) => {
+  const updateIframeSrc = (server: ServerOption, s?: number, e?: number, resolvedImdbId?: string) => {
     setIsServerLoading(true);
     setCurrentIframeSrc('about:blank');
     
     const finalS = s !== undefined ? s : selectedSeason;
     const finalE = e !== undefined ? e : selectedEpisode?.episode_number;
+    const finalImdb = resolvedImdbId || imdbId || movie?.imdbId || '';
 
     setTimeout(() => {
-      const newSrc = typeof server.url === 'function' ? server.url(id, finalS, finalE) : server.url;
+      const newSrc = typeof server.url === 'function' ? server.url(id, finalS, finalE, finalImdb) : server.url;
       setCurrentIframeSrc(newSrc || '');
       setIsServerLoading(false);
     }, 1000);
   };
 
-  const loadSeasonAndEpisode = async (seasonNumber: number, targetEpisodeNumber?: number) => {
+  const loadSeasonAndEpisode = async (seasonNumber: number, targetEpisodeNumber?: number, resolvedImdbId?: string) => {
     setSelectedSeason(seasonNumber);
     try {
       const seasonDetails = await api.getSeasonDetails(id, seasonNumber);
@@ -121,7 +134,7 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
             if (found) targetEp = found;
           }
           setSelectedEpisode(targetEp);
-          updateIframeSrc(selectedServer, seasonNumber, targetEp.episode_number);
+          updateIframeSrc(selectedServer, seasonNumber, targetEp.episode_number, resolvedImdbId);
         }
       }
     } catch (err) {
@@ -148,15 +161,22 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
           const internalMovie = api.mapToInternalMovie({ ...details, media_type: type });
           setMovie(internalMovie);
 
+          let fetchedImdb = details.external_ids?.imdb_id || details.imdb_id || '';
+          if (!fetchedImdb) {
+            const ext = await api.getExternalIds(type, id);
+            if (ext.imdb_id) fetchedImdb = ext.imdb_id;
+          }
+          setImdbId(fetchedImdb);
+
           if (type === 'tv' && details.seasons) {
             const validSeasons = details.seasons.filter((s: any) => s.season_number > 0);
             setSeasons(validSeasons);
             
             let targetSeason = validSeasons.length > 0 ? validSeasons[0].season_number : 1;
             if (season) targetSeason = parseInt(season);
-            await loadSeasonAndEpisode(targetSeason, episode ? parseInt(episode) : undefined);
+            await loadSeasonAndEpisode(targetSeason, episode ? parseInt(episode) : undefined, fetchedImdb);
           } else {
-             updateIframeSrc(selectedServer);
+             updateIframeSrc(selectedServer, undefined, undefined, fetchedImdb);
           }
         } else {
            if (type === 'tv') {
@@ -291,7 +311,7 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
   const handleServerChange = (server: ServerOption) => {
     if (server.status === 'maintenance') return;
     setSelectedServer(server);
-    updateIframeSrc(server);
+    updateIframeSrc(server, selectedSeason, selectedEpisode?.episode_number, imdbId);
   };
 
   const handleEpisodeChange = (episode: any) => {

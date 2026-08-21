@@ -50,9 +50,19 @@ export const api = {
   },
 
   getDetails: async (mediaType: string, id: string) => {
-    const res = await fetch(`${BASE_URL}/${mediaType}/${id}?api_key=${TMDB_API_KEY}`);
+    const res = await fetch(`${BASE_URL}/${mediaType}/${id}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`);
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
     return res.json();
+  },
+
+  getExternalIds: async (mediaType: string, id: string) => {
+    try {
+      const res = await fetch(`${BASE_URL}/${mediaType}/${id}/external_ids?api_key=${TMDB_API_KEY}`);
+      if (!res.ok) return { imdb_id: null };
+      return res.json();
+    } catch {
+      return { imdb_id: null };
+    }
   },
 
   getCredits: async (mediaType: string, id: string) => {
@@ -113,7 +123,8 @@ export const api = {
         { id: 's2', name: 'Server Beta', quality: 'HD', latency: 45, status: 'working' },
       ],
       cast: [],
-      reviews: []
+      reviews: [],
+      imdbId: tmdbItem.imdb_id || tmdbItem.external_ids?.imdb_id || ''
     };
   }
 };

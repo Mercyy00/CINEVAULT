@@ -7,7 +7,7 @@ export interface ServerOption {
   quality: Quality;
   latency: number;
   status: 'working' | 'maintenance';
-  url?: string | ((id: string | number, season?: number, episode?: number) => string);
+  url?: string | ((id: string | number, season?: number, episode?: number, imdbId?: string) => string);
 }
 
 export interface Actor {
@@ -55,6 +55,7 @@ export interface Movie {
   episodes?: Episode[];
   progress?: number; // 0-100 for continue watching
   malId?: string;
+  imdbId?: string;
   episodeCount?: number;
   status?: string;
 }
