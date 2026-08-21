@@ -98,8 +98,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
           className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col"
         >
           <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-8 flex-1 flex flex-col">
-            <div className="flex items-center gap-4 border-b border-brand/30 pb-4">
-              <Search className="w-8 h-8 text-brand" />
+            <div className="flex items-center gap-2 sm:gap-4 border-b border-brand/30 pb-3 sm:pb-4">
+              <Search className="w-5 h-5 sm:w-8 sm:h-8 text-brand shrink-0" />
               <input
                 ref={inputRef}
                 type="text"
@@ -109,13 +109,13 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   if (e.key === 'Enter') handleSearchSubmit(query);
                 }}
                 placeholder="Search movies, shows, anime..."
-                className="flex-1 bg-transparent border-none outline-none text-2xl md:text-4xl font-display text-foreground placeholder-muted-foreground/50"
+                className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-4xl font-display text-foreground placeholder-muted-foreground/50 min-w-0"
               />
               <button 
                 onClick={onClose}
-                className="p-2 text-muted-foreground hover:text-brand hover:bg-white/5 rounded-full transition-colors"
+                className="p-1.5 sm:p-2 text-muted-foreground hover:text-brand hover:bg-white/5 rounded-full transition-colors shrink-0"
               >
-                <X className="w-8 h-8" />
+                <X className="w-6 h-6 sm:w-8 sm:h-8" />
               </button>
             </div>
 

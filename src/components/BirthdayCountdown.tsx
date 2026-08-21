@@ -132,13 +132,12 @@ export function BirthdayCountdown() {
             ))}
           </AnimatePresence>
         </div>
-
         {/* The Main Countdown Pill */}
         <motion.div 
           whileHover={{ scale: 1.04, y: -1 }}
           whileTap={{ scale: 0.97 }}
           className={cn(
-            "rounded-full px-3 sm:px-4 py-1.5 sm:py-2 flex items-center gap-2 sm:gap-2.5",
+            "rounded-full px-2 sm:px-4 py-1 sm:py-2 flex items-center gap-1.5 sm:gap-2.5 max-w-full",
             "backdrop-blur-2xl bg-white/85 dark:bg-black/65 border border-black/10 dark:border-white/15",
             "shadow-[0_4px_20px_-4px_var(--theme-accent-glow,rgba(232,133,42,0.25))]",
             "hover:shadow-[0_8px_25px_var(--theme-accent-glow,rgba(232,133,42,0.4))]",
@@ -146,7 +145,7 @@ export function BirthdayCountdown() {
           )}
         >
           {/* Animated SVG Birthday Cake Icon */}
-          <div className="relative w-6 h-6 sm:w-7 sm:h-7 shrink-0 flex items-center justify-center">
+          <div className="relative w-5 h-5 sm:w-7 sm:h-7 shrink-0 flex items-center justify-center">
             <svg 
               viewBox="0 0 36 36" 
               className="w-full h-full drop-shadow-sm"
@@ -196,39 +195,39 @@ export function BirthdayCountdown() {
           </div>
 
           {/* Countdown Display Content */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {timeLeft.isBirthday ? (
-              <div className="flex items-center gap-1.5 text-brand font-display font-extrabold text-xs sm:text-sm animate-pulse">
-                <PartyPopper className="w-4 h-4 text-pink-500" />
+              <div className="flex items-center gap-1 text-brand font-display font-extrabold text-[11px] sm:text-sm animate-pulse">
+                <PartyPopper className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-pink-500" />
                 <span>Happy Birthday! 💖</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1 sm:gap-1.5 font-mono text-xs sm:text-[13px] font-bold text-foreground">
+              <div className="flex items-center gap-0.5 sm:gap-1.5 font-mono text-[11px] sm:text-[13px] font-bold text-foreground">
                 <div className="flex items-baseline gap-0.5">
-                  <span className="text-brand text-xs sm:text-sm">{timeLeft.days}</span>
-                  <span className="text-[10px] text-muted-foreground font-sans font-semibold">d</span>
+                  <span className="text-brand text-[11px] sm:text-sm">{timeLeft.days}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground font-sans font-semibold">d</span>
                 </div>
                 <span className="text-muted-foreground/40">:</span>
                 <div className="flex items-baseline gap-0.5">
-                  <span className="text-brand text-xs sm:text-sm">{formatNumber(timeLeft.hours)}</span>
-                  <span className="text-[10px] text-muted-foreground font-sans font-semibold">h</span>
+                  <span className="text-brand text-[11px] sm:text-sm">{formatNumber(timeLeft.hours)}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground font-sans font-semibold">h</span>
                 </div>
                 <span className="text-muted-foreground/40">:</span>
                 <div className="flex items-baseline gap-0.5">
-                  <span className="text-brand text-xs sm:text-sm">{formatNumber(timeLeft.minutes)}</span>
-                  <span className="text-[10px] text-muted-foreground font-sans font-semibold">m</span>
+                  <span className="text-brand text-[11px] sm:text-sm">{formatNumber(timeLeft.minutes)}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground font-sans font-semibold">m</span>
                 </div>
                 <span className="hidden sm:inline text-muted-foreground/40">:</span>
                 <div className="hidden sm:flex items-baseline gap-0.5">
-                  <span className="text-brand text-xs sm:text-sm">{formatNumber(timeLeft.seconds)}</span>
-                  <span className="text-[10px] text-muted-foreground font-sans font-semibold">s</span>
+                  <span className="text-brand text-[11px] sm:text-sm">{formatNumber(timeLeft.seconds)}</span>
+                  <span className="text-[9px] sm:text-[10px] text-muted-foreground font-sans font-semibold">s</span>
                 </div>
               </div>
             )}
 
             {/* Cute Gift Icon with pulse */}
-            <div className="w-5 h-5 rounded-full bg-pink-500/15 border border-pink-500/30 flex items-center justify-center text-pink-500 shrink-0">
-              <Gift className="w-3 h-3 group-hover:scale-125 transition-transform" />
+            <div className="hidden xs:flex w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-pink-500/15 border border-pink-500/30 items-center justify-center text-pink-500 shrink-0">
+              <Gift className="w-2.5 h-2.5 sm:w-3 sm:h-3 group-hover:scale-125 transition-transform" />
             </div>
           </div>
         </motion.div>
@@ -241,17 +240,17 @@ export function BirthdayCountdown() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.94 }}
               transition={{ duration: 0.18 }}
-              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-64 p-3.5 rounded-2xl bg-card border border-border shadow-2xl z-[150] text-center pointer-events-none"
+              className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-56 sm:w-64 p-3 sm:p-3.5 rounded-2xl bg-card border border-border shadow-2xl z-[150] text-center pointer-events-none"
             >
               <div className="flex items-center justify-center gap-1 text-pink-500 mb-1">
                 <Heart className="w-3.5 h-3.5 fill-pink-500 animate-bounce" />
-                <span className="text-[11px] font-bold tracking-wider uppercase">Birthday Countdown</span>
+                <span className="text-[10px] sm:text-[11px] font-bold tracking-wider uppercase">Birthday Countdown</span>
                 <Heart className="w-3.5 h-3.5 fill-pink-500 animate-bounce" />
               </div>
               <p className="text-xs font-semibold text-foreground">
                 2nd September 2026 🎂✨
               </p>
-              <p className="text-[11px] text-muted-foreground mt-1 leading-snug">
+              <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1 leading-snug">
                 Counting down every magical second until your special day! Click for a birthday surprise 💖
               </p>
             </motion.div>
@@ -259,33 +258,33 @@ export function BirthdayCountdown() {
         </AnimatePresence>
       </div>
 
-      {/* Romantic Birthday Surprise Celebration Modal */}
+      {/* Celebration Modal */}
       <AnimatePresence>
         {showCelebrationModal && (
           <div 
             onClick={() => setShowCelebrationModal(false)}
-            className="fixed inset-0 z-[400] bg-black/75 backdrop-blur-md flex items-center justify-center p-4 text-foreground cursor-pointer animate-fade-in"
+            className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
           >
-            <motion.div
+            <motion.div 
               initial={{ scale: 0.85, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.85, opacity: 0, y: 20 }}
               transition={{ type: 'spring', damping: 24, stiffness: 300 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-2xl relative text-center overflow-hidden"
+              className="w-full max-w-md max-h-[85vh] overflow-y-auto custom-scrollbar bg-card border border-border rounded-3xl p-5 sm:p-8 shadow-2xl relative text-center"
             >
               {/* Top ambient glow */}
               <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
 
-              <div className="w-16 h-16 rounded-2xl bg-pink-500/15 border border-pink-500/30 text-pink-500 flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <Gift className="w-8 h-8 animate-bounce" />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-pink-500/15 border border-pink-500/30 text-pink-500 flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <Gift className="w-7 h-7 sm:w-8 sm:h-8 animate-bounce" />
               </div>
 
-              <h3 className="text-2xl sm:text-3xl font-display font-black text-foreground mb-2">
+              <h3 className="text-xl sm:text-3xl font-display font-black text-foreground mb-2">
                 2nd September 2026 💖
               </h3>
               
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/25 text-brand text-xs font-bold font-mono mb-4">
+              <div className="inline-flex flex-wrap justify-center items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/25 text-brand text-[11px] sm:text-xs font-bold font-mono mb-4">
                 <span>⏳ {timeLeft.days} Days • {timeLeft.hours} Hours • {timeLeft.minutes} Mins • {timeLeft.seconds} Secs</span>
               </div>
 

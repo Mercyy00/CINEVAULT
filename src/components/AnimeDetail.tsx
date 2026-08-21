@@ -212,7 +212,7 @@ export function AnimeDetail({ id }: { id: string }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="min-h-screen bg-background pb-24 relative"
+      className="min-h-screen bg-background pb-28 sm:pb-36 relative"
     >
       {/* Parallax Backdrop */}
       <div className="absolute top-0 inset-x-0 h-[80vh] pointer-events-none overflow-hidden">

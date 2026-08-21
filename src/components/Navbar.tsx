@@ -90,10 +90,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   return (
     <>
       {/* Top Header */}
-      <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-4 px-6 sm:px-8 flex items-center justify-between pointer-events-none backdrop-blur-[2px]">
+      <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2.5 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full overflow-hidden">
         <a 
           href="#home" 
-          className="pointer-events-auto font-display font-black text-2xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-2.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md"
+          className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
         >
           <div 
             className={cn(
@@ -101,25 +101,25 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
               userProfile.logoStyle === 'cat' ? "brand-logo-cat" : "brand-logo-vault"
             )} 
           />
-          <span className="text-brand">
+          <span className="hidden xs:inline text-brand">
             CineVault
           </span>
         </a>
 
         {/* Center: Birthday Countdown Widget */}
-        <div className="flex items-center justify-center pointer-events-auto">
+        <div className="flex items-center justify-center pointer-events-auto min-w-0">
           <BirthdayCountdown />
         </div>
 
-        <div className="flex items-center gap-2.5 sm:gap-3 pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
           {/* Customizer (Themes & Fonts) Toggle */}
           <div className="relative">
             <button 
               onClick={() => { setShowCustomizer(!showCustomizer); setShowProfile(false); }}
-              className="h-10 w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
               aria-label="Customize theme and typography"
             >
-              <Palette className="w-5 h-5 opacity-80" />
+              <Palette className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
             </button>
             <AnimatePresence>
               {showCustomizer && (
@@ -128,7 +128,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-4 w-80 glass rounded-2xl shadow-card p-3.5 border border-white/10 origin-top-right flex flex-col gap-3"
+                  className="absolute right-0 mt-4 w-72 sm:w-80 max-h-[80vh] overflow-y-auto custom-scrollbar glass rounded-2xl shadow-card p-3.5 border border-white/10 origin-top-right flex flex-col gap-3 z-[110]"
                 >
                   {/* Tab bar */}
                   <div className="flex items-center bg-black/40 p-1 rounded-xl border border-white/5">
@@ -310,16 +310,16 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
 
           <button 
             onClick={onSearchClick}
-            className="h-10 w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
             aria-label="Search"
           >
-            <Search className="w-5 h-5 opacity-80" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
           </button>
           
           <div className="relative">
             <button 
               onClick={() => { setShowProfile(!showProfile); setShowCustomizer(false); }}
-              className="h-10 w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer"
               aria-label="User Account"
             >
               {userProfile.isLoggedIn ? (

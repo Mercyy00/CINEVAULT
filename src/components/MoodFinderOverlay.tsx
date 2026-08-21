@@ -95,11 +95,11 @@ export function MoodFinderOverlay({ isOpen, onClose }: MoodFinderOverlayProps) {
                     exit={{ opacity: 0, scale: 0.9 }}
                     className="w-full"
                   >
-                    <h2 className="text-4xl md:text-6xl font-display font-bold text-foreground text-center mb-16">
+                    <h2 className="text-2xl sm:text-4xl md:text-6xl font-display font-bold text-foreground text-center mb-6 sm:mb-16">
                       What's your vibe tonight?
                     </h2>
                     
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6">
                       {MOODS.map((mood, idx) => (
                         <motion.button
                           key={mood.id}
@@ -108,12 +108,12 @@ export function MoodFinderOverlay({ isOpen, onClose }: MoodFinderOverlayProps) {
                           transition={{ delay: idx * 0.05 }}
                           onClick={() => handleSelectMood(mood)}
                           className={cn(
-                            "aspect-video md:aspect-square rounded-2xl p-6 flex flex-col items-center justify-center text-center gap-4 transition-all duration-300 border border-white/5 group hover:scale-105 hover:shadow-2xl",
+                            "aspect-video md:aspect-square rounded-2xl p-3 sm:p-6 flex flex-col items-center justify-center text-center gap-2 sm:gap-4 transition-all duration-300 border border-white/5 group hover:scale-105 hover:shadow-2xl",
                             mood.bg,
                             "hover:border-white/20"
                           )}
                         >
-                          <span className="text-xl md:text-2xl font-bold text-foreground group-hover:text-brand transition-colors">{mood.label}</span>
+                          <span className="text-sm sm:text-xl md:text-2xl font-bold text-foreground group-hover:text-brand transition-colors">{mood.label}</span>
                         </motion.button>
                       ))}
                     </div>

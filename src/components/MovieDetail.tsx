@@ -197,7 +197,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
-      className="min-h-screen bg-background pb-24 relative"
+      className="min-h-screen bg-background pb-28 sm:pb-36 relative"
     >
       {/* Parallax Backdrop */}
       <div className="absolute top-0 inset-x-0 h-[80vh] pointer-events-none">
@@ -209,7 +209,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/50 to-transparent" />
       </div>
 
-      <div className="relative z-10 max-w-[1600px] mx-auto px-4 md:px-10 pt-[15vh]">
+      <div className="relative z-10 max-w-[1600px] mx-auto px-4 md:px-10 pt-20 sm:pt-[14vh]">
         <motion.button 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -223,18 +223,18 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
               }
             }, 100);
           }}
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-brand transition-all mb-8 group cursor-pointer"
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-brand transition-all mb-6 sm:mb-8 group cursor-pointer text-sm sm:text-base"
         >
-          <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> Back
+          <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5 group-hover:-translate-x-1 transition-transform" /> Back
         </motion.button>
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 mb-16">
+        <div className="flex flex-col lg:flex-row gap-6 lg:gap-16 mb-12 sm:mb-16">
           {/* Poster */}
           <motion.div 
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="w-full max-w-[320px] mx-auto lg:mx-0 shrink-0 relative group"
+            className="w-full max-w-[220px] sm:max-w-[320px] mx-auto lg:mx-0 shrink-0 relative group"
             style={{ perspective: 1000 }}
           >
             <motion.div 
@@ -246,8 +246,8 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                 <img loading="lazy" src={movie.posterUrl || undefined} alt={movie.title} className="w-full h-full object-cover" />
               ) : (
                 <div className="w-full h-full bg-black/50 glass flex flex-col items-center justify-center text-muted-foreground">
-                  <Film className="w-20 h-20 text-brand opacity-50 mb-4" />
-                  <span className="text-xl font-medium text-center px-4">{movie.title}</span>
+                  <Film className="w-16 h-16 sm:w-20 sm:h-20 text-brand opacity-50 mb-4" />
+                  <span className="text-lg sm:text-xl font-medium text-center px-4">{movie.title}</span>
                 </div>
               )}
             </motion.div>
@@ -258,43 +258,43 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="flex-1 pt-8 lg:pt-0"
+            className="flex-1 pt-4 lg:pt-0"
           >
-            <h1 className="text-4xl md:text-6xl font-display font-bold text-foreground mb-4 leading-tight drop-shadow-lg">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-display font-bold text-foreground mb-3 sm:mb-4 leading-tight drop-shadow-lg">
               {movie.title}
             </h1>
             {movie.genres?.includes('Animation') && type === 'tv' && (
-              <div className="mb-6 p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-200 text-sm flex items-start gap-3 backdrop-blur-md">
-                <div className="mt-0.5"><span className="text-xl">⚠️</span></div>
+              <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-200 text-xs sm:text-sm flex items-start gap-2.5 backdrop-blur-md">
+                <div className="mt-0.5"><span className="text-base sm:text-xl">⚠️</span></div>
                 <p><strong>Note:</strong> Streaming servers for Anime may vary here. Check the dedicated <strong>Anime tab</strong> for guaranteed playback.</p>
               </div>
             )}
             {movie.tagline && (
-              <p className="text-xl md:text-2xl font-display italic text-foreground/80 mb-6">
+              <p className="text-base sm:text-xl md:text-2xl font-display italic text-foreground/80 mb-4 sm:mb-6">
                 "{movie.tagline}"
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-foreground/80 mb-8">
-              <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">
-                <Star className="w-4 h-4 fill-current" />
-                <span className="ml-1 font-bold tracking-wide">{movie.rating.toFixed(1)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs sm:text-sm font-medium text-foreground/80 mb-6 sm:mb-8">
+              <div className="flex items-center gap-1 text-brand bg-brand/10 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full border border-brand/20">
+                <Star className="w-3.5 h-3.5 fill-current" />
+                <span className="ml-1 font-bold tracking-wide">{movie.rating.toFixed(1)} <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span></span>
               </div>
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-muted-foreground" /> {movie.year}</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-muted-foreground" /> {movie.duration}</span>
-              <span className="px-2 py-0.5 border border-white/20 rounded text-muted-foreground">{movie.ageRating}</span>
+              <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-muted-foreground" /> {movie.year}</span>
+              <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-muted-foreground" /> {movie.duration}</span>
+              <span className="px-2 py-0.5 border border-white/20 rounded text-muted-foreground text-[10px] sm:text-xs">{movie.ageRating}</span>
               {movie.genres?.map(g => (
-                <span key={g} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-foreground/80 text-xs">
+                <span key={g} className="px-2.5 py-0.5 sm:px-3 sm:py-1 bg-white/5 border border-white/10 rounded-full text-foreground/80 text-[10px] sm:text-xs">
                   {g}
                 </span>
               ))}
             </div>
 
-            <p className="text-base sm:text-lg text-muted-foreground mb-8 leading-relaxed max-w-4xl">
+            <p className="text-sm sm:text-lg text-muted-foreground mb-6 sm:mb-8 leading-relaxed max-w-4xl">
               {movie.description}
             </p>
 
-            <div className="flex flex-wrap gap-4 mb-12">
+            <div className="flex flex-wrap gap-2.5 sm:gap-4 mb-10 sm:mb-12">
               {hasProgress ? (
                 <>
                   <button 
@@ -305,9 +305,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                         window.location.hash = `#watch/movie/${id}`;
                       }
                     }}
-                    className="px-6 py-3 bg-brand hover:bg-brand/90 text-background font-bold rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105"
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 bg-brand hover:bg-brand/90 text-background font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105"
                   >
-                    <Play className="w-5 h-5 fill-current" />
+                    <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
                     Continue
                   </button>
                   <button 
@@ -318,9 +318,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                         window.location.hash = `#watch/movie/${id}`;
                       }
                     }}
-                    className="px-6 py-3 glass hover:bg-white/15 text-foreground font-bold rounded-full flex items-center justify-center gap-2 transition-all border border-white/10"
+                    className="px-4 sm:px-6 py-2.5 sm:py-3 glass hover:bg-white/15 text-foreground font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all border border-white/10"
                   >
-                    <Play className="w-4 h-4" />
+                    <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     Watch From Beginning
                   </button>
                 </>
@@ -333,30 +333,30 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                       window.location.hash = `#watch/movie/${id}`;
                     }
                   }}
-                  className="px-6 py-3 bg-brand hover:bg-brand/90 text-background font-bold rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105"
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 bg-brand hover:bg-brand/90 text-background font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105"
                 >
-                  <Play className="w-5 h-5 fill-current" />
+                  <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
                   Watch Now
                 </button>
               )}
               <button 
                 onClick={handleWatchlistToggle}
                 className={cn(
-                  "px-6 py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium",
+                  "px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium text-xs sm:text-base",
                   inWatchlist 
                     ? "bg-white/10 border-white/20 text-foreground hover:bg-white/20" 
                     : "glass border-white/10 text-foreground hover:bg-white/15"
                 )}
               >
-                {inWatchlist ? <Check className="w-5 h-5 text-brand" /> : <Plus className="w-5 h-5" />}
+                {inWatchlist ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-brand" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
                 {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
               </button>
 
               <button 
                 onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 cursor-pointer"
+                className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium text-xs sm:text-base transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 cursor-pointer"
               >
-                <Share2 className="w-5 h-5" /> Share
+                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" /> Share
               </button>
             </div>
 

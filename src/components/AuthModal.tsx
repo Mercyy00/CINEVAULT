@@ -94,7 +94,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         initial={{ scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 10 }}
-        className="w-full max-w-md bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden text-foreground"
+        className="w-full max-w-md max-h-[90vh] overflow-y-auto custom-scrollbar bg-card border border-border rounded-3xl p-5 sm:p-8 shadow-2xl relative text-foreground"
       >
         {/* Close Button */}
         <button 

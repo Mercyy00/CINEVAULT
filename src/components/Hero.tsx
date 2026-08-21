@@ -130,7 +130,7 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
       <div className="absolute inset-0 z-10 pointer-events-none opacity-30 mix-blend-screen" 
            style={{ backgroundImage: 'radial-gradient(circle, var(--theme-accent) 1px, transparent 1px)', backgroundSize: '100px 100px', animation: 'drift 20s linear infinite' }} />
 
-      <div className="relative z-20 max-w-4xl w-full pb-32 sm:pb-36 px-6 sm:px-10 lg:px-14">
+      <div className="relative z-20 max-w-4xl w-full pb-28 sm:pb-36 px-4 sm:px-10 lg:px-14">
         <motion.div
           key={`content-${currentIndex}`}
           initial={{ opacity: 0, y: 30 }}
@@ -138,57 +138,57 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
           transition={{ duration: 0.8, delay: 0.2 }}
         >
           {/* Metadata Badges */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4 mb-5">
-            <span className="bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-3.5 py-1 text-xs sm:text-sm text-foreground uppercase tracking-wider font-bold shadow-sm">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3 sm:mb-5">
+            <span className="bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-2.5 sm:px-3.5 py-0.5 sm:py-1 text-[11px] sm:text-sm text-foreground uppercase tracking-wider font-bold shadow-sm">
               {currentMovie.type === 'tv' ? 'Series' : 'Movie'}
             </span>
-            <div className="flex items-center gap-1.5 text-base sm:text-lg text-foreground font-bold drop-shadow-md">
+            <div className="flex items-center gap-1 text-sm sm:text-lg text-foreground font-bold drop-shadow-md">
               <span className="text-brand">★</span>
               <span>{currentMovie.rating.toFixed(1)}</span>
-              <span className="text-muted-foreground text-xs sm:text-sm font-normal">/ 10</span>
+              <span className="text-muted-foreground text-[10px] sm:text-sm font-normal">/ 10</span>
             </div>
-            <span className="text-foreground/90 text-base sm:text-lg font-semibold">{currentMovie.year}</span>
+            <span className="text-foreground/90 text-sm sm:text-lg font-semibold">{currentMovie.year}</span>
             {currentMovie.genres && currentMovie.genres.length > 0 && (
-              <div className="flex flex-wrap items-center gap-2">
-                {currentMovie.genres.slice(0, 3).map((genre: string) => (
-                  <span key={genre} className="bg-white/10 backdrop-blur-sm border border-white/5 rounded-full px-3 py-1 text-xs sm:text-sm text-foreground/80 font-medium">{genre}</span>
+              <div className="hidden xs:flex flex-wrap items-center gap-1.5 sm:gap-2">
+                {currentMovie.genres.slice(0, 2).map((genre: string) => (
+                  <span key={genre} className="bg-white/10 backdrop-blur-sm border border-white/5 rounded-full px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-sm text-foreground/80 font-medium">{genre}</span>
                 ))}
               </div>
             )}
           </div>
 
           {/* Hero Title */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-display font-black text-foreground mb-5 leading-[1.08] tracking-tight drop-shadow-2xl">
+          <h1 className="text-2xl sm:text-6xl lg:text-7xl font-display font-black text-foreground mb-3 sm:mb-5 leading-[1.08] tracking-tight drop-shadow-2xl line-clamp-2">
             {currentMovie.title}
           </h1>
 
           {/* Description */}
-          <p className="text-base sm:text-xl lg:text-2xl text-foreground/90 mb-8 line-clamp-3 max-w-2xl font-normal leading-relaxed drop-shadow-lg">
+          <p className="text-xs sm:text-xl lg:text-2xl text-foreground/90 mb-5 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-2xl font-normal leading-relaxed drop-shadow-lg">
             {currentMovie.tagline || currentMovie.description}
           </p>
 
           {/* Actions */}
-          <div className="flex flex-wrap items-center gap-3.5 sm:gap-4">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
             <button 
               onClick={() => onMovieSelect(currentMovie.id, currentMovie.type)}
-              className="flex items-center gap-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-7 h-12 sm:h-14 text-base sm:text-lg font-bold transition-all duration-300 hover:scale-105 shadow-xl cursor-pointer"
+              className="flex items-center gap-2 sm:gap-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 sm:px-7 h-10 sm:h-14 text-xs sm:text-lg font-bold transition-all duration-300 hover:scale-105 shadow-xl cursor-pointer"
             >
-              <Play className="w-5 h-5 sm:w-6 sm:h-6 fill-current" />
+              <Play className="w-4 h-4 sm:w-6 sm:h-6 fill-current" />
               View Details
             </button>
             <button 
               onClick={handleWatchlistToggle}
-              className="flex items-center gap-2.5 glass border border-white/15 text-foreground hover:bg-white/20 rounded-full px-6 h-12 sm:h-14 text-base sm:text-lg font-semibold transition-all duration-300 relative overflow-hidden group shadow-lg cursor-pointer"
+              className="flex items-center gap-2 glass border border-white/15 text-foreground hover:bg-white/20 rounded-full px-4 sm:px-6 h-10 sm:h-14 text-xs sm:text-lg font-semibold transition-all duration-300 relative overflow-hidden group shadow-lg cursor-pointer"
             >
-              {inWatchlist ? <Check className="w-5 h-5 sm:w-6 sm:h-6 text-brand" /> : <Plus className="w-5 h-5 sm:w-6 sm:h-6" />}
+              {inWatchlist ? <Check className="w-4 h-4 sm:w-6 sm:h-6 text-brand" /> : <Plus className="w-4 h-4 sm:w-6 sm:h-6" />}
               {inWatchlist ? 'In Watchlist' : 'My List'}
             </button>
             <button
               onClick={() => onMovieSelect(currentMovie.id, currentMovie.type)}
-              className="w-12 h-12 sm:w-14 sm:h-14 rounded-full glass flex items-center justify-center border border-white/15 hover:bg-white/20 transition-all text-foreground shadow-lg cursor-pointer hover:scale-105"
+              className="w-10 h-10 sm:w-14 sm:h-14 rounded-full glass flex items-center justify-center border border-white/15 hover:bg-white/20 transition-all text-foreground shadow-lg cursor-pointer hover:scale-105"
               aria-label="More Info"
             >
-              <Info className="w-5 h-5 sm:w-6 sm:h-6" />
+              <Info className="w-4 h-4 sm:w-6 sm:h-6" />
             </button>
           </div>
         </motion.div>
