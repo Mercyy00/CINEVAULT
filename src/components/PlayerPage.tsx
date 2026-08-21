@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ChevronDown, Signal, ArrowLeft, Play, Download, Globe, Languages } from 'lucide-react';
+import { Menu, X, ChevronDown, Signal, ArrowLeft, Play, Globe, Languages } from 'lucide-react';
 import { ServerOption, Movie } from '../types';
 import { api } from '../api';
 import { cn } from '../lib/utils';
@@ -494,22 +494,6 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
                 <span>{selectedServer.name}</span>
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">{selectedServer.quality}</span>
               </button>
-
-              {/* Direct Download Endpoint Button */}
-              <a
-                href={type === 'movie' 
-                  ? `https://cinesrc.st/dl/movie/${id}` 
-                  : `https://cinesrc.st/dl/tv/${id}/${selectedSeason}/${selectedEpisode?.episode_number || 1}`
-                }
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="h-12 px-4 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-xs font-bold text-foreground backdrop-blur-md transition-all hover:scale-105 flex items-center gap-2 cursor-pointer shadow-lg"
-                title="Direct Media Download"
-              >
-                <Download className="w-4 h-4 text-brand" />
-                <span className="hidden sm:inline">Download</span>
-              </a>
             </div>
           </motion.div>
         )}
