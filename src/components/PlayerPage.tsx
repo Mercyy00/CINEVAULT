@@ -12,6 +12,26 @@ const Hls = (window as any).Hls;
 
 const SERVERS: ServerOption[] = [
   { 
+    id: '16', 
+    name: 'ScreenScape Hindi (Ad-Free)', 
+    quality: '4K' as const, 
+    latency: 8, 
+    status: 'working' as const, 
+    url: (id: string | number, s?: number, e?: number) => s && e 
+      ? `https://screenscape.me/embed?tmdb=${id}&type=tv&s=${s}&e=${e}&lan=hindi` 
+      : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=hindi` 
+  },
+  { 
+    id: '17', 
+    name: 'ScreenScape English (Ad-Free)', 
+    quality: '4K' as const, 
+    latency: 9, 
+    status: 'working' as const, 
+    url: (id: string | number, s?: number, e?: number) => s && e 
+      ? `https://screenscape.me/embed?tmdb=${id}&type=tv&s=${s}&e=${e}&lan=eng` 
+      : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=eng` 
+  },
+  { 
     id: '13', 
     name: 'MbPly Hindi Stream', 
     quality: '4K' as const, 
@@ -188,42 +208,64 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
     return () => clearInterval(interval);
   }, [movie, type, selectedSeason, selectedEpisode, updateContinueWatching]);
 
-    // Peachify message listener
+    // Player message listener (ScreenScape & Peachify)
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://peachify.pro') return;
-      
       const payload = event.data;
       if (!payload) return;
 
-      if (payload.type === 'MEDIA_DATA' && movie) {
-        const { watched, duration } = payload;
-        const tmdbId = payload.tmdbId || payload.id;
-        
-        if (tmdbId && tmdbId.toString() !== id.toString()) return;
-        
-        if (watched !== undefined && duration) {
-           const progress = (watched / duration) * 100;
-           updateContinueWatching({
-               id: movie.id,
-               media_type: type as 'movie' | 'tv',
-               title: movie.title,
-               poster_path: movie.posterUrl,
-               backdrop_path: movie.backdropUrl,
-               season_number: selectedSeason,
-               episode_number: selectedEpisode?.episode_number,
-               progress_percentage: Math.min(100, progress),
-               timestamp: Date.now(),
-               time: Date.now()
-           });
+      // 1. ScreenScape Message Handler
+      if (event.origin === 'https://screenscape.me' && movie) {
+        if (payload.type === 'SCREENSCAPE_WATCH_HISTORY_WITH_PROGRESS_RESPONSE' || payload.type === 'SCREENSCAPE_PROGRESS_UPDATE') {
+          const progress = payload.progress ?? payload.percentage ?? (payload.watched && payload.duration ? (payload.watched / payload.duration) * 100 : undefined);
+          if (progress !== undefined) {
+            updateContinueWatching({
+              id: movie.id,
+              media_type: type as 'movie' | 'tv',
+              title: movie.title,
+              poster_path: movie.posterUrl,
+              backdrop_path: movie.backdropUrl,
+              season_number: selectedSeason,
+              episode_number: selectedEpisode?.episode_number,
+              progress_percentage: Math.min(100, Math.max(0, progress)),
+              timestamp: Date.now(),
+              time: Date.now()
+            });
+          }
         }
       }
-      
-      if (payload.type === 'PLAYER_EVENT') {
-        const eventName = payload.data?.event || payload.event;
-        if (eventName === 'ended' && type === 'tv' && userProfile.autoPlayNext) {
-          setShowNextEpisode(true);
-          setNextCountdown(5);
+
+      // 2. Peachify Message Handler
+      if (event.origin === 'https://peachify.pro' && movie) {
+        if (payload.type === 'MEDIA_DATA') {
+          const { watched, duration } = payload;
+          const tmdbId = payload.tmdbId || payload.id;
+          
+          if (tmdbId && tmdbId.toString() !== id.toString()) return;
+          
+          if (watched !== undefined && duration) {
+             const progress = (watched / duration) * 100;
+             updateContinueWatching({
+                 id: movie.id,
+                 media_type: type as 'movie' | 'tv',
+                 title: movie.title,
+                 poster_path: movie.posterUrl,
+                 backdrop_path: movie.backdropUrl,
+                 season_number: selectedSeason,
+                 episode_number: selectedEpisode?.episode_number,
+                 progress_percentage: Math.min(100, progress),
+                 timestamp: Date.now(),
+                 time: Date.now()
+             });
+          }
+        }
+        
+        if (payload.type === 'PLAYER_EVENT') {
+          const eventName = payload.data?.event || payload.event;
+          if (eventName === 'ended' && type === 'tv' && userProfile.autoPlayNext) {
+            setShowNextEpisode(true);
+            setNextCountdown(5);
+          }
         }
       }
     };
@@ -460,12 +502,13 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
           <div id="artplayer-container" style={{ width: '100%', height: '100vh', background: '#000' }} className={cn("transition-opacity duration-500", isServerLoading ? "opacity-0" : "opacity-100")}></div>
         ) : (
           <iframe
+            id="screenscape-player"
             src={currentIframeSrc || undefined}
             className={cn("w-full h-full border-0 transition-opacity duration-500", isServerLoading ? "opacity-0" : "opacity-100")}
             allowFullScreen={true}
             webkitallowfullscreen="true"
             mozallowfullscreen="true"
-            allow="autoplay; fullscreen"
+            allow="autoplay; fullscreen; picture-in-picture"
           />
         )}
 
