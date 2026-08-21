@@ -1,0 +1,6 @@
+{
+  "name": "CineVault",
+  "description": "Premium streaming platform for movies, TV shows, and anime",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
