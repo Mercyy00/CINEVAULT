@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Play, Plus, Check, Star, Users, Clock, Calendar, Signal, ArrowLeft, ChevronDown, Film , Share2} from 'lucide-react';
+import { X, Play, Plus, Check, Star, Users, Clock, Calendar, Signal, ArrowLeft, ChevronDown, Film, Share2, Download } from 'lucide-react';
 import { Movie } from '../types';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
@@ -354,10 +354,20 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
 
               <button 
                 onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15"
+                className="flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 cursor-pointer"
               >
                 <Share2 className="w-5 h-5" /> Share
               </button>
+
+              <a 
+                href={type === 'movie' ? `https://cinesrc.st/dl/movie/${id}` : `https://cinesrc.st/dl/tv/${id}/1/1`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 cursor-pointer"
+                title="Direct Download"
+              >
+                <Download className="w-5 h-5 text-brand" /> Download
+              </a>
             </div>
 
 

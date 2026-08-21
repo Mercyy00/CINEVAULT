@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ChevronDown, Signal, ArrowLeft, Play } from 'lucide-react';
+import { Menu, X, ChevronDown, Signal, ArrowLeft, Play, Download, Globe, Languages } from 'lucide-react';
 import { ServerOption, Movie } from '../types';
 import { api } from '../api';
 import { cn } from '../lib/utils';
@@ -10,8 +10,37 @@ import { useApp } from '../store';
 const Artplayer = (window as any).Artplayer;
 const Hls = (window as any).Hls;
 
-
 const SERVERS: ServerOption[] = [
+  { 
+    id: '13', 
+    name: 'MbPly Hindi Stream', 
+    quality: '4K' as const, 
+    latency: 14, 
+    status: 'working' as const, 
+    url: (id: string | number, s?: number, e?: number) => s && e 
+      ? `https://cinesrc.st/embed/tv/${id}/${s}/${e}?server=MbPly-[Multi-Lang]&lang=hi&sub=hi&disable_app_ad=true` 
+      : `https://cinesrc.st/embed/movie/${id}?server=MbPly-[Multi-Lang]&lang=hi&sub=hi&disable_app_ad=true` 
+  },
+  { 
+    id: '14', 
+    name: 'CineSrc Hindi Dub', 
+    quality: 'HD' as const, 
+    latency: 18, 
+    status: 'working' as const, 
+    url: (id: string | number, s?: number, e?: number) => s && e 
+      ? `https://cinesrc.st/embed/tv/${id}/${s}/${e}?lang=hi&sub=hi&disable_app_ad=true` 
+      : `https://cinesrc.st/embed/movie/${id}?lang=hi&sub=hi&disable_app_ad=true` 
+  },
+  { 
+    id: '15', 
+    name: 'AutoEmbed Hindi', 
+    quality: '4K' as const, 
+    latency: 22, 
+    status: 'working' as const, 
+    url: (id: string | number, s?: number, e?: number) => s && e 
+      ? `https://autoembed.co/tv/tmdb/${id}/${s}/${e}?lang=hi&sub=hi` 
+      : `https://autoembed.co/movie/tmdb/${id}?lang=hi&sub=hi` 
+  },
   { id: '1', name: 'ZXC Stream', quality: 'HD' as const, latency: 12, status: 'working' as const, url: (id: string | number, s?: number, e?: number) => s && e ? `https://zxcstream.xyz/player/tv/${id}/${s}/${e}` : `https://zxcstream.xyz/player/movie/${id}` },
   { id: '2', name: 'Viduki Multi', quality: 'HD' as const, latency: 24, status: 'working' as const, url: (id: string | number, s?: number, e?: number) => s && e ? `https://viduki.net/1/tv/${id}/${s}/${e}?color=%23e50914` : `https://viduki.net/1/movie/${id}?color=%23e50914` },
   { id: '3', name: 'Viduki Multi-Lang', quality: 'HD' as const, latency: 28, status: 'working' as const, url: (id: string | number, s?: number, e?: number) => s && e ? `https://viduki.net/2/tv/${id}/${s}/${e}?color=%23e50914` : `https://viduki.net/2/movie/${id}?color=%23e50914` },
@@ -389,6 +418,37 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
                 )}
               </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              {/* Server selector trigger */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSidebarOpen(true);
+                }}
+                className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer"
+              >
+                <Signal className="w-3.5 h-3.5 text-brand" />
+                <span>{selectedServer.name}</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">{selectedServer.quality}</span>
+              </button>
+
+              {/* Direct Download Endpoint Button */}
+              <a
+                href={type === 'movie' 
+                  ? `https://cinesrc.st/dl/movie/${id}` 
+                  : `https://cinesrc.st/dl/tv/${id}/${selectedSeason}/${selectedEpisode?.episode_number || 1}`
+                }
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="h-12 px-4 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-xs font-bold text-foreground backdrop-blur-md transition-all hover:scale-105 flex items-center gap-2 cursor-pointer shadow-lg"
+                title="Direct Media Download"
+              >
+                <Download className="w-4 h-4 text-brand" />
+                <span className="hidden sm:inline">Download</span>
+              </a>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -607,9 +667,16 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
                             : "bg-white/5 border-white/10 text-foreground/80 hover:bg-white/10 hover:border-white/20"
                       )}
                     >
-                      <div className="flex flex-col gap-1">
-                        <span className="font-medium text-sm leading-none">{server.name}</span>
-                        <div className="flex items-center gap-2 text-xs">
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-medium text-sm leading-none">{server.name}</span>
+                          {(server.name.includes('Hindi') || server.name.includes('Multi-Lang')) && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/15 border border-orange-500/30 text-orange-400 font-bold flex items-center gap-1">
+                              <span>🇮🇳</span> Hindi Dub
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <div className="flex gap-0.5">
                             {[1,2,3].map(i => (
                               <div key={i} className={cn("w-1 h-2 rounded-full", 
@@ -618,10 +685,11 @@ export function PlayerPage({ type, id, season, episode }: { type: 'movie' | 'tv'
                               )} />
                             ))}
                           </div>
+                          <span>{server.latency}ms</span>
                         </div>
                       </div>
                       <span className={cn(
-                        "text-[10px] px-2 py-0.5 rounded font-bold uppercase",
+                        "text-[10px] px-2 py-0.5 rounded font-bold uppercase shrink-0",
                         server.quality === '4K' ? "bg-purple-500/20 text-purple-400" :
                         server.quality === 'HD' ? "bg-blue-500/20 text-blue-400" : "bg-gray-500/20 text-gray-400"
                       )}>{server.quality}</span>
