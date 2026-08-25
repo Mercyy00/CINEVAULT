@@ -10,7 +10,7 @@
  *   4. Every cache is bounded. An unbounded cache is a bug with a delay.
  */
 
-const VERSION = 'v3';
+const VERSION = 'v4';
 const SHELL_CACHE = `cv-shell-${VERSION}`;
 const ASSET_CACHE = `cv-assets-${VERSION}`;
 const IMAGE_CACHE = `cv-images-${VERSION}`;
