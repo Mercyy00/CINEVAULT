@@ -52,7 +52,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
               window.location.hash = `#detail/ani/${searchRes.data[0].id}`;
               return;
             }
-          } catch(e) {}
+          } catch (err) {
+            console.warn('Anime search fallback error:', err);
+          }
         }
         
         const internalMovie = api.mapToInternalMovie({ ...details, media_type: type });
@@ -67,7 +69,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
               photoUrl: api.getImageUrl(c.profile_path) ?? ''
             }));
           }
-        } catch (e) {}
+        } catch (err) {
+          console.warn('Credits load error:', err);
+        }
         
         setMovie(internalMovie);
 

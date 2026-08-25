@@ -18,19 +18,13 @@ import type { Actor, Episode, Movie, Quality } from './types';
  * - Requests are cached, de-duplicated, timed out and retried once on 5xx.
  */
 
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY ?? '';
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '2dca580c2a14b55200e784d157207b4d';
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 const MAX_CACHE_ENTRIES = 200;
-
-if (!TMDB_API_KEY && import.meta.env.DEV) {
-  console.warn(
-    'VITE_TMDB_API_KEY is not set. Copy .env.example to .env.local and add a key from themoviedb.org.'
-  );
-}
 
 export class ApiError extends Error {
   constructor(

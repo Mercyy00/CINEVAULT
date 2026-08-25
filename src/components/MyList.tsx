@@ -73,7 +73,6 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
             >
               <AnimatePresence>
                 {items.map((item, index) => (
-                  // @ts-ignore - React 19 type mismatch for key
                   <Draggable key={item.movieId} draggableId={item.movieId} index={index}>
                     {(provided, snapshot) => (
                       <div
