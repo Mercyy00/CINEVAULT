@@ -1,34 +1,69 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { WatchlistItem, WatchStatus, ContinueWatchingItem } from './types';
-import { authService, AuthUser } from './services/auth';
-import { syncService } from './services/sync';
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useDebouncedCallback } from 'use-debounce';
+import type { ContinueWatchingItem, Movie, WatchStatus, WatchlistItem } from './types';
+import { authService, type AuthUser } from './services/auth';
+import { continueWatchingKey, syncService } from './services/sync';
+import { watchTrackingService } from './services/watchTracking';
+import { isAppFontId, loadAppFont, type AppFontId } from './lib/fonts';
+import {
+  LIGHT_THEME_IDS,
+  StorageKeys,
+  clearAppData,
+  readJSON,
+  readString,
+  remove,
+  runStorageMigrations,
+  writeJSON,
+  writeString,
+} from './lib/storage';
 
-export type Theme = 
-  | 'cinematic-dark' 
-  | 'butter-green' 
-  | 'cherry-cola' 
-  | 'bistre-aureolin' 
-  | 'vibrant-lime' 
-  | 'imperial-violet' 
-  | 'midnight-ocean' 
-  | 'crimson-premiere' 
-  | 'neon-cyberpunk' 
-  | 'elegant-light' 
-  | 'clean-daylight'
-  | 'vanilla-cherry'
-  | 'nordic-frost'
-  | 'matcha-cream'
-  | 'sunset-rose';
+// Migrate legacy localStorage keys before any state initialiser reads them.
+runStorageMigrations();
 
-export type AppFont = 
-  | 'bricolage' 
-  | 'dinko' 
-  | 'inklab' 
-  | 'gunken' 
-  | 'odida' 
-  | 'melodrama' 
-  | 'talina' 
-  | 'grind';
+export const THEMES = [
+  'cinematic-dark',
+  'butter-green',
+  'cherry-cola',
+  'bistre-aureolin',
+  'vibrant-lime',
+  'imperial-violet',
+  'midnight-ocean',
+  'crimson-premiere',
+  'neon-cyberpunk',
+  'elegant-light',
+  'clean-daylight',
+  'vanilla-cherry',
+  'nordic-frost',
+  'matcha-cream',
+  'sunset-rose',
+] as const;
+
+export type Theme = (typeof THEMES)[number];
+export type AppFont = AppFontId;
+
+const DEFAULT_THEME: Theme = 'cinematic-dark';
+const DEFAULT_FONT: AppFont = 'bricolage';
+
+/** Cloud writes are batched: state changes in bursts, Firestore bills per write. */
+const CLOUD_SYNC_DEBOUNCE_MS = 2_500;
+const MAX_CONTINUE_WATCHING = 20;
+const MAX_TOASTS = 3;
+const TOAST_DURATION_MS = 3_000;
+/** Above this, a title counts as finished and leaves the continue row. */
+const COMPLETION_THRESHOLD = 95;
+
+function isTheme(value: unknown): value is Theme {
+  return typeof value === 'string' && (THEMES as readonly string[]).includes(value);
+}
 
 export interface UserProfile {
   uid?: string;
@@ -51,16 +86,20 @@ export interface Toast {
   message: string;
 }
 
+export type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
+
 interface AppContextType {
   watchlist: WatchlistItem[];
-  setWatchlist: React.Dispatch<React.SetStateAction<WatchlistItem[]>>;
-  addToWatchlist: (movie: any) => void;
+  addToWatchlist: (movie: Movie) => void;
   removeFromWatchlist: (movieId: string) => void;
   updateStatus: (movieId: string, status: WatchStatus) => void;
+  /** Replaces the whole list. Used by drag-reorder and by backup import, both
+   *  of which produce a full validated array rather than a single mutation. */
+  replaceWatchlist: (items: WatchlistItem[]) => void;
   isInWatchlist: (movieId: string) => boolean;
   clearWatchlist: () => void;
   toasts: Toast[];
-  showToast: (msg: string) => void;
+  showToast: (message: string) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
   appFont: AppFont;
@@ -68,20 +107,25 @@ interface AppContextType {
   userProfile: UserProfile;
   updateUserProfile: (updates: Partial<UserProfile>) => void;
   clearProfile: () => void;
+  resetAllLocalData: () => void;
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
-  deferredInstallPrompt: any;
-  setDeferredInstallPrompt: React.Dispatch<React.SetStateAction<any>>;
+  deferredInstallPrompt: BeforeInstallPromptEvent | null;
+  setDeferredInstallPrompt: React.Dispatch<React.SetStateAction<BeforeInstallPromptEvent | null>>;
   onboardingComplete: boolean;
-  setOnboardingComplete: (val: boolean) => void;
-  userPreferences: string[];
+  setOnboardingComplete: (value: boolean) => void;
+  userPreferences: UserPreference[];
+  setUserPreferences: (value: UserPreference[]) => void;
   ambientColor: string | null;
   setAmbientColor: (color: string | null) => void;
-  setUserPreferences: (val: string[]) => void;
-  
-  // Real Auth & Cloud Sync
-  login: (email: string, pass: string) => Promise<void>;
-  register: (name: string, email: string, pass: string) => Promise<void>;
+
+  /** 'loading' until Firebase resolves the session. Render a skeleton, not a
+   *  signed-out UI, while this is 'loading'. */
+  authStatus: AuthStatus;
+  /** Sourced from the `admin` custom claim on the ID token, never from email. */
+  isAdmin: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -92,70 +136,38 @@ interface AppContextType {
   setAuthModalMode: (mode: 'signin' | 'signup' | 'forgot') => void;
 }
 
+/**
+ * A homepage row derived from an onboarding answer.
+ *
+ * This was previously an array of JSON *strings* that App.tsx called
+ * `JSON.parse` on during render -- one malformed entry blanked the homepage.
+ * It is now parsed and validated once, here.
+ */
+export interface UserPreference {
+  label: string;
+  genres: string;
+  type?: 'movie' | 'tv';
+}
+
+/** The non-standard event fired by Chromium for PWA installs. */
+export interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-export function AppProvider({ children }: { children: ReactNode }) {
-  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(() => {
-    try {
-      const stored = localStorage.getItem('cv_watchlist');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+function createGuestUid(): string {
+  const existing = readString(StorageKeys.guestUid, '');
+  if (existing) return existing;
+  const generated = `guest_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+  writeString(StorageKeys.guestUid, generated);
+  return generated;
+}
 
-  const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>(() => {
-    try {
-      const stored = localStorage.getItem('cinevault_continue_watching');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-  
-  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-
-  const [onboardingComplete, setOnboardingCompleteState] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem('cinevault_onboarding_complete') === 'true';
-    } catch {
-      return false;
-    }
-  });
-
-  const [ambientColor, setAmbientColor] = useState<string | null>(null);
-  const [userPreferences, setUserPreferencesState] = useState<string[]>(() => {
-    try {
-      const stored = localStorage.getItem('user_preferences');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
-
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: any) => {
-      e.preventDefault();
-      setDeferredInstallPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const setOnboardingComplete = (val: boolean) => {
-    setOnboardingCompleteState(val);
-    localStorage.setItem('cinevault_onboarding_complete', String(val));
-  };
-
-  const setUserPreferences = (val: string[]) => {
-    setUserPreferencesState(val);
-    localStorage.setItem('user_preferences', JSON.stringify(val));
-  };
-  
-  const defaultProfile: UserProfile = {
+function buildDefaultProfile(uid: string): UserProfile {
+  return {
+    uid,
     name: 'Guest',
     email: '',
     avatar: 'default',
@@ -169,296 +181,510 @@ export function AppProvider({ children }: { children: ReactNode }) {
     autoPlayNext: true,
     reducedMotion: false,
   };
+}
+
+export function AppProvider({ children }: { children: ReactNode }) {
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>(() =>
+    readJSON<WatchlistItem[]>(StorageKeys.watchlist, [], Array.isArray)
+  );
+
+  const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>(() =>
+    readJSON<ContinueWatchingItem[]>(StorageKeys.continueWatching, [], Array.isArray)
+  );
+
+  const [deferredInstallPrompt, setDeferredInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+
+  const [onboardingComplete, setOnboardingCompleteState] = useState<boolean>(
+    () => readString(StorageKeys.onboardingComplete, 'false') === 'true'
+  );
+
+  const [ambientColor, setAmbientColor] = useState<string | null>(null);
+
+  const [userPreferences, setUserPreferencesState] = useState<UserPreference[]>(() =>
+    readJSON<UserPreference[]>(StorageKeys.userPreferences, [], (value) => Array.isArray(value))
+  );
+
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  /* The guest uid is generated once, in a ref, rather than by calling a
+   * localStorage-writing helper inside a `defaultProfile` object that was
+   * rebuilt on every render. Writing to storage during render is a side effect
+   * that React may run twice or discard under concurrent rendering. */
+  const guestUidRef = useRef<string>('');
+  if (!guestUidRef.current) guestUidRef.current = createGuestUid();
 
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    try {
-      const stored = localStorage.getItem('cinevault_user');
-      return stored ? { ...defaultProfile, ...JSON.parse(stored) } : defaultProfile;
-    } catch {
-      return defaultProfile;
-    }
+    const fallback = buildDefaultProfile(guestUidRef.current);
+    const stored = readJSON<Partial<UserProfile>>(
+      StorageKeys.profile,
+      {},
+      (value) => typeof value === 'object' && value !== null
+    );
+    return { ...fallback, ...stored, uid: stored.uid || fallback.uid };
   });
-  
+
   const [theme, setThemeState] = useState<Theme>(() => {
-    try {
-      return (localStorage.getItem('cv_theme') as Theme) || 'cinematic-dark';
-    } catch {
-      return 'cinematic-dark';
-    }
+    const stored = readString(StorageKeys.theme, DEFAULT_THEME);
+    return isTheme(stored) ? stored : DEFAULT_THEME;
   });
 
   const [appFont, setAppFontState] = useState<AppFont>(() => {
-    try {
-      return (localStorage.getItem('cv_font') as AppFont) || 'bricolage';
-    } catch {
-      return 'bricolage';
-    }
+    const stored = readString(StorageKeys.font, DEFAULT_FONT);
+    return isAppFontId(stored) ? stored : DEFAULT_FONT;
   });
-  
+
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback((msg: string) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts(prev => {
-      const next = [...prev, { id, message: msg }];
-      if (next.length > 3) {
-        return next.slice(next.length - 3);
-      }
-      return next;
-    });
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.id !== id));
-    }, 3000);
+  /* Timers are tracked so they can be cleared on unmount. The previous
+   * implementation left a dangling setTimeout per toast. */
+  const toastTimers = useRef<Set<number>>(new Set());
+  useEffect(
+    () => () => {
+      toastTimers.current.forEach((timer) => window.clearTimeout(timer));
+      toastTimers.current.clear();
+    },
+    []
+  );
+
+  const showToast = useCallback((message: string) => {
+    // crypto.randomUUID is collision-free; Math.random().toString(36) was not.
+    const id = crypto.randomUUID();
+    setToasts((previous) => [...previous, { id, message }].slice(-MAX_TOASTS));
+
+    const timer = window.setTimeout(() => {
+      setToasts((previous) => previous.filter((toast) => toast.id !== id));
+      toastTimers.current.delete(timer);
+    }, TOAST_DURATION_MS);
+    toastTimers.current.add(timer);
   }, []);
 
+  /* ---------------------------------------------------------------------- */
+  /* Local persistence                                                       */
+  /* ---------------------------------------------------------------------- */
+
   useEffect(() => {
-    localStorage.setItem('cv_watchlist', JSON.stringify(watchlist));
+    writeJSON(StorageKeys.watchlist, watchlist);
   }, [watchlist]);
 
   useEffect(() => {
-    localStorage.setItem('cinevault_continue_watching', JSON.stringify(continueWatching));
+    writeJSON(StorageKeys.continueWatching, continueWatching);
   }, [continueWatching]);
 
-  const LIGHT_THEMES: Theme[] = [
-    'elegant-light',
-    'clean-daylight',
-    'vanilla-cherry',
-    'nordic-frost',
-    'matcha-cream',
-    'sunset-rose'
-  ];
-
   useEffect(() => {
-    localStorage.setItem('cv_theme', theme);
-    document.documentElement.setAttribute('data-theme', theme);
-    if (LIGHT_THEMES.includes(theme)) {
-      document.documentElement.classList.remove('dark');
-      document.documentElement.classList.add('light');
-    } else {
-      document.documentElement.classList.remove('light');
-      document.documentElement.classList.add('dark');
-    }
+    const mode = LIGHT_THEME_IDS.has(theme) ? 'light' : 'dark';
+    writeString(StorageKeys.theme, theme);
+    // Persisted separately so the pre-paint script in index.html does not need
+    // its own duplicated copy of the light-theme list.
+    writeString(StorageKeys.themeMode, mode);
+
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    root.classList.remove('light', 'dark');
+    root.classList.add(mode);
+    root.style.colorScheme = mode;
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem('cv_font', appFont);
+    writeString(StorageKeys.font, appFont);
     document.documentElement.setAttribute('data-font', appFont);
+    // Fetches the stylesheet the first time a face is used, so visitors do not
+    // download all eight display families up front.
+    loadAppFont(appFont);
   }, [appFont]);
 
   useEffect(() => {
-    localStorage.setItem('cinevault_user', JSON.stringify(userProfile));
-    if (userProfile.reducedMotion) {
-      document.documentElement.classList.add('reduced-motion');
-    } else {
-      document.documentElement.classList.remove('reduced-motion');
-    }
-    if (userProfile.filmGrain === false) {
-      document.documentElement.classList.add('no-film-grain');
-    } else {
-      document.documentElement.classList.remove('no-film-grain');
-    }
+    writeJSON(StorageKeys.profile, userProfile);
+    const root = document.documentElement;
+    root.classList.toggle('reduced-motion', Boolean(userProfile.reducedMotion));
+    root.classList.toggle('no-film-grain', userProfile.filmGrain === false);
   }, [userProfile]);
 
-  // Sync to Cloud automatically when logged in
-  const syncToCloud = useCallback(async (
-    uid: string, 
-    wList: WatchlistItem[], 
-    cWatch: ContinueWatchingItem[], 
-    prof: UserProfile, 
-    th: Theme, 
-    font: AppFont
-  ) => {
-    if (!uid) return;
+  useEffect(() => {
+    const handler = (event: Event) => {
+      event.preventDefault();
+      setDeferredInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* Cloud sync                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  /* Latest values in refs so the debounced sync and the auth listener can read
+   * current state without being re-created on every change. */
+  const latest = useRef({ watchlist, continueWatching, userProfile, theme, appFont });
+  useEffect(() => {
+    latest.current = { watchlist, continueWatching, userProfile, theme, appFont };
+  }, [watchlist, continueWatching, userProfile, theme, appFont]);
+
+  const pushToCloud = useCallback(async () => {
+    const { userProfile: profile, ...rest } = latest.current;
+    if (!profile.isLoggedIn || !profile.uid) return;
     try {
-      await syncService.saveUserData(uid, {
-        watchlist: wList,
-        continueWatching: cWatch,
-        profile: prof,
-        theme: th,
-        appFont: font,
+      await syncService.saveUserData(profile.uid, {
+        watchlist: rest.watchlist,
+        continueWatching: rest.continueWatching,
+        profile,
+        theme: rest.theme,
+        appFont: rest.appFont,
       });
-    } catch (err) {
-      console.warn('Auto cloud sync failed:', err);
+    } catch {
+      // saveUserData already logs. Sync is best-effort; local state is intact.
     }
   }, []);
 
-  useEffect(() => {
-    if (userProfile.isLoggedIn && userProfile.uid) {
-      syncToCloud(userProfile.uid, watchlist, continueWatching, userProfile, theme, appFont);
-    }
-  }, [watchlist, continueWatching, userProfile, theme, appFont, syncToCloud]);
+  /* Debounced because the previous effect fired a full-document Firestore write
+   * on every single state change -- toggling the theme five times meant five
+   * whole-document writes. */
+  const debouncedPush = useDebouncedCallback(pushToCloud, CLOUD_SYNC_DEBOUNCE_MS, {
+    maxWait: 15_000,
+  });
 
-  // Handle post-login data hydration and merging
-  const handleAuthUserSync = useCallback(async (authUser: AuthUser) => {
+  /* A cheap signature of the syncable state. Depending on the objects directly
+   * re-ran the effect whenever an unrelated re-render produced a new identity. */
+  const syncSignature = useMemo(
+    () =>
+      JSON.stringify([
+        watchlist.map((item) => `${item.movieId}:${item.status}`),
+        continueWatching.map((item) => `${continueWatchingKey(item)}:${item.progress_percentage}`),
+        theme,
+        appFont,
+        userProfile.isLoggedIn,
+        userProfile.uid,
+      ]),
+    [watchlist, continueWatching, theme, appFont, userProfile.isLoggedIn, userProfile.uid]
+  );
+
+  useEffect(() => {
+    if (!userProfile.isLoggedIn || !userProfile.uid) return;
+    debouncedPush();
+  }, [syncSignature, userProfile.isLoggedIn, userProfile.uid, debouncedPush]);
+
+  // Flush any pending write when the tab is hidden or closed.
+  useEffect(() => {
+    const flush = () => {
+      if (debouncedPush.isPending()) debouncedPush.flush();
+    };
+    document.addEventListener('visibilitychange', flush);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', flush);
+      window.removeEventListener('pagehide', flush);
+      flush();
+    };
+  }, [debouncedPush]);
+
+  const hydrateFromCloud = useCallback(async (authUser: AuthUser) => {
+    const { watchlist: localList, continueWatching: localContinue } = latest.current;
     try {
-      const cloudData = await syncService.loadUserData(authUser.uid);
+      const cloud = await syncService.loadUserData(authUser.uid);
       const merged = syncService.mergeData(
-        watchlist, 
-        cloudData?.watchlist || [], 
-        continueWatching, 
-        cloudData?.continueWatching || []
+        localList,
+        cloud?.watchlist ?? [],
+        localContinue,
+        cloud?.continueWatching ?? []
       );
 
       setWatchlist(merged.watchlist);
       setContinueWatching(merged.continueWatching);
+      if (cloud?.theme && isTheme(cloud.theme)) setThemeState(cloud.theme);
+      if (cloud?.appFont && isAppFontId(cloud.appFont)) setAppFontState(cloud.appFont);
 
-      if (cloudData?.theme) setThemeState(cloudData.theme);
-      if (cloudData?.appFont) setAppFontState(cloudData.appFont);
-
-      setUserProfile(prev => ({
-        ...prev,
-        ...cloudData?.profile,
+      setUserProfile((previous) => ({
+        ...previous,
+        ...cloud?.profile,
         uid: authUser.uid,
-        name: authUser.displayName || prev.name || authUser.email?.split('@')[0] || 'User',
-        email: authUser.email || prev.email || '',
-        avatar: authUser.photoURL || prev.avatar || 'default',
+        name:
+          authUser.displayName || cloud?.profile?.name || authUser.email?.split('@')[0] || 'User',
+        email: authUser.email ?? previous.email ?? '',
+        avatar: authUser.photoURL ?? previous.avatar ?? 'default',
         isLoggedIn: true,
       }));
 
-      // Immediately save back the merged state to ensure cloud is up to date
-      await syncService.saveUserData(authUser.uid, {
-        watchlist: merged.watchlist,
-        continueWatching: merged.continueWatching,
-        profile: {
-          name: authUser.displayName || userProfile.name,
-          email: authUser.email || userProfile.email,
-        },
-        theme: cloudData?.theme || theme,
-        appFont: cloudData?.appFont || appFont,
+      /* recordUser no longer sends a role. Admin is a server-minted custom
+       * claim; letting the client write `role: 'admin'` to its own document was
+       * a privilege-escalation hole. */
+      await watchTrackingService.recordUser({
+        uid: authUser.uid,
+        displayName: authUser.displayName,
+        photoURL: authUser.photoURL,
       });
-    } catch (err) {
-      console.error('Error hydrating user cloud data:', err);
+    } catch (error) {
+      console.error('Could not load cloud data:', error);
     }
-  }, [watchlist, continueWatching, theme, appFont, userProfile.name, userProfile.email]);
-
-  // Listen to auth state
-  useEffect(() => {
-    const unsub = authService.onAuthStateChanged((authUser) => {
-      if (authUser) {
-        setUserProfile(prev => ({
-          ...prev,
-          uid: authUser.uid,
-          name: authUser.displayName || prev.name,
-          email: authUser.email || prev.email,
-          avatar: authUser.photoURL || prev.avatar,
-          isLoggedIn: true,
-        }));
-      }
-    });
-    return () => unsub();
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    const authUser = await authService.login(email, pass);
-    await handleAuthUserSync(authUser);
-  };
+  useEffect(() => {
+    const unsubscribe = authService.onAuthStateChanged((authUser) => {
+      if (!authUser) {
+        setAuthStatus('signed-out');
+        setIsAdmin(false);
+        setUserProfile((previous) => ({
+          ...previous,
+          uid: guestUidRef.current,
+          isLoggedIn: false,
+        }));
+        return;
+      }
 
-  const register = async (name: string, email: string, pass: string) => {
-    const authUser = await authService.register(name, email, pass);
-    await handleAuthUserSync(authUser);
-  };
+      setAuthStatus('signed-in');
+      setIsAdmin(authUser.isAdmin);
+      setUserProfile((previous) => ({
+        ...previous,
+        uid: authUser.uid,
+        name: authUser.displayName || authUser.email?.split('@')[0] || 'User',
+        email: authUser.email ?? previous.email,
+        avatar: authUser.photoURL ?? previous.avatar,
+        isLoggedIn: true,
+      }));
 
-  const loginWithGoogle = async () => {
-    const authUser = await authService.loginWithGoogle();
-    await handleAuthUserSync(authUser);
-  };
+      void hydrateFromCloud(authUser);
+    });
 
-  const logout = async () => {
+    return unsubscribe;
+  }, [hydrateFromCloud]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Actions                                                                 */
+  /* ---------------------------------------------------------------------- */
+
+  const login = useCallback(async (email: string, password: string) => {
+    await authService.login(email, password);
+    // The auth listener performs hydration; doing it here too double-synced.
+  }, []);
+
+  const register = useCallback(async (name: string, email: string, password: string) => {
+    await authService.register(name, email, password);
+  }, []);
+
+  const loginWithGoogle = useCallback(async () => {
+    await authService.loginWithGoogle();
+  }, []);
+
+  const logout = useCallback(async () => {
+    // Flush pending changes before the session goes away.
+    if (debouncedPush.isPending()) await debouncedPush.flush();
     await authService.logout();
-    setUserProfile(defaultProfile);
-    showToast('Signed out successfully');
-  };
+    setUserProfile(buildDefaultProfile(guestUidRef.current));
+    setIsAdmin(false);
+    showToast('Signed out');
+  }, [debouncedPush, showToast]);
 
-  const resetPassword = async (email: string) => {
+  const resetPassword = useCallback(async (email: string) => {
     await authService.resetPassword(email);
-  };
+  }, []);
 
-  const syncNow = async () => {
-    if (!userProfile.isLoggedIn || !userProfile.uid) {
-      showToast('Please sign in to sync with the cloud');
+  const syncNow = useCallback(async () => {
+    const profile = latest.current.userProfile;
+    if (!profile.isLoggedIn || !profile.uid) {
+      showToast('Sign in to sync your library');
       return;
     }
-    await syncToCloud(userProfile.uid, watchlist, continueWatching, userProfile, theme, appFont);
-    showToast('Cloud sync complete');
-  };
+    debouncedPush.cancel();
+    await pushToCloud();
+    showToast('Library synced');
+  }, [debouncedPush, pushToCloud, showToast]);
 
-  const setAppFont = (font: AppFont) => {
-    setAppFontState(font);
-  };
+  const setTheme = useCallback((next: Theme) => setThemeState(next), []);
+  const setAppFont = useCallback((next: AppFont) => setAppFontState(next), []);
 
-  const setTheme = (newTheme: Theme) => {
-    setThemeState(newTheme);
-  };
+  const setOnboardingComplete = useCallback((value: boolean) => {
+    setOnboardingCompleteState(value);
+    writeString(StorageKeys.onboardingComplete, String(value));
+  }, []);
 
-  const addToWatchlist = (movie: any) => {
-    if (!watchlist.find(i => i.movieId === movie.id)) {
-      setWatchlist([...watchlist, { movieId: movie.id, movie, addedAt: Date.now(), status: 'Not Started' }]);
-      showToast('Added to Watchlist');
-    }
-  };
+  const setUserPreferences = useCallback((value: UserPreference[]) => {
+    setUserPreferencesState(value);
+    writeJSON(StorageKeys.userPreferences, value);
+  }, []);
 
-  const removeFromWatchlist = (movieId: string) => {
-    setWatchlist(watchlist.filter(i => i.movieId !== movieId));
-    showToast('Removed from Watchlist');
-  };
-
-  const updateStatus = (movieId: string, status: WatchStatus) => {
-    setWatchlist(watchlist.map(i => i.movieId === movieId ? { ...i, status } : i));
-  };
-
-  const isInWatchlist = (movieId: string) => {
-    return watchlist.some(i => i.movieId === movieId);
-  };
-
-  const clearWatchlist = () => {
-    setWatchlist([]); 
-    setContinueWatching([]);
-    showToast('Watchlist cleared');
-  };
-
-  const updateUserProfile = (updates: Partial<UserProfile>) => {
-    setUserProfile(prev => ({ ...prev, ...updates }));
-  };
-
-  const clearProfile = () => {
-    setUserProfile(defaultProfile);
-    localStorage.removeItem('cinevault_user');
-  };
-
-  const updateContinueWatching = (item: ContinueWatchingItem) => {
-    setContinueWatching(prev => {
-      if (item.progress_percentage > 95) {
-        return prev.filter(i => i.id !== item.id);
-      }
-      const existingIdx = prev.findIndex(i => i.id === item.id);
-      let next = [...prev];
-      if (existingIdx !== -1) {
-        next[existingIdx] = item;
-      } else {
-        next.unshift(item);
-      }
-      next.sort((a, b) => b.timestamp - a.timestamp);
-      return next.slice(0, 20); // Keep max 20 items
-    });
-  };
-
-  return (
-    <AppContext.Provider value={{
-      watchlist, setWatchlist, addToWatchlist, removeFromWatchlist, updateStatus, isInWatchlist, clearWatchlist, toasts, showToast, theme, setTheme,
-      appFont, setAppFont,
-      userProfile, updateUserProfile, clearProfile, continueWatching, updateContinueWatching, deferredInstallPrompt, setDeferredInstallPrompt, onboardingComplete, setOnboardingComplete, userPreferences, setUserPreferences, ambientColor, setAmbientColor,
-      login, register, loginWithGoogle, logout, resetPassword, syncNow,
-      authModalOpen, setAuthModalOpen, authModalMode, setAuthModalMode
-    }}>
-      {children}
-    </AppContext.Provider>
+  /* All watchlist mutations use the updater form. Reading `watchlist` from the
+   * enclosing scope meant two rapid updates lost one of them. */
+  const addToWatchlist = useCallback(
+    (movie: Movie) => {
+      let added = false;
+      setWatchlist((previous) => {
+        if (previous.some((item) => item.movieId === movie.id)) return previous;
+        added = true;
+        return [...previous, { movieId: movie.id, movie, addedAt: Date.now(), status: 'Not Started' }];
+      });
+      // Deferred so the toast is not queued during the state update.
+      queueMicrotask(() => showToast(added ? 'Added to your list' : 'Already in your list'));
+    },
+    [showToast]
   );
+
+  const removeFromWatchlist = useCallback(
+    (movieId: string) => {
+      setWatchlist((previous) => previous.filter((item) => item.movieId !== movieId));
+      showToast('Removed from your list');
+    },
+    [showToast]
+  );
+
+  const updateStatus = useCallback((movieId: string, status: WatchStatus) => {
+    setWatchlist((previous) =>
+      previous.map((item) => (item.movieId === movieId ? { ...item, status } : item))
+    );
+  }, []);
+
+  /**
+   * Replaces the entire list with a validated array. Backup files are
+   * user-supplied JSON, so entries missing a `movieId`/`movie` are dropped
+   * rather than trusted -- the old import path assigned `parsed.watchlist`
+   * straight into state.
+   */
+  const replaceWatchlist = useCallback((items: WatchlistItem[]) => {
+    if (!Array.isArray(items)) return;
+    setWatchlist(
+      items.filter(
+        (item): item is WatchlistItem =>
+          !!item && typeof item.movieId === 'string' && !!item.movie
+      )
+    );
+  }, []);
+
+  const clearWatchlist = useCallback(() => {
+    setWatchlist([]);
+    setContinueWatching([]);
+    showToast('List cleared');
+  }, [showToast]);
+
+  const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
+    setUserProfile((previous) => ({ ...previous, ...updates }));
+  }, []);
+
+  const clearProfile = useCallback(() => {
+    setUserProfile(buildDefaultProfile(guestUidRef.current));
+    remove(StorageKeys.profile);
+  }, []);
+
+  /** Removes only this app's keys, not every key on the origin. */
+  const resetAllLocalData = useCallback(() => {
+    clearAppData();
+    setWatchlist([]);
+    setContinueWatching([]);
+    setUserPreferencesState([]);
+    setOnboardingCompleteState(false);
+    setUserProfile(buildDefaultProfile(createGuestUid()));
+    setThemeState(DEFAULT_THEME);
+    setAppFontState(DEFAULT_FONT);
+  }, []);
+
+  const updateContinueWatching = useCallback((item: ContinueWatchingItem) => {
+    setContinueWatching((previous) => {
+      const key = continueWatchingKey(item);
+      // Same identity function as the cloud merge, so local and remote agree
+      // on what counts as "the same episode".
+      const withoutItem = previous.filter((entry) => continueWatchingKey(entry) !== key);
+      if (item.progress_percentage >= COMPLETION_THRESHOLD) return withoutItem;
+      return [item, ...withoutItem]
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .slice(0, MAX_CONTINUE_WATCHING);
+    });
+  }, []);
+
+  const isInWatchlist = useCallback(
+    (movieId: string) => watchlist.some((item) => item.movieId === movieId),
+    [watchlist]
+  );
+
+  /* Memoised: this was an inline object literal, so every consumer of the
+   * context re-rendered on any state change anywhere in the app. */
+  const value = useMemo<AppContextType>(
+    () => ({
+      watchlist,
+      addToWatchlist,
+      removeFromWatchlist,
+      updateStatus,
+      replaceWatchlist,
+      isInWatchlist,
+      clearWatchlist,
+      toasts,
+      showToast,
+      theme,
+      setTheme,
+      appFont,
+      setAppFont,
+      userProfile,
+      updateUserProfile,
+      clearProfile,
+      resetAllLocalData,
+      continueWatching,
+      updateContinueWatching,
+      deferredInstallPrompt,
+      setDeferredInstallPrompt,
+      onboardingComplete,
+      setOnboardingComplete,
+      userPreferences,
+      setUserPreferences,
+      ambientColor,
+      setAmbientColor,
+      authStatus,
+      isAdmin,
+      login,
+      register,
+      loginWithGoogle,
+      logout,
+      resetPassword,
+      syncNow,
+      authModalOpen,
+      setAuthModalOpen,
+      authModalMode,
+      setAuthModalMode,
+    }),
+    [
+      watchlist,
+      addToWatchlist,
+      removeFromWatchlist,
+      updateStatus,
+      replaceWatchlist,
+      isInWatchlist,
+      clearWatchlist,
+      toasts,
+      showToast,
+      theme,
+      setTheme,
+      appFont,
+      setAppFont,
+      userProfile,
+      updateUserProfile,
+      clearProfile,
+      resetAllLocalData,
+      continueWatching,
+      updateContinueWatching,
+      deferredInstallPrompt,
+      onboardingComplete,
+      setOnboardingComplete,
+      userPreferences,
+      setUserPreferences,
+      ambientColor,
+      authStatus,
+      isAdmin,
+      login,
+      register,
+      loginWithGoogle,
+      logout,
+      resetPassword,
+      syncNow,
+      authModalOpen,
+      authModalMode,
+    ]
+  );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-export const useApp = () => {
+export function useApp(): AppContextType {
   const context = useContext(AppContext);
   if (context === undefined) {
     throw new Error('useApp must be used within an AppProvider');
   }
   return context;
-};
+}

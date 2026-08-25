@@ -1,284 +1,480 @@
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '2dca580c2a14b55200e784d157207b4d';
-const BASE_URL = 'https://api.themoviedb.org/3';
+import type { Actor, Episode, Movie, Quality } from './types';
 
-import { Movie } from './types';
+/**
+ * TMDB / Kitsu access layer.
+ *
+ * What changed and why:
+ *
+ * - The API key no longer has a hardcoded fallback. The previous literal was
+ *   committed to git and published in .env.example, so it must be rotated.
+ * - Nothing is invented any more. The old `mapToInternalMovie` filled unknown
+ *   fields with confident-looking lies: `duration: '2h 10m'`,
+ *   `ageRating: 'PG-13'`, `genres: ['Action','Drama']`, a fake two-entry
+ *   `servers` array, and -- worst -- `rating: (vote_average || 8)`, which
+ *   displayed an unrated title as 8.0/10. Unknown values are now `null` or
+ *   empty so the UI can render "--" instead of a fabrication.
+ * - Missing posters no longer fall back to `picsum.photos`, which showed
+ *   unrelated stock photography as though it were cover art.
+ * - Requests are cached, de-duplicated, timed out and retried once on 5xx.
+ */
+
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY ?? '';
+const TMDB_BASE = 'https://api.themoviedb.org/3';
+const IMAGE_BASE = 'https://image.tmdb.org/t/p';
+
+const REQUEST_TIMEOUT_MS = 10_000;
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_CACHE_ENTRIES = 200;
+
+if (!TMDB_API_KEY && import.meta.env.DEV) {
+  console.warn(
+    'VITE_TMDB_API_KEY is not set. Copy .env.example to .env.local and add a key from themoviedb.org.'
+  );
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly endpoint: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+interface CacheEntry {
+  expires: number;
+  value: unknown;
+}
+
+const cache = new Map<string, CacheEntry>();
+/** In-flight requests, so N components asking for one URL make one request. */
+const inflight = new Map<string, Promise<unknown>>();
+
+function readCache<T>(key: string): T | undefined {
+  const entry = cache.get(key);
+  if (!entry) return undefined;
+  if (entry.expires < Date.now()) {
+    cache.delete(key);
+    return undefined;
+  }
+  // Refresh insertion order so the LRU eviction below is meaningful.
+  cache.delete(key);
+  cache.set(key, entry);
+  return entry.value as T;
+}
+
+function writeCache(key: string, value: unknown): void {
+  cache.set(key, { expires: Date.now() + CACHE_TTL_MS, value });
+  while (cache.size > MAX_CACHE_ENTRIES) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
+export function clearApiCache(): void {
+  cache.clear();
+}
+
+async function request<T>(url: string, init: RequestInit = {}, attempt = 0): Promise<T> {
+  const cacheKey = url;
+  const cached = readCache<T>(cacheKey);
+  if (cached !== undefined) return cached;
+
+  const pending = inflight.get(cacheKey);
+  if (pending) return pending as Promise<T>;
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  const promise = (async (): Promise<T> => {
+    try {
+      const response = await fetch(url, { ...init, signal: controller.signal });
+
+      if (!response.ok) {
+        // Retry once on server errors and rate limits; never on 4xx.
+        if ((response.status >= 500 || response.status === 429) && attempt < 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 600));
+          return request<T>(url, init, attempt + 1);
+        }
+        throw new ApiError(
+          response.status === 401
+            ? 'The API key was rejected. Check VITE_TMDB_API_KEY.'
+            : `Request failed with status ${response.status}.`,
+          response.status,
+          new URL(url).pathname
+        );
+      }
+
+      const data = (await response.json()) as T;
+      writeCache(cacheKey, data);
+      return data;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new ApiError('The request timed out.', 408, new URL(url).pathname);
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+      inflight.delete(cacheKey);
+    }
+  })();
+
+  inflight.set(cacheKey, promise);
+  return promise;
+}
+
+function tmdbUrl(path: string, params: Record<string, string | number | undefined> = {}): string {
+  const url = new URL(`${TMDB_BASE}${path}`);
+  url.searchParams.set('api_key', TMDB_API_KEY);
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return url.toString();
+}
+
+/* ------------------------------------------------------------------------ */
+/* Mapping helpers -- these never invent a value.                            */
+/* ------------------------------------------------------------------------ */
+
+interface TmdbGenre {
+  id: number;
+  name: string;
+}
+
+export interface TmdbSeason {
+  id: number;
+  season_number: number;
+  name?: string;
+  episode_count?: number;
+  poster_path?: string | null;
+  air_date?: string | null;
+}
+
+export interface TmdbEpisode {
+  id: number;
+  episode_number: number;
+  season_number?: number;
+  name?: string;
+  overview?: string;
+  still_path?: string | null;
+  runtime?: number | null;
+  air_date?: string | null;
+  vote_average?: number;
+}
+
+export interface TmdbItem {
+  id: number | string;
+  title?: string;
+  name?: string;
+  original_name?: string;
+  original_title?: string;
+  original_language?: string;
+  tagline?: string;
+  overview?: string;
+  media_type?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  vote_average?: number;
+  vote_count?: number;
+  runtime?: number;
+  episode_run_time?: number[];
+  status?: string;
+  number_of_seasons?: number;
+  number_of_episodes?: number;
+  seasons?: TmdbSeason[];
+  genres?: TmdbGenre[];
+  genre_ids?: number[];
+  imdb_id?: string;
+  external_ids?: { imdb_id?: string | null };
+  release_dates?: { results?: Array<{ iso_3166_1: string; release_dates?: Array<{ certification?: string }> }> };
+  content_ratings?: { results?: Array<{ iso_3166_1: string; rating?: string }> };
+}
+
+/** Formats a runtime in minutes as "2h 10m". Returns null when unknown. */
+function formatRuntime(minutes: number | undefined): string | null {
+  if (!minutes || minutes <= 0) return null;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  if (hours === 0) return `${rest}m`;
+  if (rest === 0) return `${hours}h`;
+  return `${hours}h ${rest}m`;
+}
+
+/** Pulls the real certification from TMDB. Returns null when not published. */
+function extractCertification(item: TmdbItem): string | null {
+  const movieEntry = item.release_dates?.results?.find((entry) => entry.iso_3166_1 === 'US');
+  const movieCert = movieEntry?.release_dates?.find((entry) => entry.certification)?.certification;
+  if (movieCert) return movieCert;
+
+  const tvCert = item.content_ratings?.results?.find((entry) => entry.iso_3166_1 === 'US')?.rating;
+  return tvCert || null;
+}
 
 export const api = {
-  getImageUrl: (path: string | null, size = 'w500') => 
-    path ? `https://image.tmdb.org/t/p/${size}${path}` : 'https://picsum.photos/400/600',
-
-  getTrending: async (mediaType = 'all', timeWindow = 'day', page = 1) => {
-    const res = await fetch(`${BASE_URL}/trending/${mediaType}/${timeWindow}?api_key=${TMDB_API_KEY}&page=${page}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
+  /**
+   * Builds a TMDB image URL. Returns null when there is no artwork, so callers
+   * can render a real placeholder rather than an unrelated stock photograph.
+   */
+  getImageUrl(path: string | null | undefined, size = 'w500'): string | null {
+    return path ? `${IMAGE_BASE}/${size}${path}` : null;
   },
 
-  getPopular: async (mediaType = 'movie', page = 1) => {
-    const res = await fetch(`${BASE_URL}/${mediaType}/popular?api_key=${TMDB_API_KEY}&page=${page}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
+  getTrending: (mediaType = 'all', timeWindow = 'day', page = 1) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/trending/${mediaType}/${timeWindow}`, { page })
+    ),
 
-  getTopRated: async (mediaType = 'movie', page = 1) => {
-    const res = await fetch(`${BASE_URL}/${mediaType}/top_rated?api_key=${TMDB_API_KEY}&page=${page}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
+  getPopular: (mediaType = 'movie', page = 1) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/${mediaType}/popular`, { page })
+    ),
 
-  discover: async (mediaType = 'movie', params: Record<string, string | number> = {}) => {
-    const url = new URL(`${BASE_URL}/discover/${mediaType}`);
-    url.searchParams.append('api_key', TMDB_API_KEY);
-    Object.entries(params).forEach(([k, v]) => {
-      if (v !== undefined && v !== null && v !== '') url.searchParams.append(k, v.toString());
-    });
-    const res = await fetch(url.toString());
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
+  getTopRated: (mediaType = 'movie', page = 1) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/${mediaType}/top_rated`, { page })
+    ),
 
-  getWatchProviders: async (mediaType = 'movie', region = 'US') => {
-    const res = await fetch(`${BASE_URL}/watch/providers/${mediaType}?api_key=${TMDB_API_KEY}&watch_region=${region}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
+  discover: (mediaType = 'movie', params: Record<string, string | number> = {}) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/discover/${mediaType}`, params)
+    ),
+
+  getWatchProviders: (mediaType = 'movie', region = 'US') =>
+    request<unknown>(tmdbUrl(`/watch/providers/${mediaType}`, { watch_region: region })),
 
   searchMulti: async (query: string) => {
-    if (!query) return { results: [] };
-    const res = await fetch(`${BASE_URL}/search/multi?query=${encodeURIComponent(query)}&api_key=${TMDB_API_KEY}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
+    if (!query.trim()) return { results: [] as TmdbItem[], total_pages: 0 };
+    return request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl('/search/multi', { query: query.trim() })
+    );
   },
 
-  getDetails: async (mediaType: string, id: string) => {
-    const res = await fetch(`${BASE_URL}/${mediaType}/${id}?api_key=${TMDB_API_KEY}&append_to_response=external_ids`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
+  getDetails: (mediaType: string, id: string) =>
+    request<TmdbItem>(
+      tmdbUrl(`/${mediaType}/${id}`, {
+        append_to_response: 'external_ids,release_dates,content_ratings',
+      })
+    ),
 
   getExternalIds: async (mediaType: string, id: string) => {
     try {
-      const res = await fetch(`${BASE_URL}/${mediaType}/${id}/external_ids?api_key=${TMDB_API_KEY}`);
-      if (!res.ok) return { imdb_id: null };
-      return res.json();
+      return await request<{ imdb_id: string | null }>(
+        tmdbUrl(`/${mediaType}/${id}/external_ids`)
+      );
     } catch {
       return { imdb_id: null };
     }
   },
 
-  getCredits: async (mediaType: string, id: string) => {
-    const res = await fetch(`${BASE_URL}/${mediaType}/${id}/credits?api_key=${TMDB_API_KEY}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
+  getCredits: (mediaType: string, id: string) =>
+    request<{ cast: Array<{ id: number; name: string; character?: string; profile_path?: string | null }> }>(
+      tmdbUrl(`/${mediaType}/${id}/credits`)
+    ),
+
+  getSimilar: (mediaType: string, id: string, page = 1) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/${mediaType}/${id}/similar`, { page })
+    ),
+
+  getAnimeCategory: (params: Record<string, string | number> = {}) =>
+    api.discover('tv', { with_genres: '16', with_original_language: 'ja', ...params }),
+
+  getSeasonDetails: (tvId: string, seasonNumber: number) =>
+    request<{ id?: number; name?: string; episodes?: TmdbEpisode[] }>(
+      tmdbUrl(`/tv/${tvId}/season/${seasonNumber}`)
+    ),
+
+  getEpisodeDetails: (tvId: string, seasonNumber: number, episodeNumber: number) =>
+    request<TmdbEpisode>(
+      tmdbUrl(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`)
+    ),
+
+  getGenres: (mediaType: 'movie' | 'tv' = 'movie') =>
+    request<{ genres: TmdbGenre[] }>(tmdbUrl(`/genre/${mediaType}/list`)),
+
+  mapCast(credits: { cast?: Array<{ id: number; name: string; character?: string; profile_path?: string | null }> }): Actor[] {
+    return (credits.cast ?? []).slice(0, 20).map((member) => ({
+      id: String(member.id),
+      name: member.name,
+      character: member.character ?? '',
+      photoUrl: api.getImageUrl(member.profile_path, 'w185') ?? '',
+    }));
   },
 
-  getSimilar: async (mediaType: string, id: string, page: number = 1) => {
-    const res = await fetch(`${BASE_URL}/${mediaType}/${id}/similar?api_key=${TMDB_API_KEY}&page=${page}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
+  /** Maps a TMDB payload to the internal Movie shape without inventing data. */
+  mapToInternalMovie(item: TmdbItem): Movie {
+    const releaseDate = item.release_date || item.first_air_date || '';
+    const parsedYear = Number.parseInt(releaseDate.slice(0, 4), 10);
+    const runtimeMinutes = item.runtime ?? item.episode_run_time?.[0];
 
-  getAnimeCategory: async (params: Record<string, string | number> = {}) => {
-    return api.discover('tv', {
-      with_genres: '16',
-      with_original_language: 'ja',
-      ...params
-    });
-  },
+    // TMDB reports 0 for unrated titles. Treating that as a real score, or
+    // defaulting it to 8, was actively misleading.
+    const hasRating = typeof item.vote_average === 'number' && item.vote_average > 0;
 
-  getSeasonDetails: async (tvId: string, seasonNumber: number) => {
-    const res = await fetch(`${BASE_URL}/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
-  
-  getEpisodeDetails: async (tvId: string, seasonNumber: number, episodeNumber: number) => {
-    const res = await fetch(`${BASE_URL}/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}?api_key=${TMDB_API_KEY}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
-
-  getGenres: async (mediaType: 'movie' | 'tv' = 'movie') => {
-    const res = await fetch(`${BASE_URL}/genre/${mediaType}/list?api_key=${TMDB_API_KEY}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    return res.json();
-  },
-  
-  // Maps TMDB result to our internal Movie type for smooth integration
-  mapToInternalMovie: (tmdbItem: any): Movie => {
     return {
-      id: tmdbItem.id.toString(),
-      title: tmdbItem.title || tmdbItem.name || 'Unknown',
-      type: tmdbItem.media_type === 'tv' || tmdbItem.first_air_date ? 'tv' : 'movie',
-      tagline: tmdbItem.overview ? tmdbItem.overview.split(' ').slice(0, 15).join(' ') + '...' : '',
-      description: tmdbItem.overview || 'No description available.',
-      year: parseInt((tmdbItem.release_date || tmdbItem.first_air_date || '2024').substring(0, 4)) || 2024,
-      duration: '2h 10m', // Placeholder
-      rating: Math.round((tmdbItem.vote_average || 8) * 10) / 10,
-      ageRating: 'PG-13',
-      genres: tmdbItem.genres ? tmdbItem.genres.map((g: any) => g.name) : ['Action', 'Drama'],
-      posterUrl: tmdbItem.poster_path ? api.getImageUrl(tmdbItem.poster_path) : '',
-      backdropUrl: tmdbItem.backdrop_path ? api.getImageUrl(tmdbItem.backdrop_path, 'original') : '',
-      servers: [
-        { id: 's1', name: 'Server Alpha', quality: '4K', latency: 12, status: 'working' },
-        { id: 's2', name: 'Server Beta', quality: 'HD', latency: 45, status: 'working' },
-      ],
-      cast: [],
-      reviews: [],
-      imdbId: tmdbItem.imdb_id || tmdbItem.external_ids?.imdb_id || ''
-    };
-  }
-};
-const ANIKOTO_BASE = 'https://anikotoapi.site';
-export const anikotoApi = {
-  getRecentAnime: async (page = 1, perPage = 20) => {
-    const cacheKey = `anikoto_recent_${page}_${perPage}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < 10 * 60 * 1000) return data;
-    }
-    const res = await fetch(`${ANIKOTO_BASE}/recent-anime?page=${page}&per_page=${perPage}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    const data = await res.json();
-    localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
-    return data;
-  },
-  getSeries: async (id: string) => {
-    const cacheKey = `anikoto_series_${id}`;
-    const cached = localStorage.getItem(cacheKey);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp < 30 * 60 * 1000) return data;
-    }
-    const res = await fetch(`${ANIKOTO_BASE}/series/${id}`);
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
-    const data = await res.json();
-    localStorage.setItem(cacheKey, JSON.stringify({ data, timestamp: Date.now() }));
-    return data;
-  },
-  mapToInternalMovie: (animeItem: any): Movie => {
-    const poster = animeItem.image || animeItem.poster || 'https://picsum.photos/400/600';
-    return {
-      id: animeItem.id?.toString() || Math.random().toString(),
-      title: animeItem.title || animeItem.name || 'Unknown Anime',
-      type: 'anime', // internal custom type indicator
-      tagline: '',
-      description: animeItem.synopsis || animeItem.description || 'No description available.',
-      year: animeItem.year || 2024,
-      duration: animeItem.episode_count ? `${animeItem.episode_count} Episodes` : (animeItem.episodes ? `${animeItem.episodes} Episodes` : 'Ongoing'),
-      rating: animeItem.score ? parseFloat(animeItem.score) : 0,
-      ageRating: animeItem.rating || 'PG-13',
-      genres: animeItem.terms_by_type?.genre || animeItem.genres || [],
-      posterUrl: poster,
-      backdropUrl: animeItem.background_image || poster,
+      id: String(item.id),
+      title: item.title || item.name || 'Untitled',
+      type: item.media_type === 'tv' || item.first_air_date ? 'tv' : 'movie',
+      tagline: item.tagline || '',
+      description: item.overview || '',
+      year: Number.isFinite(parsedYear) ? parsedYear : 0,
+      duration: formatRuntime(runtimeMinutes),
+      rating: hasRating ? Math.round(item.vote_average! * 10) / 10 : null,
+      voteCount: item.vote_count ?? 0,
+      ageRating: extractCertification(item),
+      genres: item.genres?.map((genre) => genre.name) ?? [],
+      posterUrl: api.getImageUrl(item.poster_path),
+      backdropUrl: api.getImageUrl(item.backdrop_path, 'original'),
+      runtime: runtimeMinutes,
+      status: item.status,
+      episodeCount: item.number_of_episodes,
+      // Playback sources are resolved by the player, not fabricated here.
       servers: [],
       cast: [],
-      reviews: []
+      reviews: [],
+      imdbId: item.imdb_id || item.external_ids?.imdb_id || '',
     };
-  }
+  },
 };
 
+/* ------------------------------------------------------------------------ */
+/* Kitsu                                                                     */
+/* ------------------------------------------------------------------------ */
 
 const KITSU_BASE = 'https://kitsu.io/api/edge';
 const KITSU_HEADERS = {
-  'Accept': 'application/vnd.api+json',
-  'Content-Type': 'application/vnd.api+json'
+  Accept: 'application/vnd.api+json',
+  'Content-Type': 'application/vnd.api+json',
 };
 
+interface KitsuResource {
+  id: string;
+  type: string;
+  attributes?: Record<string, any>;
+  relationships?: Record<string, { data?: Array<{ id: string }> }>;
+}
+
 export const kitsuApi = {
-  getTrending: async (page = 1) => {
-    const res = await fetch(`${KITSU_BASE}/anime?sort=popularityRank&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`, { headers: KITSU_HEADERS });
-    if (!res.ok) throw new Error(`Kitsu API Error: ${res.status}`);
-    return res.json();
+  getTrending: (page = 1) =>
+    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
+      `${KITSU_BASE}/anime?sort=popularityRank&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`,
+      { headers: KITSU_HEADERS }
+    ),
+
+  getByCategory: (slug: string, page = 1) =>
+    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
+      `${KITSU_BASE}/anime?filter[categories]=${encodeURIComponent(slug)}&sort=-averageRating&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`,
+      { headers: KITSU_HEADERS }
+    ),
+
+  search: (query: string) =>
+    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
+      `${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=10&include=categories,mappings`,
+      { headers: KITSU_HEADERS }
+    ),
+
+  getDetails: (id: string) =>
+    request<{ data: KitsuResource; included?: KitsuResource[] }>(
+      `${KITSU_BASE}/anime/${encodeURIComponent(id)}?include=categories,mappings`,
+      { headers: KITSU_HEADERS }
+    ),
+
+  /** Real episode records from Kitsu, replacing the synthesised placeholders. */
+  async getEpisodes(id: string, limit = 20, offset = 0): Promise<Episode[]> {
+    try {
+      const response = await request<{ data: KitsuResource[] }>(
+        `${KITSU_BASE}/anime/${encodeURIComponent(id)}/episodes?page[limit]=${limit}&page[offset]=${offset}&sort=number`,
+        { headers: KITSU_HEADERS }
+      );
+      return response.data.map((entry) => ({
+        id: entry.id,
+        season: entry.attributes?.seasonNumber ?? 1,
+        episode: entry.attributes?.number ?? 0,
+        title: entry.attributes?.canonicalTitle || `Episode ${entry.attributes?.number ?? ''}`.trim(),
+        duration: entry.attributes?.length ? `${entry.attributes.length}m` : null,
+        thumbnail: entry.attributes?.thumbnail?.original ?? null,
+        description: entry.attributes?.synopsis ?? '',
+      }));
+    } catch {
+      return [];
+    }
   },
-  getByCategory: async (slug: string, page = 1) => {
-    const res = await fetch(`${KITSU_BASE}/anime?filter[categories]=${slug}&sort=-averageRating&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`, { headers: KITSU_HEADERS });
-    if (!res.ok) throw new Error(`Kitsu API Error: ${res.status}`);
-    return res.json();
-  },
-  search: async (query: string) => {
-    const res = await fetch(`${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=10&include=categories,mappings`, { headers: KITSU_HEADERS });
-    if (!res.ok) throw new Error(`Kitsu API Error: ${res.status}`);
-    return res.json();
-  },
-  getDetails: async (id: string) => {
-    const res = await fetch(`${KITSU_BASE}/anime/${id}?include=categories,mappings,episodes`, { headers: KITSU_HEADERS });
-    if (!res.ok) throw new Error(`Kitsu API Error: ${res.status}`);
-    return res.json();
-  },
+
   getCharacters: async (id: string) => {
     try {
-      const res = await fetch(`${KITSU_BASE}/anime-characters?filter[animeId]=${id}&include=character&page[limit]=12`, { headers: KITSU_HEADERS });
-      if (!res.ok) return { data: [], included: [] };
-      return res.json();
+      return await request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
+        `${KITSU_BASE}/anime-characters?filter[animeId]=${encodeURIComponent(id)}&include=character&page[limit]=12`,
+        { headers: KITSU_HEADERS }
+      );
     } catch {
       return { data: [], included: [] };
     }
   },
-  mapKitsuToInternal: (item: any, included: any[] = []): Movie => {
+
+  mapKitsuToInternal(item: KitsuResource, included: KitsuResource[] = []): Movie {
     let genres: string[] = [];
     let malId = '';
-    
-    if (item.relationships?.categories?.data && included.length > 0) {
-      const categoryIds = item.relationships.categories.data.map((c: any) => c.id);
-      const categoryObjs = included.filter((i: any) => i.type === 'categories' && categoryIds.includes(i.id));
-      genres = categoryObjs.map((c: any) => c.attributes?.title).filter(Boolean);
+
+    const categoryIds = item.relationships?.categories?.data?.map((entry) => entry.id) ?? [];
+    if (categoryIds.length && included.length) {
+      genres = included
+        .filter((entry) => entry.type === 'categories' && categoryIds.includes(entry.id))
+        .map((entry) => entry.attributes?.title)
+        .filter((title): title is string => Boolean(title));
     }
 
-    if (item.relationships?.mappings?.data && included.length > 0) {
-      const mappingIds = item.relationships.mappings.data.map((m: any) => m.id);
-      const mappingObjs = included.filter((i: any) => i.type === 'mappings' && mappingIds.includes(i.id));
-      const malMapping = mappingObjs.find((m: any) => m.attributes?.externalSite === 'myanimelist/anime' || m.attributes?.externalSite === 'my-anime-list/anime');
-      if (malMapping && malMapping.attributes?.externalId) {
-        malId = malMapping.attributes.externalId;
-      }
+    const mappingIds = item.relationships?.mappings?.data?.map((entry) => entry.id) ?? [];
+    if (mappingIds.length && included.length) {
+      const mapping = included.find(
+        (entry) =>
+          entry.type === 'mappings' &&
+          mappingIds.includes(entry.id) &&
+          (entry.attributes?.externalSite === 'myanimelist/anime' ||
+            entry.attributes?.externalSite === 'my-anime-list/anime')
+      );
+      malId = mapping?.attributes?.externalId ?? '';
     }
 
-    const titles = item.attributes?.titles || {};
-    const japaneseTitle = titles.en_jp || titles.ja_jp || item.attributes?.abbreviatedTitles?.[0] || '';
+    const attributes = item.attributes ?? {};
+    const titles = attributes.titles ?? {};
+    const parsedYear = Number.parseInt(String(attributes.startDate ?? '').slice(0, 4), 10);
+
+    // Kitsu's averageRating is a 0-100 string. Absent means unrated, not 80.
+    const rawRating = Number.parseFloat(attributes.averageRating);
+    const rating = Number.isFinite(rawRating) ? Math.round(rawRating) / 10 : null;
 
     return {
-      id: item.id.toString(),
-      title: item.attributes?.canonicalTitle || titles.en || 'Unknown Anime',
+      id: item.id,
+      title: attributes.canonicalTitle || titles.en || titles.en_jp || 'Untitled',
       type: 'anime',
-      tagline: japaneseTitle ? `${japaneseTitle}` : '',
-      description: item.attributes?.synopsis || 'No description available.',
-      year: parseInt(item.attributes?.startDate?.substring(0, 4) || '2024') || 2024,
-      duration: item.attributes?.episodeCount ? `${item.attributes.episodeCount} Episodes` : 'Ongoing',
-      rating: parseFloat(((parseFloat(item.attributes?.averageRating || '80') / 10)).toFixed(1)) || 0,
-      ageRating: item.attributes?.ageRating || 'PG-13',
-      genres: genres.length > 0 ? genres : ['Anime'],
-      posterUrl: item.attributes?.posterImage?.large || 'https://picsum.photos/400/600',
-      backdropUrl: item.attributes?.coverImage?.large || item.attributes?.posterImage?.large || 'https://picsum.photos/1200/600',
+      tagline: titles.en_jp || titles.ja_jp || '',
+      description: attributes.synopsis || '',
+      year: Number.isFinite(parsedYear) ? parsedYear : 0,
+      duration: attributes.episodeCount ? `${attributes.episodeCount} episodes` : null,
+      rating,
+      voteCount: attributes.userCount ?? 0,
+      ageRating: attributes.ageRating || null,
+      genres,
+      posterUrl: attributes.posterImage?.large ?? null,
+      backdropUrl: attributes.coverImage?.large ?? attributes.posterImage?.large ?? null,
       servers: [],
       cast: [],
       reviews: [],
-      episodeCount: item.attributes?.episodeCount || 0,
-      status: item.attributes?.status || "finished",
-      episodes: (item.attributes?.episodeCount || 0) <= 100 ? Array.from({ length: item.attributes?.episodeCount || 0 }, (_, i) => ({
-        id: `ep-${i + 1}`,
-        season: 1,
-        episode: i + 1,
-        title: `Episode ${i + 1}`,
-        duration: '24m',
-        thumbnail: 'https://picsum.photos/300/150',
-        description: `Episode ${i + 1} of ${item.attributes?.canonicalTitle}`
-      })) : [],
-      malId: malId
+      episodeCount: attributes.episodeCount ?? 0,
+      status: attributes.status ?? 'finished',
+      // Episodes are fetched on demand via getEpisodes(). They used to be
+      // synthesised here as up to 100 fake objects with placeholder thumbnails.
+      episodes: [],
+      malId,
     };
   },
-  searchAnikotoByTitleFallback: async (title: string) => {
-    try {
-      const res = await fetch(`https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(title)}`);
-      if (res.ok) {
-         const data = await res.json();
-         if (data && data.results && data.results.length > 0) {
-           return data.results[0].id;
-         }
-      }
-    } catch (e) {
-      console.error("Anikoto fallback failed", e);
-    }
-    return null;
-  }
 };
+
+export type { Quality };

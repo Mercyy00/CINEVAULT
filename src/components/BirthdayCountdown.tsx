@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Heart, Gift, PartyPopper } from 'lucide-react';
 import { cn } from '../lib/utils';
@@ -258,53 +259,68 @@ export function BirthdayCountdown() {
         </AnimatePresence>
       </div>
 
-      {/* Celebration Modal */}
-      <AnimatePresence>
-        {showCelebrationModal && (
-          <div 
-            onClick={() => setShowCelebrationModal(false)}
-            className="fixed inset-0 z-[300] bg-black/80 backdrop-blur-md flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.85, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.85, opacity: 0, y: 20 }}
-              transition={{ type: 'spring', damping: 24, stiffness: 300 }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md max-h-[85vh] overflow-y-auto custom-scrollbar bg-card border border-border rounded-3xl p-5 sm:p-8 shadow-2xl relative text-center"
+      {/* Celebration Modal Teleported to Document Body */}
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showCelebrationModal && (
+            <div 
+              onClick={() => setShowCelebrationModal(false)}
+              className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
             >
-              {/* Top ambient glow */}
-              <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
-
-              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-pink-500/15 border border-pink-500/30 text-pink-500 flex items-center justify-center mx-auto mb-4 shadow-inner">
-                <Gift className="w-7 h-7 sm:w-8 sm:h-8 animate-bounce" />
-              </div>
-
-              <h3 className="text-xl sm:text-3xl font-display font-black text-foreground mb-2">
-                2nd September 2026 💖
-              </h3>
-              
-              <div className="inline-flex flex-wrap justify-center items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/25 text-brand text-[11px] sm:text-xs font-bold font-mono mb-4">
-                <span>⏳ {timeLeft.days} Days • {timeLeft.hours} Hours • {timeLeft.minutes} Mins • {timeLeft.seconds} Secs</span>
-              </div>
-
-              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-6">
-                Every single day leads up to the most special celebration of the year! Here's to love, infinite happiness, and unforgettable movie nights together on CineVault! 🎬✨🎂
-              </p>
-
-              <button
-                onClick={() => {
-                  triggerSparkles(20);
-                  setShowCelebrationModal(false);
-                }}
-                className="w-full py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white font-bold rounded-xl text-xs sm:text-sm hover:opacity-95 active:scale-98 transition-all shadow-lg shadow-pink-500/25 flex items-center justify-center gap-2 cursor-pointer"
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-md my-auto max-h-[90vh] overflow-y-auto custom-scrollbar bg-card border border-border rounded-3xl p-6 sm:p-8 shadow-2xl relative text-center pointer-events-auto"
               >
-                <Heart className="w-4 h-4 fill-white" /> Happy Birthday in Advance! 💖
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                {/* Top ambient glow */}
+                <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-48 h-48 bg-pink-500/20 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-pink-500/15 border border-pink-500/30 text-pink-500 flex items-center justify-center mx-auto mb-4 shadow-inner">
+                  <Gift className="w-7 h-7 sm:w-8 sm:h-8 animate-bounce" />
+                </div>
+
+                <h3 className="text-xl sm:text-3xl font-display font-black text-foreground mb-2">
+                  2nd September 2026 💖
+                </h3>
+                
+                <div className="inline-flex flex-wrap justify-center items-center gap-1.5 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/25 text-brand text-[11px] sm:text-xs font-bold font-mono mb-4">
+                  <span>⏳ {timeLeft.days} Days • {timeLeft.hours} Hours • {timeLeft.minutes} Mins • {timeLeft.seconds} Secs</span>
+                </div>
+
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-6">
+                  Every single day leads up to the most special celebration of the year! Here's to love, infinite happiness, and unforgettable movie nights together on CineVault! 🎬✨🎂
+                </p>
+
+                <div className="flex flex-col gap-2.5">
+                  <button
+                    onClick={() => {
+                      triggerSparkles(20);
+                      setShowCelebrationModal(false);
+                      window.location.hash = '#birthday';
+                    }}
+                    className="w-full py-3 bg-brand text-background font-bold rounded-xl text-xs sm:text-sm hover:opacity-95 active:scale-98 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4" /> Open Birthday Special Page ✨
+                  </button>
+                  <button
+                    onClick={() => {
+                      triggerSparkles(20);
+                      setShowCelebrationModal(false);
+                    }}
+                    className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Heart className="w-4 h-4 text-pink-500 fill-pink-500" /> Close
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

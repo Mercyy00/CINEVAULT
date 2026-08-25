@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { Play, Plus, Check, ArrowLeft, Star, Clock, Calendar, Share2, Users, ChevronDown, Film } from 'lucide-react';
 import { kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
+import { formatRating } from '../types';
 import { Movie } from '../types';
 import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
@@ -28,9 +29,11 @@ export function AnimeDetail({ id }: { id: string }) {
       document.title = `CineVault | ${movie.title}`;
       if (movie.backdropUrl || movie.posterUrl) {
         const imageUrl = movie.backdropUrl || movie.posterUrl;
-        getDominantColor(imageUrl).then(color => {
-          setAmbientColor(color);
-        }).catch(() => setAmbientColor(null));
+        if (imageUrl) {
+          getDominantColor(imageUrl).then(color => {
+            setAmbientColor(color);
+          }).catch(() => setAmbientColor(null));
+        }
       }
     }
     return () => setAmbientColor(null);
@@ -290,7 +293,7 @@ export function AnimeDetail({ id }: { id: string }) {
             <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-foreground/80 mb-8">
               <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">
                 <Star className="w-4 h-4 fill-current" />
-                <span className="ml-1 font-bold tracking-wide">{movie.rating.toFixed(1)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
+                <span className="ml-1 font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
               </div>
               <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-muted-foreground" /> {movie.year}</span>
               <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-muted-foreground" /> {movie.duration}</span>

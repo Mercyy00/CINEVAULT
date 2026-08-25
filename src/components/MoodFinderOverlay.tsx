@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import FocusLock from 'react-focus-lock';
 import { X, Play, RefreshCcw, Star } from 'lucide-react';
 import { api } from '../api';
-import { Movie } from '../types';
+import { Movie, formatRating } from '../types';
 import { cn } from '../lib/utils';
 
 interface MoodFinderOverlayProps {
@@ -163,7 +162,7 @@ export function MoodFinderOverlay({ isOpen, onClose }: MoodFinderOverlayProps) {
                                 <span>{movie.year} • {movie.type === 'tv' ? 'TV Show' : 'Movie'}</span>
                                 <span className="text-brand flex items-center gap-1">
                                   <Star className="w-3 h-3 fill-current" />
-                                  {movie.rating.toFixed(1)} <span className="text-[10px]">/ 10</span>
+                                  {formatRating(movie.rating)} <span className="text-[10px]">/ 10</span>
                                 </span>
                               </div>
                             </motion.div>

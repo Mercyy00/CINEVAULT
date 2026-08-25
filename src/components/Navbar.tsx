@@ -1,9 +1,12 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { useApp, Theme, AppFont } from '../store';
-import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type } from 'lucide-react';
+import { useApp, Theme } from '../store';
+import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
+import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import { BirthdayCountdown } from './BirthdayCountdown';
+import { isBirthdayVisible } from '../config/birthdayAccess';
+import { useBirthdayMusic } from '../context/BirthdayMusicContext';
 
 interface ThemeOption {
   id: Theme;
@@ -33,20 +36,23 @@ const THEMES: ThemeOption[] = [
   { id: 'sunset-rose', name: 'Sunset Rose', mode: 'light', color: '#e11d48', bg: '#fdf6f6' },
 ];
 
-const FONTS: { id: AppFont; name: string; tag: string; preview: string }[] = [
-  { id: 'bricolage', name: 'Bricolage', tag: 'Default', preview: 'Bricolage Grotesque' },
-  { id: 'dinko', name: 'DINKO', tag: 'Retro Bold', preview: 'GC Dinko' },
-  { id: 'inklab', name: 'Inklab', tag: 'Geometric', preview: 'GC Inklab' },
-  { id: 'gunken', name: 'GUNKEN', tag: 'Futuristic', preview: 'Gunken' },
-  { id: 'odida', name: 'Odida', tag: 'Luxury', preview: 'Odida Serif' },
-  { id: 'melodrama', name: 'Melodrama', tag: 'High Contrast', preview: 'Melodrama' },
-  { id: 'talina', name: 'Talina', tag: 'Playful', preview: 'Talina' },
-  { id: 'grind', name: 'GRIND', tag: 'Heavy Impact', preview: 'GC Grind' },
-];
+/**
+ * Font options are derived from the single source of truth in `lib/fonts.ts`.
+ * The old local list hardcoded ids ("dinko", "inklab", "odida"…) and preview
+ * family names for faces that were never loaded from anywhere, so every preview
+ * fell through to a system fallback and selecting them changed nothing.
+ */
+const FONTS = APP_FONT_IDS.map((id) => ({
+  id,
+  name: APP_FONTS[id].name,
+  tag: APP_FONTS[id].tag,
+}));
 
 export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   const [showProfile, setShowProfile] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [showMusicPlayer, setShowMusicPlayer] = useState(false);
+
   const [customizerTab, setCustomizerTab] = useState<'themes' | 'fonts'>('themes');
   const [themeModeFilter, setThemeModeFilter] = useState<'all' | 'dark' | 'light'>('all');
   const { 
@@ -65,14 +71,60 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   } = useApp();
   const [currentHash, setCurrentHash] = useState('#home');
 
+  const {
+    playlist: BIRTHDAY_PLAYLIST,
+    currentTrackIndex,
+    isPlaying: isPlayingMusic,
+    progress: trackProgress,
+    duration: trackDuration,
+    togglePlay: toggleMusic,
+    playTrack: startMusic,
+    nextTrack: handleNextTrack,
+    prevTrack: handlePrevTrack,
+    seekTo,
+    formatTime
+  } = useBirthdayMusic();
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const time = parseFloat(e.target.value);
+    seekTo(time);
+  };
+
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash || '#home';
       setCurrentHash(hash.split('/')[0]);
+      setShowMusicPlayer(false);
+      setShowCustomizer(false);
+      setShowProfile(false);
     };
     window.addEventListener('hashchange', handleHash);
     handleHash();
     return () => window.removeEventListener('hashchange', handleHash);
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.header-popup-container')) {
+        setShowMusicPlayer(false);
+        setShowCustomizer(false);
+        setShowProfile(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowMusicPlayer(false);
+        setShowCustomizer(false);
+        setShowProfile(false);
+      }
+    };
+    window.addEventListener('click', handleGlobalClick);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('click', handleGlobalClick);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   const navLinks = [
@@ -87,35 +139,54 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   const darkThemes = THEMES.filter(t => t.mode === 'dark');
   const lightThemes = THEMES.filter(t => t.mode === 'light');
 
+  // Shared with App.tsx and AdminDashboard via config/birthdayAccess. This used
+  // to be a third copy of the raw localStorage-key check.
+  const isBirthdayActive = isBirthdayVisible(currentHash);
+
   return (
     <>
       {/* Top Header */}
       <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2.5 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full">
-        <a 
-          href="#home" 
-          className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
-        >
-          <div 
-            className={cn(
-              "w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 bg-brand transition-all shrink-0 drop-shadow-md group-hover:rotate-6",
-              userProfile.logoStyle === 'cat' ? "brand-logo-cat" : "brand-logo-vault"
-            )} 
-          />
-          <span className="hidden sm:inline text-brand">
-            CineVault
-          </span>
-        </a>
+        {currentHash === '#birthday' ? (
+          <a
+            href="#home"
+            className="pointer-events-auto flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full glass border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-semibold text-foreground hover:text-brand transition-all shadow-sm group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            <span>Back to CineVault</span>
+          </a>
+        ) : (
+          <a 
+            href="#home" 
+            className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
+          >
+            <div 
+              className={cn(
+                "w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 bg-brand transition-all shrink-0 drop-shadow-md group-hover:rotate-6",
+                userProfile.logoStyle === 'cat' ? "brand-logo-cat" : "brand-logo-vault"
+              )} 
+            />
+            <span className="hidden sm:inline text-brand">
+              CineVault
+            </span>
+          </a>
+        )}
 
-        {/* Center: Birthday Countdown Widget */}
+        {/* Center: Birthday Countdown Widget (Hidden on Birthday Page & Gated) */}
         <div className="flex items-center justify-center pointer-events-auto min-w-0">
-          <BirthdayCountdown />
+          {isBirthdayActive && currentHash !== '#birthday' && <BirthdayCountdown />}
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
           {/* Customizer (Themes & Fonts) Toggle */}
-          <div className="relative">
+          <div className="relative header-popup-container">
             <button 
-              onClick={() => { setShowCustomizer(!showCustomizer); setShowProfile(false); }}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setShowCustomizer(!showCustomizer); 
+                setShowProfile(false); 
+                setShowMusicPlayer(false); 
+              }}
               className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
               aria-label="Customize theme and typography"
             >
@@ -266,31 +337,29 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                       {FONTS.map((f, idx) => (
                         <motion.button
                           key={f.id}
+                          type="button"
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
                           transition={{ delay: idx * 0.03 }}
+                          // Load the face when the row is hovered so its preview
+                          // renders in the real typeface, without eagerly
+                          // loading every family when the picker opens.
+                          onMouseEnter={() => loadAppFont(f.id)}
+                          onFocus={() => loadAppFont(f.id)}
                           onClick={() => {
                             setAppFont(f.id);
                             showToast(`Font updated: ${f.name}`);
                           }}
+                          aria-pressed={appFont === f.id}
                           className={cn(
                             "flex items-center justify-between p-2 rounded-xl border transition-all text-left",
                             appFont === f.id ? "bg-white/15 border-brand ring-1 ring-brand/30" : "border-white/5 bg-white/5 hover:bg-white/10"
                           )}
                         >
                           <div className="flex flex-col">
-                            <span 
+                            <span
                               className="text-xs font-bold text-foreground"
-                              style={{ 
-                                fontFamily: f.id === 'bricolage' ? 'Bricolage Grotesque, sans-serif'
-                                  : f.id === 'dinko' ? 'DINKO, Syne, sans-serif'
-                                  : f.id === 'inklab' ? 'Inklab, Clash Display, sans-serif'
-                                  : f.id === 'gunken' ? 'GUNKEN, Orbitron, sans-serif'
-                                  : f.id === 'odida' ? 'Odida, Cinzel, serif'
-                                  : f.id === 'melodrama' ? 'Melodrama, serif'
-                                  : f.id === 'talina' ? 'Talina, Fredoka, cursive'
-                                  : 'GRIND, Anton, sans-serif'
-                              }}
+                              style={{ fontFamily: `'${f.name}', sans-serif` }}
                             >
                               {f.name}
                             </span>
@@ -308,17 +377,181 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
             </AnimatePresence>
           </div>
 
-          <button 
-            onClick={onSearchClick}
-            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
-            aria-label="Search"
-          >
-            <Search className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
-          </button>
-          
-          <div className="relative">
+          {/* Music Button on Birthday Page, Search on other pages */}
+          {currentHash === '#birthday' ? (
+            <div className="relative header-popup-container">
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMusicPlayer(!showMusicPlayer);
+                  setShowProfile(false);
+                  setShowCustomizer(false);
+                }}
+                className={cn(
+                  "h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border flex items-center justify-center transition-all shadow-card cursor-pointer relative",
+                  isPlayingMusic 
+                    ? "border-brand/60 text-brand bg-brand/15 shadow-[0_0_15px_var(--theme-accent-glow,rgba(232,133,42,0.35))]" 
+                    : "border-white/10 text-foreground hover:text-brand hover:border-brand/30"
+                )}
+                aria-label="Birthday Music Player"
+                title="Divu's Birthday Mixtape 🎵"
+              >
+                <Music className={cn("w-4 h-4 sm:w-5 sm:h-5 transition-transform", isPlayingMusic && "scale-110 text-brand animate-pulse")} />
+                {isPlayingMusic && (
+                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-pink-500 rounded-full animate-ping" />
+                )}
+              </button>
+
+              {/* Music Player Popover */}
+              <AnimatePresence>
+                {showMusicPlayer && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    transition={{ duration: 0.2 }}
+                    className="absolute right-0 mt-3 w-80 sm:w-88 glass bg-card/95 border border-border rounded-3xl p-4 sm:p-5 shadow-2xl z-[220] origin-top-right backdrop-blur-2xl"
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-brand/15 border border-brand/30 text-brand flex items-center justify-center">
+                          <Music className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-display font-bold text-foreground">Divu's 21st Mixtape</h4>
+                          <p className="text-[10px] text-muted-foreground">Our Special Soundtrack 💖</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowMusicPlayer(false)}
+                        className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-white/5"
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    {/* Active Track Highlight */}
+                    <div className="glass border border-brand/25 rounded-2xl p-3.5 mb-3.5 bg-brand/5 relative overflow-hidden flex items-center gap-3">
+                      {/* Rotating Vinyl */}
+                      <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
+                        <motion.div 
+                          animate={{ rotate: isPlayingMusic ? 360 : 0 }}
+                          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
+                          className="w-full h-full rounded-full bg-black border-2 border-brand/40 flex items-center justify-center shadow-md relative"
+                        >
+                          <div className="w-4 h-4 rounded-full bg-brand/30 border border-brand flex items-center justify-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-brand" />
+                          </div>
+                        </motion.div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-foreground truncate">
+                          {BIRTHDAY_PLAYLIST[currentTrackIndex].title}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {BIRTHDAY_PLAYLIST[currentTrackIndex].artist}
+                        </p>
+                        <span className="inline-block mt-1 text-[9px] px-2 py-0.5 rounded-full bg-brand/15 border border-brand/30 text-brand font-medium">
+                          {BIRTHDAY_PLAYLIST[currentTrackIndex].tag}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Track Progress Seekbar */}
+                    <div className="mb-3 px-1">
+                      <input
+                        type="range"
+                        min={0}
+                        max={trackDuration || 100}
+                        value={trackProgress}
+                        onChange={handleSeek}
+                        className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand"
+                      />
+                      <div className="flex justify-between text-[9px] font-mono text-muted-foreground mt-1">
+                        <span>{formatTime(trackProgress)}</span>
+                        <span>{formatTime(trackDuration)}</span>
+                      </div>
+                    </div>
+
+                    {/* Player Controls */}
+                    <div className="flex items-center justify-center gap-4 mb-4">
+                      <button
+                        onClick={handlePrevTrack}
+                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-foreground flex items-center justify-center border border-white/10 transition-transform active:scale-95 cursor-pointer"
+                        title="Previous Song"
+                      >
+                        <SkipBack className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={toggleMusic}
+                        className="w-11 h-11 rounded-full bg-brand text-background flex items-center justify-center font-bold shadow-lg shadow-brand/25 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                        title={isPlayingMusic ? "Pause" : "Play"}
+                      >
+                        {isPlayingMusic ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                      </button>
+                      <button
+                        onClick={handleNextTrack}
+                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-foreground flex items-center justify-center border border-white/10 transition-transform active:scale-95 cursor-pointer"
+                        title="Next Song"
+                      >
+                        <SkipForward className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Track Selection List */}
+                    <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pr-1">
+                      {BIRTHDAY_PLAYLIST.map((track, idx) => (
+                        <button
+                          key={track.id}
+                          onClick={() => startMusic(idx)}
+                          className={cn(
+                            "w-full flex items-center justify-between p-2 rounded-xl text-left transition-all text-xs cursor-pointer",
+                            currentTrackIndex === idx
+                              ? "bg-brand/15 border border-brand/30 text-brand font-semibold"
+                              : "hover:bg-white/5 text-foreground/80 hover:text-foreground"
+                          )}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="text-[10px] font-mono text-muted-foreground w-3.5">{idx + 1}</span>
+                            <span className="truncate">{track.title}</span>
+                          </div>
+                          {currentTrackIndex === idx && isPlayingMusic ? (
+                            <span className="text-[10px] text-pink-500 animate-pulse font-bold shrink-0">Playing 🎵</span>
+                          ) : (
+                            <span className="text-[9px] text-muted-foreground shrink-0">{track.mood}</span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
             <button 
-              onClick={() => { setShowProfile(!showProfile); setShowCustomizer(false); }}
+              onClick={() => {
+                setShowCustomizer(false);
+                setShowProfile(false);
+                setShowMusicPlayer(false);
+                onSearchClick();
+              }}
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
+            </button>
+          )}
+          
+          <div className="relative header-popup-container">
+            <button 
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                setShowProfile(!showProfile); 
+                setShowCustomizer(false); 
+                setShowMusicPlayer(false); 
+              }}
               className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer"
               aria-label="User Account"
             >
@@ -418,48 +651,50 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
         </div>
       </header>
 
-      {/* Bottom Floating Dock */}
-      <nav 
-        aria-label="Main Navigation"
-        className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto select-none"
-      >
-        <div className="rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-1.5 border border-black/10 dark:border-white/15 shadow-[0_14px_35px_-8px_var(--theme-accent-glow,rgba(0,0,0,0.15))] backdrop-blur-2xl bg-white/85 dark:bg-black/65 ring-1 ring-brand/25 transition-all duration-300">
-          {navLinks.map((link) => {
-            const isActive = currentHash === link.href;
-            const Icon = link.icon;
-            return (
-              <a 
-                key={link.name} 
-                href={link.href}
-                className={cn(
-                  "relative h-11 w-11 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-colors duration-200 group cursor-pointer",
-                  isActive 
-                    ? "text-brand-foreground" 
-                    : "text-foreground/75 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 active:scale-95"
-                )}
-                aria-label={link.name}
-                title={link.name}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="active-dock-pill"
-                    className="absolute inset-0 rounded-full bg-brand shadow-[0_0_20px_var(--theme-accent-glow,rgba(232,133,42,0.45))] ring-1 ring-brand/35"
-                    transition={{
-                      type: "spring",
-                      stiffness: 380,
-                      damping: 30
-                    }}
-                  />
-                )}
-                <Icon className={cn(
-                  "relative z-10 w-5 h-5 sm:w-5 sm:h-5 transition-transform duration-200 group-hover:scale-110",
-                  isActive ? "text-brand-foreground font-bold" : "text-foreground/75 group-hover:text-foreground"
-                )} />
-              </a>
-            );
-          })}
-        </div>
-      </nav>
+      {/* Bottom Floating Dock (Hidden on Birthday Page) */}
+      {currentHash !== '#birthday' && (
+        <nav 
+          aria-label="Main Navigation"
+          className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto select-none"
+        >
+          <div className="rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-1.5 border border-black/10 dark:border-white/15 shadow-[0_14px_35px_-8px_var(--theme-accent-glow,rgba(0,0,0,0.15))] backdrop-blur-2xl bg-white/85 dark:bg-black/65 ring-1 ring-brand/25 transition-all duration-300">
+            {navLinks.map((link) => {
+              const isActive = currentHash === link.href;
+              const Icon = link.icon;
+              return (
+                <a 
+                  key={link.name} 
+                  href={link.href}
+                  className={cn(
+                    "relative h-11 w-11 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-colors duration-200 group cursor-pointer",
+                    isActive 
+                      ? "text-brand-foreground" 
+                      : "text-foreground/75 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 active:scale-95"
+                  )}
+                  aria-label={link.name}
+                  title={link.name}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-dock-pill"
+                      className="absolute inset-0 rounded-full bg-brand shadow-[0_0_20px_var(--theme-accent-glow,rgba(232,133,42,0.45))] ring-1 ring-brand/35"
+                      transition={{
+                        type: "spring",
+                        stiffness: 380,
+                        damping: 30
+                      }}
+                    />
+                  )}
+                  <Icon className={cn(
+                    "relative z-10 w-5 h-5 sm:w-5 sm:h-5 transition-transform duration-200 group-hover:scale-110",
+                    isActive ? "text-brand-foreground font-bold" : "text-foreground/75 group-hover:text-foreground"
+                  )} />
+                </a>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </>
   );
 }

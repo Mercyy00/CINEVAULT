@@ -21,7 +21,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
 
   useEffect(() => {
     let isMounted = true;
-    api.getWatchProviders(type === 'anime' ? 'tv' : type, country).then(data => {
+    api.getWatchProviders(type === 'anime' ? 'tv' : type, country).then((data: any) => {
       if (isMounted && data.results) {
         // Sort and slice top 20 providers
         const sorted = data.results.sort((a: any, b: any) => a.display_priority - b.display_priority).slice(0, 20);

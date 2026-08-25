@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { 
   User, 
   Palette, 
@@ -15,14 +15,14 @@ import {
   Sliders, 
   Upload, 
   Film, 
-  ExternalLink,
+  
   LogOut,
   RefreshCw,
   ShieldCheck
 } from 'lucide-react';
-import { useApp, Theme, AppFont } from '../store';
+import { useApp, Theme } from '../store';
+import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
 import { cn } from '../lib/utils';
-import { AuthModal } from './AuthModal';
 
 type SettingsTab = 'account' | 'general' | 'appearance' | 'history' | 'about';
 
@@ -53,16 +53,12 @@ const ALL_THEMES: ProfileTheme[] = [
   { id: 'sunset-rose', name: 'Sunset Rose', tag: 'Rose Berry & Blush Quartz', mode: 'light', color: '#e11d48', bg: '#fdf6f6' },
 ];
 
-const ALL_FONTS: { id: AppFont; name: string; tag: string; description: string; fontFamily: string }[] = [
-  { id: 'bricolage', name: 'Bricolage Grotesque', tag: 'Default', description: 'Modern geometric neo-grotesque with clean contrast', fontFamily: 'Bricolage Grotesque, sans-serif' },
-  { id: 'dinko', name: 'DINKO', tag: 'Retro Bold', description: 'Bold, punchy retro-inspired modern display sans', fontFamily: 'DINKO, Syne, sans-serif' },
-  { id: 'inklab', name: 'Inklab', tag: 'Geometric', description: 'Semi-display geometric sans with experimental charm', fontFamily: 'Inklab, Clash Display, sans-serif' },
-  { id: 'gunken', name: 'GUNKEN', tag: 'Futuristic', description: 'Sleek, futuristic, high-tech modern display sans', fontFamily: 'GUNKEN, Orbitron, sans-serif' },
-  { id: 'odida', name: 'Odida', tag: 'Luxury', description: 'Sophisticated, graceful luxury display serif/sans', fontFamily: 'Odida, Cinzel, serif' },
-  { id: 'melodrama', name: 'Melodrama', tag: 'High Contrast', description: 'Dramatic high-contrast geometric display typeface', fontFamily: 'Melodrama, serif' },
-  { id: 'talina', name: 'Talina', tag: 'Playful', description: 'Friendly, bubbly rounded display with warm curves', fontFamily: 'Talina, Fredoka, cursive' },
-  { id: 'grind', name: 'GRIND', tag: 'Heavy Impact', description: 'Ultra-heavy, condensed brutalist impact typeface', fontFamily: 'GRIND, Anton, sans-serif' },
-];
+const ALL_FONTS = APP_FONT_IDS.map((id) => ({
+  id,
+  name: APP_FONTS[id].name,
+  tag: APP_FONTS[id].tag,
+  fontFamily: `'${APP_FONTS[id].name}', sans-serif`,
+}));
 
 const LANGUAGES = [
   { code: 'en', label: 'English (US)' },
@@ -76,25 +72,22 @@ const LANGUAGES = [
 ];
 
 export function ProfilePage() {
-  const { 
-    userProfile, 
-    updateUserProfile, 
-    clearProfile, 
-    watchlist, 
-    setWatchlist, 
-    continueWatching, 
-    clearWatchlist, 
-    showToast, 
-    theme, 
-    setTheme, 
-    appFont, 
-    setAppFont, 
+  const {
+    userProfile,
+    updateUserProfile,
+    watchlist,
+    replaceWatchlist,
+    continueWatching,
+    clearWatchlist,
+    showToast,
+    theme,
+    setTheme,
+    appFont,
+    setAppFont,
     deferredInstallPrompt,
     logout,
     syncNow,
-    authModalOpen,
     setAuthModalOpen,
-    authModalMode,
     setAuthModalMode
   } = useApp();
 
@@ -161,12 +154,12 @@ export function ProfilePage() {
     reader.onload = (event) => {
       try {
         const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.watchlist) setWatchlist(parsed.watchlist);
+        if (parsed.watchlist) replaceWatchlist(parsed.watchlist);
         if (parsed.userProfile) updateUserProfile(parsed.userProfile);
         if (parsed.theme) setTheme(parsed.theme);
         if (parsed.appFont) setAppFont(parsed.appFont);
         showToast('Data imported successfully');
-      } catch (err) {
+      } catch {
         showToast('Failed to parse backup file');
       }
     };
@@ -683,6 +676,8 @@ export function ProfilePage() {
                     return (
                       <button
                         key={f.id}
+                        onMouseEnter={() => loadAppFont(f.id)}
+                        onFocus={() => loadAppFont(f.id)}
                         onClick={() => { setAppFont(f.id); showToast(`Font: ${f.name}`); }}
                         className={cn(
                           "p-3.5 rounded-xl border transition-all text-left cursor-pointer flex flex-col justify-between gap-2 shadow-sm",
@@ -695,7 +690,7 @@ export function ProfilePage() {
                           </span>
                           {isSelected && <Check className="w-4 h-4 text-brand shrink-0" />}
                         </div>
-                        <span className="text-[11px] text-muted-foreground truncate">{f.description}</span>
+                        <span className="text-[11px] text-muted-foreground truncate">{f.tag}</span>
                       </button>
                     );
                   })}

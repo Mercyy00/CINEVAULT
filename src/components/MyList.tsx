@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Play, Trash2, GripVertical, CheckCircle, Clock } from 'lucide-react';
 import { useApp } from '../store';
@@ -7,7 +7,7 @@ import { WatchStatus } from '../types';
 import { cn } from '../lib/utils';
 
 export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: string) => void }) {
-  const { watchlist, setWatchlist, removeFromWatchlist, updateStatus, showToast } = useApp();
+  const { watchlist, replaceWatchlist, removeFromWatchlist, updateStatus, showToast } = useApp();
   
   // Local state for dragging to immediately reflect changes visually
   const [items, setItems] = useState(() => 
@@ -26,7 +26,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
     newItems.splice(result.destination.index, 0, reorderedItem);
     
     setItems(newItems);
-    setWatchlist(newItems); // Persist to context
+    replaceWatchlist(newItems); // Persist to context
     showToast('Watchlist order updated');
   };
 

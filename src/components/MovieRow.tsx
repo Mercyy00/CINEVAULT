@@ -1,253 +1,326 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieCard } from './MovieCard';
-import { Movie } from '../types';
+import type { Movie } from '../types';
 import { api } from '../api';
-import { cn } from '../lib/utils';
+
+interface RowPage {
+  results: unknown[];
+  total_pages?: number;
+}
 
 interface MovieRowProps {
-  key?: React.Key;
   title: string;
   index?: number;
-  fetchFn: (page: number) => Promise<{ results: any[] }>;
+  fetchFn: (page: number) => Promise<RowPage>;
   onMovieSelect: (id: string, type: string) => void;
+}
+
+/** Distance from the right edge, in px, at which the next page is requested. */
+const PREFETCH_THRESHOLD_PX = 400;
+const ARROW_DEAD_ZONE_PX = 15;
+
+function isMovieLike(value: unknown): value is Movie {
+  return typeof value === 'object' && value !== null && 'type' in value && 'title' in value;
+}
+
+/** Kitsu rows already hand back internal Movies; TMDB rows need mapping. */
+function normalise(results: unknown[]): Movie[] {
+  return results.map((item) =>
+    isMovieLike(item) && item.type === 'anime' ? item : api.mapToInternalMovie(item as never)
+  );
 }
 
 export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
+  const [totalPages, setTotalPages] = useState<number | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const rowRef = useRef<HTMLDivElement>(null);
+  const [reloadToken, setReloadToken] = useState(0);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(true);
+  const [showRightArrow, setShowRightArrow] = useState(false);
 
-  // Touch drag variables
+  const rowRef = useRef<HTMLUListElement>(null);
   const isDown = useRef(false);
   const startX = useRef(0);
-  const scrollLeft = useRef(0);
+  const startScroll = useRef(0);
+  const scrollFrame = useRef<number | null>(null);
+  const loadingMoreRef = useRef(false);
 
-  const updateArrows = () => {
-    if (rowRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      setShowLeftArrow(scrollLeft > 15);
-      setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 15);
-    }
-  };
-
+  /* fetchFn is almost always an inline arrow at the call site, so its identity
+   * changes on every parent render. Depending on it directly meant the row
+   * refetched page 1 -- and reset the scroll position -- on every re-render.
+   * The ref keeps the latest function without making it a dependency. */
+  const fetchRef = useRef(fetchFn);
   useEffect(() => {
-    let isMounted = true;
-    setLoading(true);
-    setError(false);
-    setPage(1);
-    fetchFn(1).then(data => {
-      if (isMounted && data && data.results) {
-        setMovies(data.results.map((item: any) => item.type === 'anime' ? item : api.mapToInternalMovie(item)));
-        setHasMore(data.results.length >= 20);
-        setLoading(false);
-        setTimeout(updateArrows, 150);
-      }
-    }).catch(err => {
-      console.error('Error fetching row', title, err);
-      if (isMounted) {
-        setLoading(false);
-        setError(true);
-      }
-    });
-    return () => { isMounted = false; };
+    fetchRef.current = fetchFn;
   }, [fetchFn]);
 
-  const loadMore = async () => {
-    if (loadingMore || !hasMore) return;
+  const updateArrows = useCallback(() => {
+    const element = rowRef.current;
+    if (!element) return;
+    const { scrollLeft, scrollWidth, clientWidth } = element;
+    const overflows = scrollWidth > clientWidth + ARROW_DEAD_ZONE_PX;
+    setShowLeftArrow(scrollLeft > ARROW_DEAD_ZONE_PX);
+    setShowRightArrow(overflows && scrollLeft < scrollWidth - clientWidth - ARROW_DEAD_ZONE_PX);
+  }, []);
+
+  const hasMore = totalPages === null ? true : page < totalPages;
+
+  // Load (or reload) the first page.
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(false);
+
+    fetchRef
+      .current(1)
+      .then((data) => {
+        if (!active) return;
+        const results = Array.isArray(data?.results) ? data.results : [];
+        setMovies(normalise(results));
+        setPage(1);
+        setTotalPages(
+          typeof data?.total_pages === 'number' ? data.total_pages : results.length ? null : 1
+        );
+        setLoading(false);
+      })
+      .catch((cause) => {
+        if (!active) return;
+        console.error(`Row "${title}" failed to load:`, cause);
+        setLoading(false);
+        setError(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [title, reloadToken]);
+
+  // Arrow visibility depends on content width, which changes with the list and
+  // on resize. A ResizeObserver replaces the previous setTimeout(…, 150) guesses.
+  useEffect(() => {
+    const element = rowRef.current;
+    if (!element) return;
+    updateArrows();
+    const observer = new ResizeObserver(updateArrows);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [movies.length, updateArrows]);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMoreRef.current || !hasMore) return;
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     try {
       const nextPage = page + 1;
-      const data = await fetchFn(nextPage);
-      if (data && data.results) {
-        const newMovies = data.results.map((item: any) => item.type === 'anime' ? item : api.mapToInternalMovie(item));
-        if (newMovies.length > 0) {
-          setMovies(prev => [...prev, ...newMovies]);
-          setPage(nextPage);
-          setHasMore(newMovies.length >= 20);
-          setTimeout(updateArrows, 150);
-        } else {
-          setHasMore(false);
-        }
+      const data = await fetchRef.current(nextPage);
+      const results = Array.isArray(data?.results) ? data.results : [];
+      if (results.length === 0) {
+        // An empty page is the only reliable end-of-list signal when the API
+        // does not report total_pages. Assuming "fewer than 20 means the end"
+        // silently truncated any row whose page size was not exactly 20.
+        setTotalPages(nextPage - 1);
+        return;
       }
-    } catch (err) {
-      console.error('Error loading more', err);
+      const mapped = normalise(results);
+      setMovies((previous) => {
+        const seen = new Set(previous.map((item) => item.id));
+        return [...previous, ...mapped.filter((item) => !seen.has(item.id))];
+      });
+      setPage(nextPage);
+      if (typeof data?.total_pages === 'number') setTotalPages(data.total_pages);
+    } catch (cause) {
+      console.error(`Row "${title}" failed to page:`, cause);
+      setTotalPages(page);
     } finally {
+      loadingMoreRef.current = false;
       setLoadingMore(false);
     }
+  }, [hasMore, page, title]);
+
+  /* Scroll handling is coalesced into one rAF callback. The previous version
+   * ran two layout reads plus setState on every scroll event, which on a
+   * trackpad fires far faster than the browser can paint. */
+  const handleScroll = useCallback(() => {
+    if (scrollFrame.current !== null) return;
+    scrollFrame.current = requestAnimationFrame(() => {
+      scrollFrame.current = null;
+      updateArrows();
+      const element = rowRef.current;
+      if (!element) return;
+      const remaining = element.scrollWidth - (element.scrollLeft + element.clientWidth);
+      if (remaining < PREFETCH_THRESHOLD_PX) void loadMore();
+    });
+  }, [loadMore, updateArrows]);
+
+  useEffect(
+    () => () => {
+      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+    },
+    []
+  );
+
+  const scrollByPage = (direction: 'left' | 'right') => {
+    const element = rowRef.current;
+    if (!element) return;
+    const delta = element.clientWidth * 0.75;
+    element.scrollTo({
+      left: element.scrollLeft + (direction === 'left' ? -delta : delta),
+      behavior: 'smooth',
+    });
   };
 
-  const handleScroll = () => {
-    updateArrows();
-    if (rowRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      if (scrollWidth - (scrollLeft + clientWidth) < 400 && !loadingMore && hasMore) {
-        loadMore();
-      }
-    }
-  };
+  const pointerX = (event: React.MouseEvent | React.TouchEvent, element: HTMLElement) =>
+    ('touches' in event ? event.touches[0].pageX : event.pageX) - element.offsetLeft;
 
-  const scroll = (direction: 'left' | 'right') => {
-    if (rowRef.current) {
-      const { clientWidth, currentScroll } = { clientWidth: rowRef.current.clientWidth, currentScroll: rowRef.current.scrollLeft };
-      const scrollTo = direction === 'left' ? currentScroll - clientWidth * 0.75 : currentScroll + clientWidth * 0.75;
-      rowRef.current.scrollTo({ left: scrollTo, behavior: 'smooth' });
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
+  const handleDragStart = (event: React.MouseEvent | React.TouchEvent) => {
+    const element = rowRef.current;
+    if (!element) return;
     isDown.current = true;
-    if (rowRef.current) {
-      startX.current = 'touches' in e ? e.touches[0].pageX - rowRef.current.offsetLeft : e.pageX - rowRef.current.offsetLeft;
-      scrollLeft.current = rowRef.current.scrollLeft;
-    }
+    startX.current = pointerX(event, element);
+    startScroll.current = element.scrollLeft;
   };
 
-  const handleMouseLeave = () => {
+  const handleDragEnd = () => {
     isDown.current = false;
   };
 
-  const handleMouseUp = () => {
-    isDown.current = false;
+  const handleDragMove = (event: React.MouseEvent | React.TouchEvent) => {
+    const element = rowRef.current;
+    if (!isDown.current || !element) return;
+    element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 2;
   };
 
-  const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (!isDown.current || !rowRef.current) return;
-    const x = 'touches' in e ? e.touches[0].pageX - rowRef.current.offsetLeft : e.pageX - rowRef.current.offsetLeft;
-    const walk = (x - startX.current) * 2; // scroll-fast
-    rowRef.current.scrollLeft = scrollLeft.current - walk;
-  };
-
-  // Format numbered prefix like [01], [02], etc.
   const numberedPrefix = index != null ? `[${String(index + 1).padStart(2, '0')}]` : null;
+
+  const heading = (
+    <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground mb-4 px-2 sm:px-4 lg:px-6 flex items-center gap-2">
+      {numberedPrefix && (
+        <span className="font-mono text-xs sm:text-sm tracking-widest text-muted-foreground/80">
+          {numberedPrefix}
+        </span>
+      )}
+      {title}
+    </h2>
+  );
 
   if (loading) {
     return (
-      <div className="mb-10 w-full">
-        <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground mb-4 px-2 sm:px-4 lg:px-6 flex items-center gap-2">
-          {numberedPrefix && <span className="font-mono text-xs sm:text-sm tracking-widest text-muted-foreground/80">{numberedPrefix}</span>}
-          {title}
-        </h2>
+      <section className="mb-10 w-full" aria-busy="true" aria-label={`${title}, loading`}>
+        {heading}
         <div className="flex gap-3.5 sm:gap-4.5 overflow-hidden px-2 sm:px-4 lg:px-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] aspect-[2/3] rounded-xl skeleton-shimmer border border-white/5" />
+          {Array.from({ length: 8 }, (_, i) => (
+            <div
+              key={`skeleton-${i}`}
+              className="flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] aspect-[2/3] rounded-xl skeleton-shimmer border border-white/5"
+            />
           ))}
         </div>
-      </div>
+      </section>
     );
   }
 
   if (error) {
     return (
-      <div className="mb-10 w-full px-2 sm:px-4 lg:px-6">
-        <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground mb-4 flex items-center gap-2">
-          {numberedPrefix && <span className="font-mono text-xs sm:text-sm tracking-widest text-muted-foreground/80">{numberedPrefix}</span>}
-          {title}
-        </h2>
-        <div className="w-full py-12 glass border border-red-500/20 rounded-xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4">
-          <div className="text-4xl">⚠️</div>
-          <p className="text-lg">Failed to load {title}</p>
-          <button 
-            onClick={() => {
-              setLoading(true);
-              setError(false);
-              fetchFn(1).then(data => {
-                if (data && data.results) {
-                  setMovies(data.results.map((item: any) => item.type === 'anime' ? item : api.mapToInternalMovie(item)));
-                  setHasMore(data.results.length >= 20);
-                  setLoading(false);
-                }
-              }).catch(() => {
-                setLoading(false);
-                setError(true);
-              });
-            }}
+      <section className="mb-10 w-full px-2 sm:px-4 lg:px-6">
+        {heading}
+        <div
+          role="alert"
+          className="w-full py-12 glass border border-red-500/20 rounded-xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4"
+        >
+          <p className="text-lg">Couldn’t load {title}.</p>
+          {/* One reload path, incremented as state, rather than a second copy
+              of the fetch-and-map logic pasted into the button handler. */}
+          <button
+            type="button"
+            onClick={() => setReloadToken((value) => value + 1)}
             className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
           >
-            Retry
+            Try again
           </button>
         </div>
-      </div>
+      </section>
     );
   }
 
   if (movies.length === 0) return null;
 
+  const arrowClasses =
+    'absolute top-1/2 -translate-y-1/2 z-[70] w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/95 dark:bg-black/85 backdrop-blur-xl border border-black/10 dark:border-white/15 flex items-center justify-center text-foreground hover:bg-brand hover:text-brand-foreground hover:border-brand shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:scale-110 active:scale-95 transition-all cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
+
   return (
-    <div className="mb-10 md:mb-12 relative group/row w-full">
-      <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground mb-4 px-2 sm:px-4 lg:px-6 flex items-center gap-2">
-        {numberedPrefix && <span className="font-mono text-xs sm:text-sm tracking-widest text-muted-foreground/80">{numberedPrefix}</span>}
-        {title}
-      </h2>
-      
+    <section className="mb-10 md:mb-12 relative group/row w-full" aria-label={title}>
+      {heading}
+
       <div className="relative w-full">
-        {/* Left Scroll Arrow */}
         <AnimatePresence>
           {showLeftArrow && (
             <motion.button
+              type="button"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                scroll('left');
-              }}
-              aria-label="Scroll left"
-              className="absolute left-1 sm:left-3 top-1/2 -translate-y-1/2 z-[70] w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/95 dark:bg-black/85 backdrop-blur-xl border border-black/10 dark:border-white/15 flex items-center justify-center text-foreground hover:bg-brand hover:text-brand-foreground hover:border-brand shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_0_22px_var(--theme-accent-glow,rgba(232,133,42,0.4))] hover:scale-110 active:scale-95 transition-all cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100"
+              onClick={() => scrollByPage('left')}
+              aria-label={`Scroll ${title} left`}
+              className={`${arrowClasses} left-1 sm:left-3`}
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>
 
-        <div 
+        <ul
           ref={rowRef}
           onScroll={handleScroll}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          onTouchStart={handleMouseDown}
-          onTouchEnd={handleMouseUp}
-          onTouchMove={handleMouseMove}
-          className="flex gap-3.5 sm:gap-4.5 overflow-x-auto scrollbar-none px-2 sm:px-4 lg:px-6 pb-4 pt-2 snap-x select-none"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          onMouseDown={handleDragStart}
+          onMouseLeave={handleDragEnd}
+          onMouseUp={handleDragEnd}
+          onMouseMove={handleDragMove}
+          onTouchStart={handleDragStart}
+          onTouchEnd={handleDragEnd}
+          onTouchMove={handleDragMove}
+          className="flex gap-3.5 sm:gap-4.5 overflow-x-auto scrollbar-none px-2 sm:px-4 lg:px-6 pb-4 pt-2 snap-x select-none list-none m-0"
         >
           {movies.map((movie) => (
-            <div key={movie.id} className="snap-start flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] 2xl:w-[290px]">
-              <MovieCard movie={movie} onClick={() => window.location.hash = `#${movie.type}/${movie.id}`} />
-            </div>
+            <li
+              key={`${movie.type}-${movie.id}`}
+              className="snap-start flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] 2xl:w-[290px]"
+            >
+              {/* Routes through the parent's handler. This component received
+                  onMovieSelect but ignored it, hard-coding
+                  `window.location.hash = '#' + type + '/' + id` -- which for
+                  anime produced `#anime/123`, a route that does not exist, so
+                  every anime card was a dead link. */}
+              <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
+            </li>
           ))}
-        </div>
+          {loadingMore && (
+            <li className="flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] aspect-[2/3] rounded-xl skeleton-shimmer border border-white/5" />
+          )}
+        </ul>
 
-        {/* Right Scroll Arrow */}
         <AnimatePresence>
           {showRightArrow && (
             <motion.button
+              type="button"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                scroll('right');
-              }}
-              aria-label="Scroll right"
-              className="absolute right-1 sm:right-3 top-1/2 -translate-y-1/2 z-[70] w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/95 dark:bg-black/85 backdrop-blur-xl border border-black/10 dark:border-white/15 flex items-center justify-center text-foreground hover:bg-brand hover:text-brand-foreground hover:border-brand shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:shadow-[0_0_22px_var(--theme-accent-glow,rgba(232,133,42,0.4))] hover:scale-110 active:scale-95 transition-all cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100"
+              onClick={() => scrollByPage('right')}
+              aria-label={`Scroll ${title} right`}
+              className={`${arrowClasses} right-1 sm:right-3`}
             >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </section>
   );
 }

@@ -1,0 +1,23 @@
+{
+  "name": "CineVault",
+  "short_name": "CineVault",
+  "description": "Browse films, TV and anime, keep a watchlist, and pick up where you left off.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#e8852a",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/logo-vault.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

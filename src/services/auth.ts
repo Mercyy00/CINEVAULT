@@ -1,197 +1,204 @@
+import {
+  createUserWithEmailAndPassword,
+  getIdTokenResult,
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth';
+import { getFirebase } from './firebase';
+
 export interface AuthUser {
   uid: string;
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  provider: 'sqlite' | 'google';
+  provider: 'firebase' | 'google';
+  /** True only when the `admin` custom claim is present on the ID token. */
+  isAdmin: boolean;
+  emailVerified: boolean;
 }
 
-const TOKEN_KEY = 'cv_auth_token';
-const USER_KEY = 'cv_auth_user';
+/** Minimum length enforced client-side. Firebase enforces its own policy too. */
+const MIN_PASSWORD_LENGTH = 10;
 
-export function getAuthToken(): string | null {
+/** User-facing message that reveals nothing about which factor was wrong. */
+const GENERIC_CREDENTIAL_ERROR = 'That email and password combination is not recognised.';
+const NOT_CONFIGURED_ERROR =
+  'Accounts are unavailable right now. You can keep browsing as a guest.';
+
+async function toAuthUser(user: User): Promise<AuthUser> {
+  const providerIds = user.providerData.map((entry) => entry.providerId);
+
+  // The admin flag comes from a custom claim minted by the Firebase Admin SDK
+  // server-side. It replaces the previous client-side check
+  // `email === 'godlikejayesh@gmail.com'`, which any user could satisfy by
+  // editing local state, and which was then written to Firestore as
+  // `role: 'admin'`.
+  let isAdmin = false;
   try {
-    return localStorage.getItem(TOKEN_KEY);
+    const token = await getIdTokenResult(user);
+    isAdmin = token.claims.admin === true;
   } catch {
-    return null;
+    isAdmin = false;
   }
+
+  return {
+    uid: user.uid,
+    email: user.email,
+    displayName: user.displayName,
+    photoURL: user.photoURL,
+    provider: providerIds.includes('google.com') ? 'google' : 'firebase',
+    isAdmin,
+    emailVerified: user.emailVerified,
+  };
 }
 
-export function setAuthToken(token: string | null) {
-  if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_KEY);
+/**
+ * Maps Firebase error codes to messages that do not disclose whether an
+ * account exists. The previous copy ("No account found with this email
+ * address", "An account with this email already exists") let anyone enumerate
+ * registered users.
+ */
+function toPublicError(error: unknown): Error {
+  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+
+  switch (code) {
+    case 'auth/invalid-credential':
+    case 'auth/invalid-email':
+    case 'auth/user-not-found':
+    case 'auth/wrong-password':
+      return new Error(GENERIC_CREDENTIAL_ERROR);
+    case 'auth/email-already-in-use':
+      // Deliberately vague: confirming the address is taken is an enumeration
+      // oracle. The user is pointed at password reset instead.
+      return new Error('That address cannot be registered. Try signing in or resetting instead.');
+    case 'auth/too-many-requests':
+      return new Error('Too many attempts. Please wait a few minutes and try again.');
+    case 'auth/popup-closed-by-user':
+    case 'auth/cancelled-popup-request':
+      return new Error('Sign-in was cancelled.');
+    case 'auth/network-request-failed':
+      return new Error('Network error. Check your connection and try again.');
+    case 'auth/weak-password':
+      return new Error(`Please choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
+    default:
+      // Never surface raw Firebase messages; they leak project internals.
+      if (code) console.error('Auth error:', code, error);
+      return new Error('Something went wrong. Please try again.');
   }
 }
 
 export const authService = {
-  async register(name: string, email: string, pass: string): Promise<AuthUser> {
-    const cleanEmail = (email || '').trim().toLowerCase();
-    const cleanName = (name || '').trim();
+  minPasswordLength: MIN_PASSWORD_LENGTH,
 
-    if (!cleanEmail || !pass) {
-      throw new Error('Please provide both email and password.');
+  async register(name: string, email: string, password: string): Promise<AuthUser> {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanName = name.trim();
+
+    if (!cleanEmail || !password) {
+      throw new Error('Please provide both an email address and a password.');
     }
-    if (pass.length < 6) {
-      throw new Error('Password must be at least 6 characters long.');
-    }
-
-    const response = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: cleanName, email: cleanEmail, password: pass }),
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to create account.');
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      throw new Error(`Password must be at least ${MIN_PASSWORD_LENGTH} characters long.`);
     }
 
-    setAuthToken(data.token);
+    const { auth } = getFirebase();
+    if (!auth) throw new Error(NOT_CONFIGURED_ERROR);
 
-    const user: AuthUser = {
-      uid: data.user.id,
-      email: data.user.email,
-      displayName: data.user.name,
-      photoURL: data.user.avatar || null,
-      provider: 'sqlite',
-    };
-
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    return user;
+    try {
+      const credential = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      if (cleanName) {
+        await updateProfile(credential.user, { displayName: cleanName });
+      }
+      const user = await toAuthUser(credential.user);
+      return { ...user, displayName: cleanName || user.displayName };
+    } catch (error) {
+      throw toPublicError(error);
+    }
   },
 
-  async login(email: string, pass: string): Promise<AuthUser> {
-    const cleanEmail = (email || '').trim().toLowerCase();
-
-    if (!cleanEmail || !pass) {
-      throw new Error('Please enter both email and password.');
+  async login(email: string, password: string): Promise<AuthUser> {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !password) {
+      throw new Error('Please enter both your email address and password.');
     }
 
-    const response = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: cleanEmail, password: pass }),
-    });
+    const { auth } = getFirebase();
+    if (!auth) throw new Error(NOT_CONFIGURED_ERROR);
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to sign in.');
+    try {
+      const credential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+      return await toAuthUser(credential.user);
+    } catch (error) {
+      throw toPublicError(error);
     }
-
-    setAuthToken(data.token);
-
-    const user: AuthUser = {
-      uid: data.user.id,
-      email: data.user.email,
-      displayName: data.user.name,
-      photoURL: data.user.avatar || null,
-      provider: 'sqlite',
-    };
-
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    return user;
   },
 
   async loginWithGoogle(): Promise<AuthUser> {
-    const response = await fetch('/api/auth/google', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'Google Cinephile',
-        email: 'cinephile@gmail.com',
-      }),
-    });
+    const { auth, googleProvider } = getFirebase();
+    if (!auth || !googleProvider) throw new Error(NOT_CONFIGURED_ERROR);
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Google Sign-In failed.');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      return await toAuthUser(result.user);
+    } catch (error) {
+      throw toPublicError(error);
     }
-
-    setAuthToken(data.token);
-
-    const user: AuthUser = {
-      uid: data.user.id,
-      email: data.user.email,
-      displayName: data.user.name,
-      photoURL: data.user.avatar || null,
-      provider: 'google',
-    };
-
-    localStorage.setItem(USER_KEY, JSON.stringify(user));
-    return user;
   },
 
   async resetPassword(email: string): Promise<void> {
-    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanEmail = email.trim().toLowerCase();
     if (!cleanEmail) throw new Error('Please enter your email address.');
 
-    const response = await fetch('/api/auth/reset-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: cleanEmail }),
-    });
+    const { auth } = getFirebase();
+    if (!auth) throw new Error(NOT_CONFIGURED_ERROR);
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error || 'Failed to request password reset.');
+    try {
+      await sendPasswordResetEmail(auth, cleanEmail);
+    } catch (error) {
+      const code =
+        typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+      // Do not reveal whether the address is registered -- the caller shows the
+      // same confirmation either way.
+      if (code === 'auth/user-not-found' || code === 'auth/invalid-email') return;
+      throw toPublicError(error);
     }
   },
 
   async logout(): Promise<void> {
-    setAuthToken(null);
-    localStorage.removeItem(USER_KEY);
+    const { auth } = getFirebase();
+    if (auth) await signOut(auth);
   },
 
-  getCurrentUser(): AuthUser | null {
-    try {
-      const raw = localStorage.getItem(USER_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  },
-
-  async fetchCurrentUser(): Promise<AuthUser | null> {
-    const token = getAuthToken();
-    if (!token) return null;
-
-    try {
-      const response = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (!response.ok) {
-        this.logout();
-        return null;
-      }
-
-      const data = await response.json();
-      const user: AuthUser = {
-        uid: data.user.id,
-        email: data.user.email,
-        displayName: data.user.name,
-        photoURL: data.user.avatar || null,
-        provider: 'sqlite',
-      };
-
-      localStorage.setItem(USER_KEY, JSON.stringify(user));
-      return user;
-    } catch {
-      return this.getCurrentUser();
-    }
-  },
-
+  /**
+   * Subscribes to auth state.
+   *
+   * This used to synchronously invoke the callback with a user object read
+   * from `localStorage` before Firebase resolved ("Emit cached user
+   * immediately for instant UI"), which meant editing one localStorage key was
+   * enough to make the UI treat you as any account. Identity now comes only
+   * from the Firebase SDK, which persists and revalidates its own session.
+   *
+   * Callers receive `undefined` while the session is still resolving so they
+   * can render a loading state instead of a signed-out one.
+   */
   onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
-    const current = this.getCurrentUser();
-    callback(current);
+    const { auth } = getFirebase();
+    if (!auth) {
+      callback(null);
+      return () => {};
+    }
 
-    // Verify token with backend
-    this.fetchCurrentUser().then(user => {
-      callback(user);
+    return firebaseOnAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        callback(null);
+        return;
+      }
+      void toAuthUser(firebaseUser).then(callback);
     });
-
-    return () => {};
-  }
+  },
 };

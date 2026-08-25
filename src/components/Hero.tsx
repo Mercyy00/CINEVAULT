@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getDominantColor } from '../lib/colorThief';
 import { Play, Plus, Check, Info } from 'lucide-react';
-import { Movie } from '../types';
+import { Movie, formatRating } from '../types';
 import { api } from '../api';
 import { useApp } from '../store';
-import { cn } from '../lib/utils';
 
 export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: string) => void }) {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -30,11 +29,11 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
     if (movies.length <= 1) return;
     
     const currentMovie = movies[currentIndex];
-    if (currentMovie && currentMovie.backdrop_path) {
-      const imageUrl = `https://image.tmdb.org/t/p/w500${currentMovie.backdrop_path}`;
+    if (currentMovie && currentMovie.backdropUrl) {
+      const imageUrl = currentMovie.backdropUrl;
       getDominantColor(imageUrl).then(color => {
         setAmbientColor(color);
-      }).catch(err => {
+      }).catch(() => {
         setAmbientColor(null);
       });
     }
@@ -144,7 +143,7 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
             </span>
             <div className="flex items-center gap-1 text-sm sm:text-lg text-foreground font-bold drop-shadow-md">
               <span className="text-brand">★</span>
-              <span>{currentMovie.rating.toFixed(1)}</span>
+              <span>{formatRating(currentMovie.rating)}</span>
               <span className="text-muted-foreground text-[10px] sm:text-sm font-normal">/ 10</span>
             </div>
             <span className="text-foreground/90 text-sm sm:text-lg font-semibold">{currentMovie.year}</span>

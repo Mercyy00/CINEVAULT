@@ -1,22 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X, ArrowLeft, Play, Globe } from 'lucide-react';
-import { kitsuApi, anikotoApi } from '../api';
+import { kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
+import { watchTrackingService } from '../services/watchTracking';
 
 // @ts-ignore - loaded dynamically
 const Artplayer = (window as any).Artplayer;
-const Hls = (window as any).Hls;
 
 
-export function AnimePlayer({ id, episode, malId }: { id: string, episode: string, malId?: string }) {
+export function AnimePlayer({ id, episode }: { id: string; episode: string; malId?: string }) {
   const { updateContinueWatching, userProfile } = useApp();
   const [movie, setMovie] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);
-
-  const [selectedChunk, setSelectedChunk] = useState<number>(0);
-  const [chunkOptions, setChunkOptions] = useState<{label: string, start: number, end: number}[]>([]);
 
   const [jumpEpisode, setJumpEpisode] = useState<string>('');
   const [jumpError, setJumpError] = useState<string | null>(null);
@@ -30,11 +27,11 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
   const [currentIframeSrc, setCurrentIframeSrc] = useState<string>('');
 
   const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout>();
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const [showNextEpisode, setShowNextEpisode] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(5);
-  const nextEpisodeTimerRef = useRef<NodeJS.Timeout>();
+  const nextEpisodeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: 'megaplay' | 'anikoto' = server, malId?: string, title?: string) => {
     setIsServerLoading(true);
@@ -44,24 +41,36 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
       if (srv === 'megaplay' && malId) {
         setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${malId}/${epNum}/${lang}`);
       } else {
-        // Fallback to Anikoto
-        const anikotoId = await kitsuApi.searchAnikotoByTitleFallback(title || movie?.title || '');
-        if (anikotoId) {
-           try {
-             const aniRes = await anikotoApi.getSeries(anikotoId);
-             if (aniRes && aniRes.data && aniRes.data.episodes) {
-                const ep = aniRes.data.episodes.find((e: any) => e.number === epNum) || aniRes.data.episodes[0];
-                if (ep && ep.episode_embed_id) {
-                   setCurrentIframeSrc(`https://megaplay.buzz/stream/s-2/${ep.episode_embed_id}/${lang}`);
-                   setIsServerLoading(false);
-                   return;
+        // Anikoto fallback. There is no `anikotoApi` client; loadData resolves
+        // the series through the same public proxy, so do the same here and
+        // embed the matching episode.
+        try {
+          const searchRes = await fetch(
+            `https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(title || movie?.title || '')}`
+          );
+          if (searchRes.ok) {
+            const searchData = await searchRes.json();
+            const anikotoId = searchData?.results?.[0]?.id;
+            if (anikotoId) {
+              const seriesRes = await fetch(`https://anikotoapi.site/series/${anikotoId}`);
+              if (seriesRes.ok) {
+                const seriesData = await seriesRes.json();
+                const ep =
+                  seriesData?.episodes?.find((e: any) => e.number === epNum) ??
+                  seriesData?.episodes?.[0];
+                const embedId = ep?.episode_embed_id ?? ep?.id;
+                if (embedId) {
+                  setCurrentIframeSrc(`https://megaplay.buzz/stream/s-2/${embedId}/${lang}`);
+                  setIsServerLoading(false);
+                  return;
                 }
-             }
-           } catch (e) {
-             console.error(e);
-           }
+              }
+            }
+          }
+        } catch (e) {
+          console.error(e);
         }
-        // If all else fails
+        // If all else fails, fall back to the MAL-based MegaPlay stream.
         setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${malId || '1'}/${epNum}/${lang}`);
       }
       setIsServerLoading(false);
@@ -123,27 +132,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
            }
            
            setEpisodes(episodesData);
-           
-           if (episodesData.length > 100) {
-             const chunks = [];
-             for (let i = 0; i < episodesData.length; i += 100) {
-               chunks.push({
-                 label: `Episodes ${i + 1}-${Math.min(i + 100, episodesData.length)}`,
-                 start: i,
-                 end: Math.min(i + 100, episodesData.length)
-               });
-             }
-             setChunkOptions(chunks);
-             
-             // Set chunk based on current episode
-             const epNum = parseInt(episode || '1');
-             const chunkIdx = Math.max(0, Math.floor((epNum - 1) / 100));
-             setSelectedChunk(chunkIdx < chunks.length ? chunkIdx : 0);
-           } else {
-             setChunkOptions([]);
-             setSelectedChunk(0);
-           }
-          
+
           const epNum = parseInt(episode);
           let targetEp = episodesData.find((e: any) => e.number === epNum);
           
@@ -220,28 +209,88 @@ export function AnimePlayer({ id, episode, malId }: { id: string, episode: strin
   };
 
 
-  // Update continue watching mock progress for anime
+  // Update continue watching & Real-Time Cloud Firestore Sync for anime
   useEffect(() => {
-    let mockProgress = 0;
-    const interval = setInterval(() => {
-      if (movie && selectedEpisode) {
-        mockProgress = Math.min(mockProgress + 1, 90);
-        updateContinueWatching({
-           id: movie.id,
-           media_type: 'anime',
-           title: movie.title,
-           poster_path: movie.posterUrl,
-           backdrop_path: movie.backdropUrl,
-           episode_number: selectedEpisode?.episode,
-           progress_percentage: mockProgress,
-           timestamp: Date.now(),
-           time: Date.now(),
-           mal_id: movie.malId
-        });
+    if (!movie || !selectedEpisode) return;
+
+    let existingProgress = 5;
+    let existingCurrentTime = 0;
+    const durationSecs = 1440; // ~24 mins for anime episode
+
+    try {
+      const rawCW = localStorage.getItem('cinevault_continue_watching');
+      if (rawCW) {
+        const cwList = JSON.parse(rawCW);
+        const match = cwList.find((i: any) => 
+          i.id.toString() === movie.id.toString() &&
+          i.episode_number === selectedEpisode?.episode
+        );
+        if (match && match.progress_percentage > 0) {
+          existingProgress = match.progress_percentage;
+          existingCurrentTime = match.time || Math.round((existingProgress / 100) * durationSecs);
+        }
       }
+    } catch {}
+
+    const sessionStart = Date.now();
+    const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
+    const effectiveName = userProfile.name || 'Guest Viewer';
+
+    const syncProgress = (force = false) => {
+      const elapsedSeconds = Math.floor((Date.now() - sessionStart) / 1000);
+      const currentSeconds = Math.min(durationSecs, existingCurrentTime + elapsedSeconds);
+      const calculatedProgress = Math.min(95, Math.max(existingProgress, Math.round((currentSeconds / durationSecs) * 1000) / 10));
+      const nowTime = Date.now();
+
+      updateContinueWatching({
+        id: movie.id,
+        media_type: 'anime',
+        title: movie.title,
+        poster_path: movie.posterUrl || '',
+        backdrop_path: movie.backdropUrl || '',
+        episode_number: selectedEpisode?.episode,
+        progress_percentage: calculatedProgress,
+        timestamp: nowTime,
+        position_seconds: currentSeconds,
+        duration_seconds: durationSecs,
+        mal_id: movie.malId
+      });
+
+      watchTrackingService.logWatchProgress({
+        uid: effectiveUid,
+        userName: effectiveName,
+        userAvatar: userProfile.avatar || null,
+        mediaId: String(movie.id),
+        mediaType: 'anime',
+        title: movie.title,
+        posterPath: movie.posterUrl || null,
+        backdropPath: movie.backdropUrl || null,
+        episodeNumber: selectedEpisode?.episode,
+        episodeTitle: `Episode ${selectedEpisode?.episode}`,
+        currentTime: currentSeconds,
+        duration: durationSecs,
+        progressPercentage: calculatedProgress,
+        status: calculatedProgress >= 90 ? 'completed' : 'watching',
+      }, force);
+    };
+
+    syncProgress(true);
+
+    const interval = setInterval(() => {
+      syncProgress(false);
     }, 5000);
-    return () => clearInterval(interval);
-  }, [movie, selectedEpisode, updateContinueWatching]);
+
+    const handleBeforeUnload = () => {
+      syncProgress(true);
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      syncProgress(true);
+    };
+  }, [movie, selectedEpisode, updateContinueWatching, userProfile]);
 
 
   // Player specific shortcuts
@@ -329,7 +378,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -100 }}
-            transition={{ duration: 0.15, exit: { duration: 0.3 } }}
+            transition={{ duration: 0.15 }}
             className="absolute top-0 left-0 right-0 p-6 z-40 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-auto"
           >
             <div className="flex items-center gap-4">
@@ -372,8 +421,6 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
           src={currentIframeSrc || undefined}
           className={cn("w-full h-full border-0 transition-opacity duration-500", isServerLoading ? "opacity-0" : "opacity-100")}
           allowFullScreen={true}
-          webkitallowfullscreen="true"
-          mozallowfullscreen="true"
           allow="autoplay; fullscreen"
           scrolling="no"
         />

@@ -3,44 +3,90 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="strix-verification" content="strix-verify-66af6a187443cf1c27184e597d66ed96" />
-    <meta name="theme-color" content="#0a0a0a" />
+
+    <title>CineVault — Discover films, TV and anime</title>
+    <meta
+      name="description"
+      content="Browse films, television and anime, build a watchlist, and pick up where you left off. Metadata by TMDB and Kitsu."
+    />
+    <link rel="canonical" href="https://cinevault.example.com/" />
+    <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f5f0e8" media="(prefers-color-scheme: light)" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="CineVault" />
+    <meta property="og:title" content="CineVault — Discover films, TV and anime" />
+    <meta
+      property="og:description"
+      content="Browse films, television and anime, build a watchlist, and pick up where you left off."
+    />
+    <meta property="og:url" content="https://cinevault.example.com/" />
+    <meta property="og:image" content="https://cinevault.example.com/logo-vault.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="CineVault — Discover films, TV and anime" />
+    <meta
+      name="twitter:description"
+      content="Browse films, television and anime, build a watchlist, and pick up where you left off."
+    />
+    <meta name="twitter:image" content="https://cinevault.example.com/logo-vault.png" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/logo-vault.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <script>
-      (function() {
+      /* Applies the persisted theme before first paint to avoid a flash.
+       *
+       * The light/dark mode is read from its own key (cv:themeMode) which
+       * store.tsx writes alongside cv:theme. Deriving mode from a hardcoded
+       * list of theme ids here would duplicate that list and drift from it.
+       * Keys must match src/lib/storage.ts. */
+      (function () {
         try {
-          var theme = localStorage.getItem('cv_theme') || 'cinematic-dark';
-          var lightThemes = ['elegant-light', 'clean-daylight', 'vanilla-cherry', 'nordic-frost', 'matcha-cream', 'sunset-rose'];
-          document.documentElement.setAttribute('data-theme', theme);
-          if (lightThemes.indexOf(theme) !== -1) {
-            document.documentElement.classList.remove('dark');
-            document.documentElement.classList.add('light');
-          } else {
-            document.documentElement.classList.remove('light');
-            document.documentElement.classList.add('dark');
-          }
-        } catch (e) {}
+          var root = document.documentElement;
+          var theme = localStorage.getItem('cv:theme') || localStorage.getItem('cv_theme') || 'cinematic-dark';
+          var mode = localStorage.getItem('cv:themeMode') === 'light' ? 'light' : 'dark';
+          var font = localStorage.getItem('cv:font') || localStorage.getItem('cv_font') || 'bricolage';
+          root.setAttribute('data-theme', theme);
+          root.setAttribute('data-font', font);
+          root.classList.remove('light', 'dark');
+          root.classList.add(mode);
+          root.style.colorScheme = mode;
+        } catch (e) {
+          /* Private-mode browsers throw on localStorage access. Defaults apply. */
+        }
       })();
     </script>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <title>CineVault | Premium Streaming</title>
 
-    <!-- Preconnects -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="preconnect" href="https://api.fontshare.com">
-    <link rel="preconnect" href="https://cdn.fontshare.com">
-    <link rel="preconnect" href="https://image.tmdb.org" crossorigin>
-
-    <!-- Fontshare Fonts: Melodrama, Clash Display, Cabinet Grotesk -->
-    <link href="https://api.fontshare.com/v2/css?f[]=melodrama@400,500,600,700&f[]=clash-display@500,600,700&f[]=cabinet-grotesk@500,700,800&display=swap" rel="stylesheet">
-
-    <!-- Google Fonts: Inter (body), Bricolage Grotesque, Syne, Orbitron, Cinzel, Fredoka, Anton, Space Grotesk, Playfair Display -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@600;700;800&family=Syne:wght@700;800&family=Orbitron:wght@600;800;900&family=Cinzel:wght@600;700;900&family=Fredoka:wght@600;700&family=Anton&family=Space+Grotesk:wght@600;700&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+    <!-- Only the default UI + display face load up front. The other display
+         faces are fetched on demand by src/lib/fonts.ts when a user picks
+         them, instead of shipping 12 families to everyone. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@600;700;800&display=swap"
+    />
   </head>
-  <body class="bg-background text-foreground font-sans antialiased overflow-x-hidden selection:bg-brand/30 selection:text-brand">
-    <div class="bg-noise"></div>
+  <body
+    class="bg-background text-foreground font-sans antialiased overflow-x-hidden selection:bg-brand/30 selection:text-brand"
+  >
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <div class="bg-noise" aria-hidden="true"></div>
     <div id="root"></div>
+    <noscript>
+      <div style="padding: 2rem; font-family: system-ui, sans-serif">
+        <h1>JavaScript is required</h1>
+        <p>CineVault needs JavaScript enabled to browse the catalogue.</p>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

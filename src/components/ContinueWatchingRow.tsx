@@ -1,9 +1,7 @@
 import React, { useRef } from 'react';
-import { motion } from 'motion/react';
 import { Play } from 'lucide-react';
 import { useApp } from '../store';
 import { api } from '../api';
-import { cn } from '../lib/utils';
 
 export function ContinueWatchingRow() {
   const { continueWatching } = useApp();
@@ -68,7 +66,7 @@ export function ContinueWatchingRow() {
             }}
           >
             <img loading="lazy" 
-              src={item.backdrop_path ? (item.backdrop_path?.startsWith('http') ? item.backdrop_path : api.getImageUrl(item.backdrop_path)) : (item.poster_path ? (item.poster_path?.startsWith('http') ? item.poster_path : api.getImageUrl(item.poster_path)) : undefined)} 
+              src={(item.backdrop_path ? (item.backdrop_path?.startsWith('http') ? item.backdrop_path : api.getImageUrl(item.backdrop_path)) : (item.poster_path ? (item.poster_path?.startsWith('http') ? item.poster_path : api.getImageUrl(item.poster_path)) : undefined)) ?? undefined}
               alt={item.title} 
               className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"
             />
@@ -88,11 +86,18 @@ export function ContinueWatchingRow() {
               )}
             </div>
             
-            {/* Progress Bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 rounded-full">
+            {/* Progress Percentage Badge */}
+            {item.progress_percentage > 0 && (
+              <div className="absolute top-2.5 right-2.5 z-10 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-brand shadow-sm">
+                {Math.round(item.progress_percentage)}%
+              </div>
+            )}
+            
+            {/* High-Visibility Progress Bar */}
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/80 z-20 overflow-hidden">
               <div 
-                className="h-full bg-primary shadow-sm rounded-full"
-                style={{ width: `${item.progress_percentage}%` }}
+                className="h-full bg-brand shadow-[0_0_10px_var(--brand)] transition-all duration-300 rounded-r-full"
+                style={{ width: `${Math.max(4, Math.min(100, item.progress_percentage || 0))}%` }}
               />
             </div>
           </div>

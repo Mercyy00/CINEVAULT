@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Play, Plus, Check, Star, Users, Clock, Calendar, Signal, ArrowLeft, ChevronDown, Film, Share2 } from 'lucide-react';
-import { Movie } from '../types';
+import React, { useState, useEffect } from 'react';
+import { motion } from 'motion/react';
+import { Play, Plus, Check, Star, Users, Clock, Calendar, ArrowLeft, ChevronDown, Film, Share2 } from 'lucide-react';
+import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
 import { api, kitsuApi } from '../api';
@@ -26,8 +26,8 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
   useEffect(() => {
     if (movie) {
       document.title = `CineVault | ${movie.title}`;
-      if (movie.backdrop_path) {
-        const imageUrl = `https://image.tmdb.org/t/p/w500${movie.backdrop_path}`;
+      if (movie.backdropUrl) {
+        const imageUrl = movie.backdropUrl;
         getDominantColor(imageUrl).then(color => {
           setAmbientColor(color);
         }).catch(() => setAmbientColor(null));
@@ -46,7 +46,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
         // INTERCEPT ANIME
         if (details.original_language === 'ja' && details.genres?.some((g: any) => g.id === 16 || g.name === 'Animation')) {
           try {
-            const query = details.title || details.name || details.original_name;
+            const query = details.title || details.name || details.original_name || '';
             const searchRes = await kitsuApi.search(query);
             if (searchRes.data && searchRes.data.length > 0) {
               window.location.hash = `#detail/ani/${searchRes.data[0].id}`;
@@ -64,7 +64,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
               id: c.id.toString(),
               name: c.name,
               character: c.character,
-              photoUrl: c.profile_path ? api.getImageUrl(c.profile_path) : 'https://picsum.photos/200/200'
+              photoUrl: api.getImageUrl(c.profile_path) ?? ''
             }));
           }
         } catch (e) {}
@@ -278,7 +278,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
             <div className="flex flex-wrap items-center gap-2.5 sm:gap-4 text-xs sm:text-sm font-medium text-foreground/80 mb-6 sm:mb-8">
               <div className="flex items-center gap-1 text-brand bg-brand/10 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full border border-brand/20">
                 <Star className="w-3.5 h-3.5 fill-current" />
-                <span className="ml-1 font-bold tracking-wide">{movie.rating.toFixed(1)} <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span></span>
+                <span className="ml-1 font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span></span>
               </div>
               <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-muted-foreground" /> {movie.year}</span>
               <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-muted-foreground" /> {movie.duration}</span>
@@ -438,7 +438,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                       >
                         <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
                           {ep.still_path ? (
-                            <img loading="lazy" src={ep.still_path ? api.getImageUrl(ep.still_path) : undefined} alt={ep.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <img loading="lazy" src={api.getImageUrl(ep.still_path) ?? undefined} alt={ep.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
                               <Play className="w-8 h-8" />

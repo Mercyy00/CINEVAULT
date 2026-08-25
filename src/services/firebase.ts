@@ -1,70 +1,83 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
+import { initializeApp, getApp, getApps, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 
-export interface FirebaseConfig {
-  apiKey?: string;
-  authDomain?: string;
-  projectId?: string;
-  storageBucket?: string;
-  messagingSenderId?: string;
-  appId?: string;
+/**
+ * Firebase bootstrap.
+ *
+ * Two things were wrong here before:
+ *
+ * 1. Config fell back to `localStorage.getItem('cv_firebase_api_key')` and
+ *    friends. Any script that could write localStorage -- an XSS, or a user
+ *    talked into pasting a line into devtools -- could repoint the whole app
+ *    at an attacker-controlled Firebase project and harvest credentials on
+ *    this origin. Config now comes only from build-time env vars.
+ *
+ * 2. `export const firebase = initFirebase()` ran network/SDK setup at module
+ *    import time, so merely importing this file initialised Firebase. Init is
+ *    now lazy and memoised behind `getFirebase()`.
+ */
+
+export interface FirebaseServices {
+  app: FirebaseApp | null;
+  auth: Auth | null;
+  db: Firestore | null;
+  googleProvider: GoogleAuthProvider | null;
 }
 
-// Get config from environment variables or custom runtime storage
-export function getFirebaseConfig(): FirebaseConfig {
+const APP_NAME = 'cinevault';
+
+const EMPTY_SERVICES: FirebaseServices = {
+  app: null,
+  auth: null,
+  db: null,
+  googleProvider: null,
+};
+
+function readConfig(): FirebaseOptions {
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || localStorage.getItem('cv_firebase_api_key') || '',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || localStorage.getItem('cv_firebase_auth_domain') || '',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || localStorage.getItem('cv_firebase_project_id') || '',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || localStorage.getItem('cv_firebase_storage_bucket') || '',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || localStorage.getItem('cv_firebase_messaging_sender_id') || '',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || localStorage.getItem('cv_firebase_app_id') || '',
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
   };
 }
 
 export function isFirebaseConfigured(): boolean {
-  const cfg = getFirebaseConfig();
-  return Boolean(cfg.apiKey && cfg.projectId && cfg.appId);
+  const config = readConfig();
+  return Boolean(config.apiKey && config.projectId && config.appId);
 }
 
-let firebaseApp: FirebaseApp | null = null;
-let firebaseAuth: Auth | null = null;
-let firestoreDb: Firestore | null = null;
-let googleProvider: GoogleAuthProvider | null = null;
+let services: FirebaseServices | null = null;
 
-export function initFirebase() {
-  if (!isFirebaseConfigured()) {
-    return { app: null, auth: null, db: null, googleProvider: null };
-  }
+/**
+ * Returns the initialised Firebase services, or an all-null object when
+ * Firebase is not configured. Callers must handle the null case: the app is
+ * designed to work as a local-only guest experience without Firebase.
+ */
+export function getFirebase(): FirebaseServices {
+  if (services) return services;
+  if (!isFirebaseConfigured()) return EMPTY_SERVICES;
 
   try {
-    if (!firebaseApp && getApps().length === 0) {
-      const cfg = getFirebaseConfig();
-      firebaseApp = initializeApp(cfg as any);
-    } else if (!firebaseApp && getApps().length > 0) {
-      firebaseApp = getApps()[0];
-    }
+    const app = getApps().some((existing) => existing.name === APP_NAME)
+      ? getApp(APP_NAME)
+      : initializeApp(readConfig(), APP_NAME);
 
-    if (firebaseApp && !firebaseAuth) {
-      firebaseAuth = getAuth(firebaseApp);
-      googleProvider = new GoogleAuthProvider();
-    }
-
-    if (firebaseApp && !firestoreDb) {
-      firestoreDb = getFirestore(firebaseApp);
-    }
-
-    return {
-      app: firebaseApp,
-      auth: firebaseAuth,
-      db: firestoreDb,
-      googleProvider,
+    services = {
+      app,
+      auth: getAuth(app),
+      db: getFirestore(app),
+      googleProvider: new GoogleAuthProvider(),
     };
-  } catch (err) {
-    console.warn('Firebase initialization error:', err);
-    return { app: null, auth: null, db: null, googleProvider: null };
+    return services;
+  } catch (error) {
+    console.error('Firebase initialisation failed:', error);
+    return EMPTY_SERVICES;
   }
 }
 
-export const firebase = initFirebase();
+/** @deprecated Use `getFirebase()`. Kept so existing call sites keep compiling. */
+export const initFirebase = getFirebase;

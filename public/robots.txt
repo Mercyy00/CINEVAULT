@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Private microsite -- not for indexing.
+Disallow: /#birthday
+
+Sitemap: https://cinevault.example.com/sitemap.xml

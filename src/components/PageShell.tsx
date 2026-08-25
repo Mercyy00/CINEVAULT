@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import FocusLock from 'react-focus-lock';
+import { Filter, X } from 'lucide-react';
 import { api, kitsuApi } from '../api';
-import { Movie } from '../types';
+import type { Movie } from '../types';
 import { MovieCard } from './MovieCard';
 import { HeroSpotlight } from './HeroSpotlight';
-import { Filter, X } from 'lucide-react';
 
 interface PageShellProps {
   title: string;
@@ -14,274 +15,358 @@ interface PageShellProps {
   searchQuery?: string;
 }
 
-export function PageShell({ title, defaultType, onMovieSelect, isSearch, searchQuery }: PageShellProps) {
+interface AdvancedFilters {
+  minYear: string;
+  maxYear: string;
+  minRating: string;
+  sortBy: string;
+}
+
+/* The year bounds were hardcoded to 2024: the dropdown stopped there and
+ * `maxYear` defaulted to '2024', so once the filters were touched every title
+ * released after 2024 was silently excluded. */
+const CURRENT_YEAR = new Date().getFullYear();
+const EARLIEST_YEAR = 1980;
+
+const DEFAULT_FILTERS: AdvancedFilters = {
+  minYear: '2000',
+  maxYear: String(CURRENT_YEAR),
+  minRating: '5',
+  sortBy: 'popularity.desc',
+};
+
+const MOVIE_PILLS = [
+  { id: 'all', label: 'All' },
+  { id: '28', label: 'Action' },
+  { id: '35', label: 'Comedy' },
+  { id: '18', label: 'Drama' },
+  { id: '27', label: 'Horror' },
+  { id: '878', label: 'Sci-Fi' },
+  { id: '53', label: 'Thriller' },
+  { id: '10749', label: 'Romance' },
+  { id: '14', label: 'Fantasy' },
+  { id: '9648', label: 'Mystery' },
+  { id: '99', label: 'Documentary' },
+];
+
+const TV_PILLS = [
+  { id: 'all', label: 'All' },
+  { id: '18', label: 'Drama' },
+  { id: '35', label: 'Comedy' },
+  { id: '10765', label: 'Sci-Fi & Fantasy' },
+  { id: '80', label: 'Crime' },
+  { id: '99', label: 'Documentary' },
+  { id: '16', label: 'Animation' },
+  { id: '10764', label: 'Reality' },
+];
+
+const ANIME_PILLS = [
+  { id: 'all', label: 'All' },
+  { id: 'action', label: 'Action' },
+  { id: 'romance', label: 'Romance' },
+  { id: 'fantasy', label: 'Fantasy' },
+  { id: 'comedy', label: 'Comedy' },
+  { id: 'isekai', label: 'Isekai' },
+  { id: 'sci-fi', label: 'Sci-Fi' },
+  { id: 'horror', label: 'Horror' },
+  { id: 'slice-of-life', label: 'Slice of Life' },
+  { id: 'drama', label: 'Drama' },
+  { id: 'thriller', label: 'Thriller' },
+  { id: 'sports', label: 'Sports' },
+];
+
+const PILLS_BY_TYPE = { movie: MOVIE_PILLS, tv: TV_PILLS, anime: ANIME_PILLS } as const;
+
+const SORT_OPTIONS = [
+  { value: 'popularity.desc', label: 'Most popular' },
+  { value: 'vote_average.desc', label: 'Highest rated' },
+  { value: 'primary_release_date.desc', label: 'Newest first' },
+  { value: 'original_title.asc', label: 'Title A–Z' },
+];
+
+/** Longest total stagger for the grid, in seconds. */
+const MAX_STAGGER_S = 0.3;
+
+function filtersAreDefault(filters: AdvancedFilters): boolean {
+  return (
+    filters.minYear === DEFAULT_FILTERS.minYear &&
+    filters.maxYear === DEFAULT_FILTERS.maxYear &&
+    filters.minRating === DEFAULT_FILTERS.minRating &&
+    filters.sortBy === DEFAULT_FILTERS.sortBy
+  );
+}
+
+export function PageShell({
+  title,
+  defaultType,
+  onMovieSelect,
+  isSearch,
+  searchQuery,
+}: PageShellProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState<any>({ type: defaultType, country: 'US' });
-  const [activePill, setActivePill] = useState<string>('all');
+  const [activePill, setActivePill] = useState('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
-  const prevPill = useRef<string>('all');
-
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
-  const [advFilters, setAdvFilters] = useState({
-    minYear: '2000',
-    maxYear: '2024',
-    minRating: '5',
-    sortBy: 'popularity.desc'
-  });
-  const [appliedFilters, setAppliedFilters] = useState({
-    minYear: '2000',
-    maxYear: '2024',
-    minRating: '5',
-    sortBy: 'popularity.desc'
-  });
+  const [draftFilters, setDraftFilters] = useState<AdvancedFilters>(DEFAULT_FILTERS);
+  const [appliedFilters, setAppliedFilters] = useState<AdvancedFilters>(DEFAULT_FILTERS);
 
+  const previousPill = useRef('all');
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+
+  /* `defaultType` is a prop, so it was never going to change through the
+   * `filters` state object it was copied into -- `setFilters` was never called
+   * anywhere. Using the prop directly removes a whole layer of dead state. */
+  const pills = useMemo(() => PILLS_BY_TYPE[defaultType] ?? [], [defaultType]);
+
+  // Deep-link support: #movies?genre=Action
   useEffect(() => {
     const hash = window.location.hash;
-    if (hash.includes('?genre=')) {
-      const genreName = decodeURIComponent(hash.split('?genre=')[1]);
-      const pills = getPills();
-      const matchingPill = pills.find(p => p.label.toLowerCase() === genreName.toLowerCase());
-      if (matchingPill) {
-        setActivePill(matchingPill.id);
-      }
-    }
-  }, []);
+    if (!hash.includes('?genre=')) return;
+    const genreName = decodeURIComponent(hash.split('?genre=')[1] ?? '');
+    const match = pills.find((pill) => pill.label.toLowerCase() === genreName.toLowerCase());
+    if (match) setActivePill(match.id);
+  }, [pills]);
 
-  const getPills = () => {
-    if (filters.type === 'movie') {
-      return [
-        { id: 'all', label: 'All' },
-        { id: '28', label: 'Action' },
-        { id: '35', label: 'Comedy' },
-        { id: '18', label: 'Drama' },
-        { id: '27', label: 'Horror' },
-        { id: '878', label: 'Sci-Fi' },
-        { id: '53', label: 'Thriller' },
-        { id: '10749', label: 'Romance' },
-        { id: '14', label: 'Fantasy' },
-        { id: '9648', label: 'Mystery' },
-        { id: '99', label: 'Documentary' },
-      ];
-    }
-    if (filters.type === 'tv') {
-      return [
-        { id: 'all', label: 'All' },
-        { id: '18', label: 'Drama' },
-        { id: '35', label: 'Comedy' },
-        { id: '10765', label: 'Sci-Fi & Fantasy' },
-        { id: '80', label: 'Crime' },
-        { id: '99', label: 'Documentary' },
-        { id: '16', label: 'Animation' },
-        { id: '10764', label: 'Reality' },
-      ];
-    }
-    if (filters.type === 'anime') {
-      return [
-        { id: 'all', label: 'All' },
-        { id: 'action', label: 'Action' },
-        { id: 'romance', label: 'Romance' },
-        { id: 'fantasy', label: 'Fantasy' },
-        { id: 'comedy', label: 'Comedy' },
-        { id: 'isekai', label: 'Isekai' },
-        { id: 'sci-fi', label: 'Sci-Fi' },
-        { id: 'horror', label: 'Horror' },
-        { id: 'slice-of-life', label: 'Slice of Life' },
-        { id: 'drama', label: 'Drama' },
-        { id: 'thriller', label: 'Thriller' },
-        { id: 'sports', label: 'Sports' },
-      ];
-    }
-    return [];
-  };
+  const appliedSignature = useMemo(
+    () => JSON.stringify(appliedFilters),
+    [appliedFilters]
+  );
 
-  // Reset page on filter changes
+  // Reset paging whenever the query changes.
   useEffect(() => {
-    if (activePill !== prevPill.current) {
-        setMovies([]); // Trigger exit animation
-        prevPill.current = activePill;
+    if (activePill !== previousPill.current) {
+      setMovies([]);
+      previousPill.current = activePill;
     }
     setPage(1);
     setHasMore(true);
-  }, [filters, activePill, isSearch, searchQuery, appliedFilters]);
+    setError(null);
+  }, [defaultType, activePill, isSearch, searchQuery, appliedSignature]);
 
   useEffect(() => {
-    let isMounted = true;
+    let active = true;
     if (page === 1) setLoading(true);
     else setLoadingMore(true);
-        
-    const fetchContent = async () => {
+
+    const run = async () => {
       try {
         let results: Movie[] = [];
-        let fetchedHasMore = true;
+        let more = true;
 
         if (isSearch && searchQuery) {
-          const res = await api.searchMulti(searchQuery);
-          if (res && res.results) { 
-            results = res.results.filter((item: any) => item.poster_path || item.backdrop_path).map(api.mapToInternalMovie);
-            fetchedHasMore = false;
-          }
-        } else if (filters.type === 'anime') {
-          let res;
-          if (activePill === 'all') {
-            const url = `https://kitsu.io/api/edge/anime?sort=popularityRank&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`;
-            const req = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
-            res = await req.json();
-          } else {
-            const url = `https://kitsu.io/api/edge/anime?filter[categories]=${activePill}&sort=-averageRating&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`;
-            const req = await fetch(url, { headers: { 'Accept': 'application/vnd.api+json' } });
-            res = await req.json();
-          }
-          if (res && res.data) { 
-            results = res.data.map((item: any) => kitsuApi.mapKitsuToInternal(item, res.included));
-            fetchedHasMore = res.data.length === 20;
-          }
+          const response = await api.searchMulti(searchQuery);
+          results = response.results
+            .filter((item) => item.poster_path || item.backdrop_path)
+            .map(api.mapToInternalMovie);
+          more = false;
+        } else if (defaultType === 'anime') {
+          // Goes through kitsuApi so anime requests get the same caching,
+          // de-duplication, timeout and retry as everything else. This used to
+          // be a bare fetch() with the URL duplicated in two branches.
+          const response =
+            activePill === 'all'
+              ? await kitsuApi.getTrending(page)
+              : await kitsuApi.getByCategory(activePill, page);
+          results = response.data.map((item) =>
+            kitsuApi.mapKitsuToInternal(item, response.included ?? [])
+          );
+          more = results.length > 0;
         } else {
-          const typeMap = filters.type;
-          const params: any = { page };
-          
-          if (activePill !== 'all') {
-            params.with_genres = activePill;
-          }
+          const params: Record<string, string | number> = { page };
+          if (activePill !== 'all') params.with_genres = activePill;
 
-          // Apply advanced filters
-          if (appliedFilters.minYear !== '2000' || appliedFilters.maxYear !== '2024' || appliedFilters.minRating !== '5' || appliedFilters.sortBy !== 'popularity.desc') {
-            params['primary_release_date.gte'] = `${appliedFilters.minYear}-01-01`;
-            params['primary_release_date.lte'] = `${appliedFilters.maxYear}-12-31`;
+          if (!filtersAreDefault(appliedFilters)) {
+            const dateField =
+              defaultType === 'tv' ? 'first_air_date' : 'primary_release_date';
+            params[`${dateField}.gte`] = `${appliedFilters.minYear}-01-01`;
+            params[`${dateField}.lte`] = `${appliedFilters.maxYear}-12-31`;
             params['vote_average.gte'] = appliedFilters.minRating;
             params.sort_by = appliedFilters.sortBy;
-          } else if (activePill === 'all') {
-             params.sort_by = 'popularity.desc';
+          } else {
+            params.sort_by = 'popularity.desc';
           }
 
-          const res = await api.discover(typeMap, params);
-          if (res && res.results) {
-            results = res.results.filter((item: any) => item.poster_path || item.backdrop_path).map(api.mapToInternalMovie);
-            fetchedHasMore = page < (res.total_pages || 1);
-          }
+          const response = await api.discover(defaultType, params);
+          results = response.results
+            .filter((item) => item.poster_path || item.backdrop_path)
+            .map(api.mapToInternalMovie);
+          more = page < (response.total_pages ?? 1);
         }
-                
-        if (isMounted) {
-          if (page === 1) {
-            setMovies(results);
-          } else {
-            setMovies(prev => {
-               // Prevent duplicates
-               const newMovies = results.filter(nm => !prev.find(p => p.id === nm.id));
-               return [...prev, ...newMovies];
-            });
-          }
-          setHasMore(fetchedHasMore);
-        }
-      } catch (err) {
-        console.error(err);
-        if (filters.type === 'anime') { 
-          setError('Unable to load Anime data right now. Please try again later.');
-        }
+
+        if (!active) return;
+        setMovies((previous) => {
+          if (page === 1) return results;
+          const seen = new Set(previous.map((item) => item.id));
+          return [...previous, ...results.filter((item) => !seen.has(item.id))];
+        });
+        setHasMore(more);
+        setError(null);
+      } catch (cause) {
+        console.error(`Failed to load ${title}:`, cause);
+        // The old code only surfaced an error for anime. Every other failure
+        // fell through to "No results found." -- indistinguishable from an
+        // empty but successful response.
+        if (active) setError('We couldn’t reach the catalogue. Check your connection and retry.');
       } finally {
-        if (isMounted) {
-            setLoading(false);
-            setLoadingMore(false);
+        if (active) {
+          setLoading(false);
+          setLoadingMore(false);
         }
       }
     };
-        
-    fetchContent();
-    return () => { isMounted = false; };
-  }, [filters, activePill, isSearch, searchQuery, appliedFilters, page]);
+
+    void run();
+    return () => {
+      active = false;
+    };
+  }, [defaultType, activePill, isSearch, searchQuery, appliedSignature, page, title]);
+
+  const closeDrawer = useCallback(() => {
+    setIsFilterDrawerOpen(false);
+    filterButtonRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!isFilterDrawerOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeDrawer();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isFilterDrawerOpen, closeDrawer]);
+
+  const yearOptions = useMemo(
+    () => Array.from({ length: CURRENT_YEAR - EARLIEST_YEAR + 1 }, (_, i) => CURRENT_YEAR - i),
+    []
+  );
+
+  const activeFilterCount = filtersAreDefault(appliedFilters) ? 0 : 1;
 
   return (
     <div className="pb-12 min-h-screen">
       {!isSearch && <HeroSpotlight type={defaultType} onMovieSelect={onMovieSelect} />}
-      
+
       <div className={`max-w-[1600px] mx-auto px-4 md:px-10 ${isSearch ? 'pt-24' : 'pt-8'}`}>
         <div className="mb-8 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <h1 className="text-3xl font-display font-bold text-foreground">{isSearch ? title : "Explore " + title}</h1>
+          <h1 className="text-3xl font-display font-bold text-foreground">
+            {isSearch ? title : `Explore ${title}`}
+          </h1>
         </div>
-        
-        {!isSearch && getPills().length > 0 && (
+
+        {!isSearch && pills.length > 0 && (
           <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4 mb-8" role="tablist">
-            {getPills().map((pill) => (
+            {pills.map((pill) => (
               <button
                 key={pill.id}
+                type="button"
                 role="tab"
                 aria-selected={activePill === pill.id}
                 onClick={() => setActivePill(pill.id)}
                 className={`px-5 py-2.5 rounded-full whitespace-nowrap font-medium transition-all ${
-                  activePill === pill.id 
-                    ? 'bg-brand text-background shadow-card font-bold' 
+                  activePill === pill.id
+                    ? 'bg-brand text-background shadow-card font-bold'
                     : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/10'
                 }`}
               >
                 {pill.label}
               </button>
             ))}
-            {filters.type !== 'anime' && (
-                <button
-                onClick={() => setIsFilterDrawerOpen(true)}
+            {defaultType !== 'anime' && (
+              <button
+                ref={filterButtonRef}
+                type="button"
+                onClick={() => {
+                  setDraftFilters(appliedFilters);
+                  setIsFilterDrawerOpen(true);
+                }}
+                aria-haspopup="dialog"
+                aria-expanded={isFilterDrawerOpen}
                 className="px-5 py-2.5 rounded-full whitespace-nowrap font-medium transition-all bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/10 flex items-center gap-2 ml-auto cursor-pointer"
-                >
-                <Filter size={18} /> Filters
-                </button>
+              >
+                <Filter size={18} aria-hidden="true" /> Filters
+                {activeFilterCount > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-brand" aria-label="Filters active" />
+                )}
+              </button>
             )}
           </div>
         )}
 
         {error ? (
           <div className="py-20 flex justify-center">
-            <div className="glass border-red-500/30 p-8 rounded-2xl max-w-lg text-center backdrop-blur-xl">
-              <h3 className="text-2xl font-display text-foreground mb-4">Oops!</h3>
-              <p className="text-muted-foreground">{error}</p>
+            <div
+              role="alert"
+              className="glass border border-red-500/30 p-8 rounded-2xl max-w-lg text-center backdrop-blur-xl"
+            >
+              <h2 className="text-2xl font-display text-foreground mb-4">Something went wrong</h2>
+              <p className="text-muted-foreground mb-6">{error}</p>
+              <button
+                type="button"
+                onClick={() => setPage(1)}
+                className="px-6 py-2.5 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors"
+              >
+                Retry
+              </button>
             </div>
           </div>
-        ) : (loading && movies.length === 0) || movies.length > 0 ? (
+        ) : loading && movies.length === 0 ? (
+          <div
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+            aria-busy="true"
+          >
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={`skeleton-${i}`} className="aspect-[2/3] rounded-xl skeleton-shimmer" />
+            ))}
+          </div>
+        ) : movies.length > 0 ? (
           <>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6" role="tabpanel" aria-busy={loadingMore}>
+            <div
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+              role="tabpanel"
+              aria-busy={loadingMore}
+            >
               <AnimatePresence mode="popLayout">
-                {loading && movies.length === 0 ? (
-                  [1,2,3,4,5,6,7,8,9,10,11,12].map(i => (
-                    <motion.div key={`loading-${i}`} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, transition: { duration: 0.2 } }} className="aspect-[2/3] rounded-xl bg-white/5 animate-pulse"></motion.div>
-                  ))
-                ) : (
-                  movies.map((movie, idx) => (
-                    <motion.div
-                      key={`${activePill}-${movie.id}`}
-                      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                      whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                      viewport={{ once: true, margin: "50px" }}
-                      exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                      transition={{ duration: 0.4, delay: (idx % 20) * 0.05 }}
-                    >
-                      <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
-                    </motion.div>
-                  ))
-                )}
+                {movies.map((movie, index) => (
+                  <motion.div
+                    key={`${activePill}-${movie.type}-${movie.id}`}
+                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    whileInView={{ opacity: 1, scale: 1, y: 0 }}
+                    viewport={{ once: true, margin: '50px' }}
+                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
+                    // Capped: the previous `(idx % 20) * 0.05` meant the last
+                    // card in a row waited almost a second to appear.
+                    transition={{ duration: 0.35, delay: Math.min((index % 6) * 0.05, MAX_STAGGER_S) }}
+                  >
+                    <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
+                  </motion.div>
+                ))}
               </AnimatePresence>
             </div>
-            
-            {hasMore && !isSearch && !loading && movies.length > 0 && (
+
+            {hasMore && !isSearch && (
               <div className="mt-12 flex justify-center pb-12">
                 <button
-                  onClick={() => setPage(p => p + 1)}
+                  type="button"
+                  onClick={() => setPage((value) => value + 1)}
                   disabled={loadingMore}
                   className="px-8 py-3 glass border border-brand/30 text-brand font-bold rounded-xl hover:bg-brand/10 transition-colors disabled:opacity-50"
                 >
-                  {loadingMore ? 'Loading...' : 'Load More'}
+                  {loadingMore ? 'Loading…' : 'Load more'}
                 </button>
               </div>
             )}
           </>
         ) : (
-          <div className="text-center py-20 text-muted-foreground text-lg">
-            No results found.
-          </div>
+          <p className="text-center py-20 text-muted-foreground text-lg">
+            Nothing matched those filters.
+          </p>
         )}
       </div>
 
-      {/* Filter Drawer */}
       <AnimatePresence>
         {isFilterDrawerOpen && (
           <>
@@ -289,105 +374,179 @@ export function PageShell({ title, defaultType, onMovieSelect, isSearch, searchQ
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setIsFilterDrawerOpen(false)}
+              onClick={closeDrawer}
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250]"
             />
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 h-full w-full max-w-sm glass z-[260] border-l border-white/10 p-6 flex flex-col"
-            >
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-display font-bold text-foreground">Advanced Filters</h2>
-                <button onClick={() => setIsFilterDrawerOpen(false)} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-foreground cursor-pointer">
-                  <X size={24} />
-                </button>
-              </div>
+            {/* Focus is trapped and Escape closes, matching the other overlays. */}
+            <FocusLock returnFocus>
+              <motion.div
+                role="dialog"
+                aria-modal="true"
+                aria-label="Advanced filters"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="fixed top-0 right-0 h-full w-full max-w-sm glass z-[260] border-l border-white/10 p-6 flex flex-col"
+              >
+                <div className="flex justify-between items-center mb-8">
+                  <h2 className="text-2xl font-display font-bold text-foreground">
+                    Advanced filters
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={closeDrawer}
+                    aria-label="Close filters"
+                    className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-foreground cursor-pointer"
+                  >
+                    <X size={24} aria-hidden="true" />
+                  </button>
+                </div>
 
-              <div className="flex-1 overflow-y-auto space-y-8 pr-2">
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Year Range</label>
-                  <div className="flex items-center gap-4">
-                    <select
-                      value={advFilters.minYear}
-                      onChange={e => setAdvFilters(p => ({ ...p, minYear: e.target.value }))}
-                      className="w-full bg-card border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none focus:border-brand"
+                <div className="flex-1 overflow-y-auto space-y-8 pr-2">
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-muted-foreground mb-2">
+                      Year range
+                    </legend>
+                    <div className="flex items-center gap-4">
+                      <select
+                        aria-label="Earliest year"
+                        value={draftFilters.minYear}
+                        onChange={(event) =>
+                          setDraftFilters((previous) => ({
+                            ...previous,
+                            minYear: event.target.value,
+                          }))
+                        }
+                        className="w-full bg-card border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none focus:border-brand"
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={`min-${year}`} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-muted-foreground">to</span>
+                      <select
+                        aria-label="Latest year"
+                        value={draftFilters.maxYear}
+                        onChange={(event) =>
+                          setDraftFilters((previous) => ({
+                            ...previous,
+                            maxYear: event.target.value,
+                          }))
+                        }
+                        className="w-full bg-card border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none focus:border-brand"
+                      >
+                        {yearOptions.map((year) => (
+                          <option key={`max-${year}`} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </fieldset>
+
+                  <div>
+                    <label
+                      htmlFor="min-rating"
+                      className="flex justify-between text-sm font-medium text-muted-foreground mb-2"
                     >
-                      {Array.from({length: 45}, (_, i) => 2024 - i).map(y => (
-                        <option key={`min-${y}`} value={y}>{y}</option>
-                      ))}
-                    </select>
-                    <span className="text-muted-foreground">to</span>
-                    <select
-                      value={advFilters.maxYear}
-                      onChange={e => setAdvFilters(p => ({ ...p, maxYear: e.target.value }))}
-                      className="w-full bg-card border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none focus:border-brand"
-                    >
-                      {Array.from({length: 45}, (_, i) => 2024 - i).map(y => (
-                        <option key={`max-${y}`} value={y}>{y}</option>
-                      ))}
-                    </select>
+                      <span>Minimum rating</span>
+                      <span className="text-brand font-bold">{draftFilters.minRating}+</span>
+                    </label>
+                    <input
+                      id="min-rating"
+                      type="range"
+                      min="1"
+                      max="10"
+                      step="0.5"
+                      value={draftFilters.minRating}
+                      onChange={(event) =>
+                        setDraftFilters((previous) => ({
+                          ...previous,
+                          minRating: event.target.value,
+                        }))
+                      }
+                      className="w-full accent-brand"
+                    />
                   </div>
+
+                  <fieldset>
+                    <legend className="block text-sm font-medium text-muted-foreground mb-3">
+                      Sort by
+                    </legend>
+                    <div className="space-y-3">
+                      {SORT_OPTIONS.map((option) => (
+                        <label
+                          key={option.value}
+                          className="flex items-center gap-3 cursor-pointer group"
+                        >
+                          {/* The radio is visually hidden but focusable, so the
+                              group is keyboard-operable. It was `hidden`
+                              before, which removes it from the tab order and
+                              made sorting mouse-only. */}
+                          <input
+                            type="radio"
+                            name="sortBy"
+                            value={option.value}
+                            checked={draftFilters.sortBy === option.value}
+                            onChange={(event) =>
+                              setDraftFilters((previous) => ({
+                                ...previous,
+                                sortBy: event.target.value,
+                              }))
+                            }
+                            className="sr-only peer"
+                          />
+                          <span
+                            aria-hidden="true"
+                            className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand ${
+                              draftFilters.sortBy === option.value
+                                ? 'border-brand'
+                                : 'border-white/30 group-hover:border-white/60'
+                            }`}
+                          >
+                            {draftFilters.sortBy === option.value && (
+                              <span className="w-2.5 h-2.5 rounded-full bg-brand" />
+                            )}
+                          </span>
+                          <span
+                            className={`transition-colors ${
+                              draftFilters.sortBy === option.value
+                                ? 'text-foreground font-bold'
+                                : 'text-muted-foreground group-hover:text-foreground'
+                            }`}
+                          >
+                            {option.label}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-2 flex justify-between">
-                    <span>Minimum Rating</span>
-                    <span className="text-brand font-bold">{advFilters.minRating}+</span>
-                  </label>
-                  <input 
-                    type="range" 
-                    min="1" 
-                    max="10" 
-                    step="0.5"
-                    value={advFilters.minRating}
-                    onChange={e => setAdvFilters(p => ({ ...p, minRating: e.target.value }))}
-                    className="w-full accent-brand"
-                  />
+                <div className="pt-6 mt-6 border-t border-white/10 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDraftFilters(DEFAULT_FILTERS)}
+                    className="px-5 py-4 bg-white/5 hover:bg-white/10 text-foreground font-medium rounded-xl transition-colors"
+                  >
+                    Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedFilters(draftFilters);
+                      closeDrawer();
+                    }}
+                    className="flex-1 py-4 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors shadow-card"
+                  >
+                    Apply filters
+                  </button>
                 </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-muted-foreground mb-3">Sort By</label>
-                  <div className="space-y-3">
-                    {[
-                      { val: 'popularity.desc', label: 'Popularity Descending' },
-                      { val: 'vote_average.desc', label: 'Rating Descending' },
-                      { val: 'primary_release_date.desc', label: 'Release Date Descending' },
-                      { val: 'original_title.asc', label: 'Title A-Z' }
-                    ].map(opt => (
-                      <label key={opt.val} className="flex items-center gap-3 cursor-pointer group">
-                        <div className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors ${advFilters.sortBy === opt.val ? 'border-brand' : 'border-white/30 group-hover:border-white/60'}`}>
-                          {advFilters.sortBy === opt.val && <div className="w-2.5 h-2.5 rounded-full bg-brand" />}
-                        </div>
-                        <span className={`transition-colors ${advFilters.sortBy === opt.val ? 'text-foreground font-bold' : 'text-muted-foreground group-hover:text-foreground'}`}>{opt.label}</span>
-                        <input 
-                          type="radio" 
-                          name="sortBy"
-                          value={opt.val}
-                          checked={advFilters.sortBy === opt.val}
-                          onChange={e => setAdvFilters(p => ({ ...p, sortBy: e.target.value }))}
-                          className="hidden"
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-6 mt-6 border-t border-white/10">
-                <button 
-                  onClick={() => {
-                    setAppliedFilters(advFilters);
-                    setIsFilterDrawerOpen(false);
-                  }}
-                  className="w-full py-4 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors shadow-card"
-                >
-                  Apply Filters
-                </button>
-              </div>
-            </motion.div>
+              </motion.div>
+            </FocusLock>
           </>
         )}
       </AnimatePresence>

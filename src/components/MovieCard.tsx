@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useRef } from 'react';
 import { motion, useMotionValue, useSpring, useTransform } from 'motion/react';
 import { Play, Plus, Check, Film, Star } from 'lucide-react';
-import { Movie } from '../types';
+import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
-import { cn } from '../lib/utils';
 
 interface MovieCardProps {
   movie: Movie;
@@ -129,7 +128,7 @@ export function MovieCard({ movie, onClick }: MovieCardProps) {
               <div className="flex items-center gap-2 text-xs font-medium mt-1">
                 <span className="text-brand flex items-center gap-1">
                   <Star className="w-3 h-3 fill-brand text-brand" />
-                  {movie.rating.toFixed(1)} <span className="text-muted-foreground text-[10px]">/ 10</span>
+                  {formatRating(movie.rating)} <span className="text-muted-foreground text-[10px]">/ 10</span>
                 </span>
                 <span className="text-xs text-muted-foreground">{movie.year}</span>
               </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Twitter, DiscIcon as Discord, X } from 'lucide-react';
 import { useApp } from '../store';

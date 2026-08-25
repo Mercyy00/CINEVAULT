@@ -1,32 +1,37 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig, Plugin } from 'vite';
-import { app } from './server/index';
+import { defineConfig } from 'vite';
 
-function expressPlugin(): Plugin {
-  return {
-    name: 'express-backend-plugin',
-    configureServer(server) {
-      server.middlewares.use(app);
+export default defineConfig(({ mode }) => ({
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, '.'),
     },
-  };
-}
-
-export default defineConfig(() => {
-  return {
-    plugins: [react(), tailwindcss(), expressPlugin()],
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
+  },
+  build: {
+    target: 'es2022',
+    sourcemap: true,
+    // Fail the build if a chunk gets unreasonably large rather than warning.
+    chunkSizeWarningLimit: 700,
+    rollupOptions: {
+      output: {
+        // Keep the big, rarely-changing vendor libraries in their own chunks
+        // so an app-code deploy doesn't invalidate them in users' caches.
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          motion: ['motion/react'],
+        },
       },
     },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modify—file watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-      // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
-      watch: process.env.DISABLE_HMR === 'true' ? null : {},
-    },
-  };
-});
+  },
+  esbuild: {
+    // Strip console/debugger from production bundles only.
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
+  server: {
+    port: 3005,
+  },
+}));

@@ -4,11 +4,36 @@ dist/
 coverage/
 .DS_Store
 *.log
+
+# Environment -- .env.example is the only committed variant
 .env*
 !.env.example
-ref/
 
-# AI tool configs
+# Service accounts & private keys
+*firebase-adminsdk*.json
+service-account*.json
+
+ref/
+data/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Large local media. These must never be committed: they are multi-hundred-MB
+# and, in this project's case, third-party copyrighted material.
+public/movies/
+public/music/
+movies/
+*.mp4
+*.webm
+*.mkv
+*.mp3
+*.m4a
+*.flac
+*.wav
+
+# AI tool configs / scratch dirs
 .cursor/
 .claude/
 .codebuddy/
@@ -22,9 +47,8 @@ ref/
 .windsurf/
 .agent/
 .gemini/
-.github/
-data/
-*.db
-*.db-journal
-*.db-wal
-*.db-shm
+
+# Ignore local AI prompt scratch inside .github, but keep CI workflows tracked.
+.github/*
+!.github/workflows/
+!.github/workflows/**

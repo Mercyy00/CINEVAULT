@@ -801,6 +801,27 @@
   scrollbar-width: none;
 }
 
+/* Thin visible scrollbar. Was previously injected as an inline <style> block
+   by PlayerPage on every mount. */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in oklab, var(--color-brand) 50%, transparent);
+}
+
 /* Ripple Effect */
 .ripple {
   position: absolute;
@@ -868,4 +889,35 @@
     animation: none !important;
     transform: none !important;
   }
+}
+
+/* Screen reader only utility (completely hidden visually until focused) */
+.sr-only,
+.skip-link {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  padding: 0 !important;
+  margin: -1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  border-width: 0 !important;
+}
+
+.sr-only:focus,
+.sr-only:focus-visible,
+.skip-link:focus,
+.skip-link:focus-visible {
+  position: fixed !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0.5rem 1rem !important;
+  margin: 0 !important;
+  overflow: visible !important;
+  clip: auto !important;
+  white-space: normal !important;
+  top: 1rem !important;
+  left: 1rem !important;
+  z-index: 99999 !important;
 }

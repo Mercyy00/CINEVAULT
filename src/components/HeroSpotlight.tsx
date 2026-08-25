@@ -65,7 +65,7 @@ export function HeroSpotlight({ type, onMovieSelect }: { type: 'movie' | 'tv' | 
       const imageUrl = currentMovie.type === 'anime' ? currentMovie.backdropUrl : currentMovie.backdropUrl;
       getDominantColor(imageUrl).then(color => {
         setAmbientColor(color);
-      }).catch(err => {
+      }).catch(() => {
         setAmbientColor(null);
       });
     }
@@ -99,7 +99,7 @@ export function HeroSpotlight({ type, onMovieSelect }: { type: 'movie' | 'tv' | 
           className="absolute inset-0"
         >
           <motion.img
-            src={currentMovie.type === 'anime' ? currentMovie.backdropUrl : currentMovie.backdropUrl}
+            src={currentMovie.backdropUrl ?? undefined}
             alt={currentMovie.title}
             className="w-full h-full object-cover"
             initial={{ scale: 1.1 }}
