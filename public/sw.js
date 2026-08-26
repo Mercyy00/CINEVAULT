@@ -10,16 +10,14 @@
  *   4. Every cache is bounded. An unbounded cache is a bug with a delay.
  */
 
-const VERSION = 'v4';
+const VERSION = 'v5';
 const SHELL_CACHE = `cv-shell-${VERSION}`;
 const ASSET_CACHE = `cv-assets-${VERSION}`;
-const IMAGE_CACHE = `cv-images-${VERSION}`;
-const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE, IMAGE_CACHE];
+const CURRENT_CACHES = [SHELL_CACHE, ASSET_CACHE];
 
 // Minimal app shell so a cold offline load renders something.
 const SHELL_URLS = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest'];
 
-const IMAGE_CACHE_MAX_ENTRIES = 300;
 const ASSET_CACHE_MAX_ENTRIES = 120;
 
 // Extensions we must never intercept-and-cache.
@@ -28,16 +26,16 @@ const MEDIA_RE = /\.(mp4|webm|mkv|mov|m4v|mp3|m4a|ogg|wav|flac|m3u8|ts|mpd)$/i;
 // Hosts whose responses are user-specific or must always be fresh.
 const NEVER_CACHE_HOSTS = [
   'api.themoviedb.org',
+  'image.tmdb.org',
   'kitsu.io',
+  'media.kitsu.io',
+  'media.kitsu.app',
   'firestore.googleapis.com',
   'identitytoolkit.googleapis.com',
   'securetoken.googleapis.com',
   'www.googleapis.com',
   'firebaseinstallations.googleapis.com',
 ];
-
-// Cross-origin hosts that are safe to cache (public, immutable images).
-const CACHEABLE_IMAGE_HOSTS = ['image.tmdb.org', 'media.kitsu.io', 'media.kitsu.app'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -62,8 +60,7 @@ self.addEventListener('activate', (event) => {
             .map((name) => caches.delete(name))
         )
       )
-      // Drop caches written by the old network-first-everything worker,
-      // which may hold multi-hundred-megabyte media blobs.
+      // Drop caches written by older workers
       .then(() => caches.delete('cinevault-v2'))
       .then(() => caches.delete('cinevault-v1'))
       .then(() => self.clients.claim())
@@ -138,7 +135,7 @@ self.addEventListener('fetch', (event) => {
   if (request.destination === 'video' || request.destination === 'audio') return;
   if (MEDIA_RE.test(url.pathname)) return;
 
-  // Rule 2: never cache personal or must-be-fresh data.
+  // Rule 2: never cache personal, external image CDNs, or must-be-fresh data.
   if (NEVER_CACHE_HOSTS.includes(url.hostname)) return;
 
   // Navigations: network-first so users get fresh HTML, cache as offline
@@ -148,14 +145,6 @@ self.addEventListener('fetch', (event) => {
       networkFirst(request, SHELL_CACHE).catch(() =>
         caches.match('/index.html').then((hit) => hit || Response.error())
       )
-    );
-    return;
-  }
-
-  // Public poster/backdrop CDNs: cache-first, bounded.
-  if (CACHEABLE_IMAGE_HOSTS.includes(url.hostname)) {
-    event.respondWith(
-      cacheFirst(request, IMAGE_CACHE, IMAGE_CACHE_MAX_ENTRIES).catch(() => Response.error())
     );
     return;
   }
