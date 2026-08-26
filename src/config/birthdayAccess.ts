@@ -19,7 +19,7 @@ import { readString, writeString } from '../lib/storage';
 const ENABLED_KEY = 'cv:birthdayPublic';
 const UNLOCKED_KEY = 'cv:birthdayUnlocked';
 
-const BUILD_ENABLED = import.meta.env.VITE_ENABLE_BIRTHDAY === 'true';
+export const isBirthdayBuildEnabled = import.meta.env.VITE_ENABLE_BIRTHDAY === 'true';
 const SECRET_KEY: string = import.meta.env.VITE_BIRTHDAY_SECRET_KEY ?? '';
 
 export function isBirthdayLocallyEnabled(): boolean {
@@ -51,7 +51,7 @@ export function rememberBirthdayUnlock(hash: string = window.location.hash): voi
 
 export function isBirthdayVisible(hash: string = window.location.hash): boolean {
   return (
-    BUILD_ENABLED ||
+    isBirthdayBuildEnabled ||
     isBirthdayLocallyEnabled() ||
     isBirthdayUnlocked() ||
     hashCarriesBirthdayKey(hash)
