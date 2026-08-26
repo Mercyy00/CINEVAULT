@@ -385,12 +385,18 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
               <button 
                 onClick={() => {
                   const current = window.location.hash;
-                  if (current.includes('#watch/')) {
-                    window.location.hash = `#detail/ani/${id}`;
-                  } else {
-                    window.history.back();
-                  }
+                  window.history.back();
+                  setTimeout(() => {
+                    if (
+                      window.location.hash === current ||
+                      window.location.hash.startsWith('#watch/') ||
+                      window.location.hash.startsWith('#player/')
+                    ) {
+                      window.location.hash = `#detail/ani/${id}`;
+                    }
+                  }, 100);
                 }}
+                aria-label="Back"
                 className="w-12 h-12 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer"
               >
                 <ArrowLeft className="w-6 h-6" />

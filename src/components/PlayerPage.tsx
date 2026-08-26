@@ -518,9 +518,19 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               <button
                 type="button"
                 onClick={() => {
-                  window.location.hash = `#${type}/${id}`;
+                  const current = window.location.hash;
+                  window.history.back();
+                  setTimeout(() => {
+                    if (
+                      window.location.hash === current ||
+                      window.location.hash.startsWith('#watch/') ||
+                      window.location.hash.startsWith('#player/')
+                    ) {
+                      window.location.hash = `#${type}/${id}`;
+                    }
+                  }, 100);
                 }}
-                aria-label="Back to details"
+                aria-label="Back"
                 className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
               >
                 <ArrowLeft className="w-4 h-4 sm:w-6 sm:h-6" aria-hidden="true" />
