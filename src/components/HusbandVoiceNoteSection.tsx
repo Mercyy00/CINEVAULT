@@ -19,8 +19,8 @@ export function HusbandVoiceNoteSection() {
   const wasBgMusicPlayingRef = useRef<boolean>(false);
   const simTimerRef = useRef<any>(null);
 
-  // Audio file path: easily swappable with user's voice note file
-  const VOICE_NOTE_SRC = "/music/husband-voice-note.mp3";
+  // Audio file path: using available voice note file
+  const VOICE_NOTE_SRC = "/music/voice1.mp3";
 
   // Setup HTML Audio element for voice note
   useEffect(() => {

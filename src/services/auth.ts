@@ -81,12 +81,18 @@ function toPublicError(error: unknown): Error {
     case 'auth/popup-closed-by-user':
     case 'auth/cancelled-popup-request':
       return new Error('Sign-in was cancelled.');
+    case 'auth/popup-blocked':
+      return new Error('Popup was blocked by your browser. Please allow popups for this site.');
+    case 'auth/unauthorized-domain':
+      return new Error('This domain is not authorized in Firebase Console. Add your Netlify URL to Firebase Authentication > Settings > Authorized Domains.');
+    case 'auth/operation-not-allowed':
+      return new Error('This sign-in provider is not enabled in Firebase Console (Authentication > Sign-in method).');
     case 'auth/network-request-failed':
       return new Error('Network error. Check your connection and try again.');
     case 'auth/weak-password':
       return new Error(`Please choose a password of at least ${MIN_PASSWORD_LENGTH} characters.`);
     default:
-      // Never surface raw Firebase messages; they leak project internals.
+      // Surface error details for easier diagnostics if available
       if (code) console.error('Auth error:', code, error);
       return new Error('Something went wrong. Please try again.');
   }

@@ -25,8 +25,6 @@ export interface FirebaseServices {
   googleProvider: GoogleAuthProvider | null;
 }
 
-const APP_NAME = 'cinevault';
-
 const EMPTY_SERVICES: FirebaseServices = {
   app: null,
   auth: null,
@@ -36,12 +34,12 @@ const EMPTY_SERVICES: FirebaseServices = {
 
 function readConfig(): FirebaseOptions {
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyBQB6fuAcXeYW47UNLaQeSix8v_c9DHJsc',
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'cinevault-1a253.firebaseapp.com',
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'cinevault-1a253',
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'cinevault-1a253.firebasestorage.app',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '8955223945',
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:8955223945:web:18c5d5f16aebe0a8104b58',
   };
 }
 
@@ -62,15 +60,18 @@ export function getFirebase(): FirebaseServices {
   if (!isFirebaseConfigured()) return EMPTY_SERVICES;
 
   try {
-    const app = getApps().some((existing) => existing.name === APP_NAME)
-      ? getApp(APP_NAME)
-      : initializeApp(readConfig(), APP_NAME);
+    const app = getApps().length > 0
+      ? getApp()
+      : initializeApp(readConfig());
+
+    const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
 
     services = {
       app,
       auth: getAuth(app),
       db: getFirestore(app),
-      googleProvider: new GoogleAuthProvider(),
+      googleProvider,
     };
     return services;
   } catch (error) {
