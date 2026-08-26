@@ -23,6 +23,7 @@ export interface ServerOption {
     season?: number;
     episode?: number;
     imdbId?: string;
+    progress?: number;
   }) => string;
 }
 

@@ -175,38 +175,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   }, [movie]);
 
   /* ---------------------------------------------------------------------- */
-  /* Embed URL                                                              */
-  /* ---------------------------------------------------------------------- */
-
-  const resolvedImdbId = imdbId || movie?.imdbId || '';
-  const missingImdbId = Boolean(source.requiresImdbId) && !resolvedImdbId;
-
-  const embedSrc = useMemo(() => {
-    if (!movie || missingImdbId) return '';
-    if (type === 'tv' && !episodeNumber) return '';
-    return source.buildUrl({
-      id,
-      season: seasonNumber,
-      episode: episodeNumber,
-      imdbId: resolvedImdbId || undefined,
-    });
-    // `retryToken` intentionally participates so "Try again" remounts the frame.
-  }, [movie, missingImdbId, type, source, id, seasonNumber, episodeNumber, resolvedImdbId]);
-
-  useEffect(() => {
-    if (!embedSrc) {
-      setEmbedState('idle');
-      return;
-    }
-    setEmbedState('loading');
-    const timer = window.setTimeout(() => {
-      setEmbedState((state) => (state === 'loading' ? 'slow' : state));
-    }, EMBED_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, [embedSrc, retryToken]);
-
-  /* ---------------------------------------------------------------------- */
-  /* Progress                                                               */
+  /* Progress & Restored Position                                           */
   /* ---------------------------------------------------------------------- */
 
   const runtimeSeconds = movie?.runtime ? movie.runtime * 60 : null;
@@ -234,6 +203,38 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       percentage: restored?.progress_percentage ?? 0,
     };
   }, [restored, runtimeSeconds]);
+
+  /* ---------------------------------------------------------------------- */
+  /* Embed URL                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  const resolvedImdbId = imdbId || movie?.imdbId || '';
+  const missingImdbId = Boolean(source.requiresImdbId) && !resolvedImdbId;
+
+  const embedSrc = useMemo(() => {
+    if (!movie || missingImdbId) return '';
+    if (type === 'tv' && !episodeNumber) return '';
+    return source.buildUrl({
+      id,
+      season: seasonNumber,
+      episode: episodeNumber,
+      imdbId: resolvedImdbId || undefined,
+      progress: restored?.position_seconds || undefined,
+    });
+    // `retryToken` intentionally participates so "Try again" remounts the frame.
+  }, [movie, missingImdbId, type, source, id, seasonNumber, episodeNumber, resolvedImdbId, restored?.position_seconds]);
+
+  useEffect(() => {
+    if (!embedSrc) {
+      setEmbedState('idle');
+      return;
+    }
+    setEmbedState('loading');
+    const timer = window.setTimeout(() => {
+      setEmbedState((state) => (state === 'loading' ? 'slow' : state));
+    }, EMBED_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [embedSrc, retryToken]);
 
   const persist = useCallback(
     (progress: PlaybackProgress, flush: boolean) => {
@@ -320,41 +321,75 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     if (!movie) return;
 
     const onMessage = (event: MessageEvent) => {
-      // Origin check first: any page can postMessage into this window, and the
-      // previous handler for Peachify ran before checking who sent the data.
+      // Origin check first: any page can postMessage into this window
       if (!TRUSTED_PLAYER_ORIGINS.has(event.origin)) return;
 
-      const payload = event.data as
-        | {
-            type?: string;
-            event?: string;
-            data?: { event?: string };
-            progress?: number;
-            percentage?: number;
-            watched?: number;
-            duration?: number;
-            tmdbId?: string | number;
-            id?: string | number;
-          }
-        | null;
-      if (!payload || typeof payload !== 'object') return;
+      let rawPayload = event.data;
+      if (typeof rawPayload === 'string') {
+        try {
+          rawPayload = JSON.parse(rawPayload);
+        } catch {
+          return;
+        }
+      }
+      if (!rawPayload || typeof rawPayload !== 'object') return;
 
-      const claimedId = payload.tmdbId ?? payload.id;
+      const payload = rawPayload as Record<string, any>;
+      const inner = payload.data && typeof payload.data === 'object' ? payload.data : payload;
+
+      const claimedId = payload.tmdbId ?? payload.id ?? inner.tmdbId ?? inner.id;
       if (claimedId != null && String(claimedId) !== String(id)) return;
 
-      const watched = typeof payload.watched === 'number' ? payload.watched : null;
-      const duration = typeof payload.duration === 'number' && payload.duration > 0 ? payload.duration : null;
+      const watched =
+        typeof inner.watched === 'number'
+          ? inner.watched
+          : typeof inner.currentTime === 'number'
+            ? inner.currentTime
+            : typeof inner.position === 'number'
+              ? inner.position
+              : typeof payload.watched === 'number'
+                ? payload.watched
+                : typeof payload.currentTime === 'number'
+                  ? payload.currentTime
+                  : null;
+
+      const duration =
+        typeof inner.duration === 'number' && inner.duration > 0
+          ? inner.duration
+          : typeof inner.totalTime === 'number' && inner.totalTime > 0
+            ? inner.totalTime
+            : typeof payload.duration === 'number' && payload.duration > 0
+              ? payload.duration
+              : typeof payload.totalTime === 'number' && payload.totalTime > 0
+                ? payload.totalTime
+                : null;
 
       let percentage: number | null = null;
-      if (typeof payload.progress === 'number') percentage = payload.progress;
-      else if (typeof payload.percentage === 'number') percentage = payload.percentage;
-      else if (watched !== null && duration !== null) percentage = (watched / duration) * 100;
+      if (typeof inner.progress === 'number') {
+        percentage = inner.progress <= 1 && inner.progress > 0 ? inner.progress * 100 : inner.progress;
+      } else if (typeof inner.percentage === 'number') {
+        percentage = inner.percentage;
+      } else if (typeof payload.progress === 'number') {
+        percentage = payload.progress <= 1 && payload.progress > 0 ? payload.progress * 100 : payload.progress;
+      } else if (typeof payload.percentage === 'number') {
+        percentage = payload.percentage;
+      } else if (watched !== null && duration !== null && duration > 0) {
+        percentage = (watched / duration) * 100;
+      }
 
-      if (percentage !== null) {
-        const clamped = Math.min(100, Math.max(0, percentage));
+      if (percentage !== null || watched !== null) {
         const knownDuration = duration ?? progressRef.current.durationSeconds;
+        let clamped = percentage !== null ? Math.min(100, Math.max(0, percentage)) : 0;
         const position =
-          watched ?? (knownDuration !== null ? Math.round((clamped / 100) * knownDuration) : 0);
+          watched !== null
+            ? Math.max(0, Math.round(watched))
+            : knownDuration !== null
+              ? Math.round((clamped / 100) * knownDuration)
+              : 0;
+
+        if (percentage === null && knownDuration !== null && knownDuration > 0) {
+          clamped = Math.min(100, Math.max(0, (position / knownDuration) * 100));
+        }
 
         progressRef.current = {
           positionSeconds: position,
@@ -364,8 +399,15 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         persistRef.current(progressRef.current, clamped >= COMPLETION_THRESHOLD);
       }
 
-      const playerEvent = payload.data?.event ?? payload.event;
-      if (playerEvent === 'ended') {
+      const eventName = String(payload.event || payload.type || inner.event || inner.type || '');
+      const isEnded =
+        eventName === 'ended' ||
+        eventName === 'playback_ended' ||
+        eventName === 'onEnded' ||
+        payload.ended === true ||
+        inner.ended === true;
+
+      if (isEnded) {
         progressRef.current = { ...progressRef.current, percentage: 100 };
         persistRef.current(progressRef.current, true);
         if (type === 'tv' && userProfile.autoPlayNext) {

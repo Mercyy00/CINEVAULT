@@ -28,6 +28,21 @@ export interface StreamSource extends ServerOption {
 
 export const STREAM_SOURCES: StreamSource[] = [
   {
+    id: 'opstream',
+    name: 'OpStream 4K (Fast)',
+    quality: '4K',
+    language: 'multi',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode, progress }) => {
+      const startSec = progress && progress > 5 ? Math.round(progress) : null;
+      const progParam = startSec ? `&progress=${startSec}` : '';
+      return season && episode
+        ? `https://opstream.fun/embed/tv/${id}/${season}/${episode}?color=e8852a&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true${progParam}`
+        : `https://opstream.fun/embed/movie/${id}?color=e8852a${progParam}`;
+    },
+  },
+  {
     id: 'screenscape-hi',
     name: 'ScreenScape Hindi',
     quality: '4K',
@@ -52,57 +67,8 @@ export const STREAM_SOURCES: StreamSource[] = [
         : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=eng`,
   },
   {
-    id: 'modiplay-hi',
-    name: 'ModiPlay Hindi',
-    quality: '4K',
-    language: 'hindi',
-    latencyMs: null,
-    status: 'unknown',
-    requiresImdbId: true,
-    buildUrl: ({ id, season, episode, imdbId }) =>
-      season && episode
-        ? `https://rozgarlelo.modiplay.xyz/embed/imdb/tv?id=${imdbId || id}&s=${season}&e=${episode}`
-        : `https://rozgarlelo.modiplay.xyz/embed/imdb/movie?id=${imdbId || id}`,
-  },
-  {
-    id: 'mbply-hi',
-    name: 'MbPly Hindi',
-    quality: '4K',
-    language: 'hindi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://cinesrc.st/embed/tv/${id}/${season}/${episode}?server=MbPly-[Multi-Lang]&lang=hi&sub=hi&disable_app_ad=true`
-        : `https://cinesrc.st/embed/movie/${id}?server=MbPly-[Multi-Lang]&lang=hi&sub=hi&disable_app_ad=true`,
-  },
-  {
-    id: 'cinesrc-hi',
-    name: 'CineSrc Hindi Dub',
-    quality: 'HD',
-    language: 'hindi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://cinesrc.st/embed/tv/${id}/${season}/${episode}?lang=hi&sub=hi&disable_app_ad=true`
-        : `https://cinesrc.st/embed/movie/${id}?lang=hi&sub=hi&disable_app_ad=true`,
-  },
-  {
-    id: 'autoembed-hi',
-    name: 'AutoEmbed Hindi',
-    quality: '4K',
-    language: 'hindi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://autoembed.co/tv/tmdb/${id}/${season}/${episode}?lang=hi&sub=hi`
-        : `https://autoembed.co/movie/tmdb/${id}?lang=hi&sub=hi`,
-  },
-  {
     id: 'peachify',
-    name: 'Peachify',
+    name: 'Peachify Multi',
     quality: 'HD',
     language: 'multi',
     latencyMs: null,
@@ -111,66 +77,6 @@ export const STREAM_SOURCES: StreamSource[] = [
       season && episode
         ? `https://peachify.pro/embed/tv/${id}/${season}/${episode}?autoNext=true&showNextBtn=true`
         : `https://peachify.pro/embed/movie/${id}?autoPlay=true`,
-  },
-  {
-    id: 'zxc',
-    name: 'ZXC Stream',
-    quality: 'HD',
-    language: 'english',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://zxcstream.xyz/player/tv/${id}/${season}/${episode}`
-        : `https://zxcstream.xyz/player/movie/${id}`,
-  },
-  {
-    id: 'viduki-1',
-    name: 'Viduki',
-    quality: 'HD',
-    language: 'english',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://viduki.net/1/tv/${id}/${season}/${episode}`
-        : `https://viduki.net/1/movie/${id}`,
-  },
-  {
-    id: 'viduki-2',
-    name: 'Viduki Multi-Lang',
-    quality: 'HD',
-    language: 'multi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://viduki.net/2/tv/${id}/${season}/${episode}`
-        : `https://viduki.net/2/movie/${id}`,
-  },
-  {
-    id: 'viduki-3',
-    name: 'Viduki Premium',
-    quality: '4K',
-    language: 'multi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://viduki.net/3/tv/${id}/${season}/${episode}`
-        : `https://viduki.net/3/movie/${id}`,
-  },
-  {
-    id: 'vidsync',
-    name: 'VidSync Cloud',
-    quality: 'HD',
-    language: 'english',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://vidsync.xyz/embed/tv/${id}/${season}/${episode}?autoPlay=true`
-        : `https://vidsync.xyz/embed/movie/${id}?autoPlay=true`,
   },
   {
     id: 'vidlink',
@@ -186,7 +92,7 @@ export const STREAM_SOURCES: StreamSource[] = [
   },
   {
     id: 'videasy',
-    name: 'Videasy',
+    name: 'Videasy HD',
     quality: 'HD',
     language: 'english',
     latencyMs: null,
@@ -195,6 +101,43 @@ export const STREAM_SOURCES: StreamSource[] = [
       season && episode
         ? `https://player.videasy.net/tv/${id}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true`
         : `https://player.videasy.net/movie/${id}`,
+  },
+  {
+    id: 'autoembed-hi',
+    name: 'AutoEmbed Hindi',
+    quality: '4K',
+    language: 'hindi',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode }) =>
+      season && episode
+        ? `https://autoembed.co/tv/tmdb/${id}/${season}/${episode}?lang=hi&sub=hi`
+        : `https://autoembed.co/movie/tmdb/${id}?lang=hi&sub=hi`,
+  },
+  {
+    id: 'modiplay-hi',
+    name: 'ModiPlay Hindi',
+    quality: '4K',
+    language: 'hindi',
+    latencyMs: null,
+    status: 'unknown',
+    requiresImdbId: true,
+    buildUrl: ({ id, season, episode, imdbId }) =>
+      season && episode
+        ? `https://rozgarlelo.modiplay.xyz/embed/imdb/tv?id=${imdbId || id}&s=${season}&e=${episode}`
+        : `https://rozgarlelo.modiplay.xyz/embed/imdb/movie?id=${imdbId || id}`,
+  },
+  {
+    id: 'cinesrc-hi',
+    name: 'CineSrc Hindi',
+    quality: 'HD',
+    language: 'hindi',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode }) =>
+      season && episode
+        ? `https://cinesrc.st/embed/tv/${id}/${season}/${episode}?lang=hi&sub=hi&disable_app_ad=true`
+        : `https://cinesrc.st/embed/movie/${id}?lang=hi&sub=hi&disable_app_ad=true`,
   },
   {
     id: 'vidfast',
@@ -208,30 +151,6 @@ export const STREAM_SOURCES: StreamSource[] = [
         ? `https://vidfast.pro/tv/${id}/${season}/${episode}?autoPlay=true`
         : `https://vidfast.pro/movie/${id}?autoPlay=true`,
   },
-  {
-    id: 'cinesrc',
-    name: 'CineSrc HD',
-    quality: 'HD',
-    language: 'multi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://cinesrc.st/embed/tv/${id}/${season}/${episode}`
-        : `https://cinesrc.st/embed/movie/${id}`,
-  },
-  {
-    id: '111movies',
-    name: '111 Movies',
-    quality: 'SD',
-    language: 'english',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://111movies.com/tv/${id}/${season}/${episode}`
-        : `https://111movies.com/movie/${id}`,
-  },
 ];
 
 /**
@@ -241,8 +160,17 @@ export const STREAM_SOURCES: StreamSource[] = [
  * cannot forge watch history.
  */
 export const TRUSTED_PLAYER_ORIGINS = new Set([
+  'https://opstream.fun',
   'https://screenscape.me',
   'https://peachify.pro',
+  'https://vidlink.pro',
+  'https://player.videasy.net',
+  'https://videasy.net',
+  'https://cinesrc.st',
+  'https://autoembed.co',
+  'https://vidfast.pro',
+  'https://vidsync.xyz',
+  'https://rozgarlelo.modiplay.xyz',
 ]);
 
 /**
