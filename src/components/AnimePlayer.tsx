@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe } from 'lucide-react';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward } from 'lucide-react';
 import { kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -32,6 +32,13 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [showNextEpisode, setShowNextEpisode] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(5);
   const nextEpisodeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hasDismissedNextPrompt = useRef(false);
+
+  useEffect(() => {
+    hasDismissedNextPrompt.current = false;
+    setShowNextEpisode(false);
+    setNextCountdown(5);
+  }, [id, episode]);
 
   const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: 'megaplay' | 'anikoto' = server, malId?: string, title?: string) => {
     setIsServerLoading(true);
@@ -320,19 +327,39 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [episodes, selectedEpisode]);
 
-  // MegaPlay postMessage handler
+  // PostMessage handler for episode completion & telemetry
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      const data = event.data;
-      if (data && (data.channel === 'megacloud' || data.type === 'watching-log')) {
-        if (data.event === 'complete' && userProfile.autoPlayNext) {
-          // Trigger next episode
-          const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
-          if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
-            setShowNextEpisode(true);
-            setNextCountdown(5);
-          }
+      let data = event.data;
+      if (typeof data === 'string') {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
         }
+      }
+      if (!data || typeof data !== 'object') return;
+
+      const inner = data.data && typeof data.data === 'object' ? data.data : data;
+      const eventName = String(data.event || data.type || inner.event || inner.type || '');
+      const isComplete = eventName === 'complete' || eventName === 'ended' || eventName === 'playback_ended' || data.ended === true || inner.ended === true;
+
+      const watched = typeof inner.currentTime === 'number' ? inner.currentTime : (typeof inner.watched === 'number' ? inner.watched : null);
+      const duration = typeof inner.duration === 'number' && inner.duration > 0 ? inner.duration : null;
+      let percentage = typeof inner.progress === 'number' ? (inner.progress <= 1 ? inner.progress * 100 : inner.progress) : (typeof inner.percentage === 'number' ? inner.percentage : null);
+
+      if (percentage === null && watched !== null && duration !== null && duration > 0) {
+        percentage = (watched / duration) * 100;
+      }
+
+      const isApproachingEnd = (percentage !== null && percentage >= 90) || (duration !== null && watched !== null && (duration - watched) <= 75);
+
+      const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
+      const hasNext = currentIndex !== -1 && currentIndex < episodes.length - 1;
+
+      if (hasNext && (isComplete || isApproachingEnd) && !hasDismissedNextPrompt.current) {
+        setShowNextEpisode(true);
+        if (isComplete) setNextCountdown(5);
       }
     };
 
@@ -417,6 +444,30 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
                 )}
               </div>
             </div>
+
+            <div className="flex items-center gap-3">
+              {(() => {
+                const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
+                if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
+                  const nextEpNum = episodes[currentIndex + 1]?.episode || selectedEpisode.episode + 1;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
+                      }}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10"
+                      title={`Next: Episode ${nextEpNum}`}
+                    >
+                      <SkipForward className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Next Episode</span>
+                      <span className="sm:hidden">Next</span>
+                    </button>
+                  );
+                }
+                return null;
+              })()}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -454,40 +505,76 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
 
         {/* Next Episode Prompt */}
         <AnimatePresence>
-          {showNextEpisode && (
-            <motion.div 
-              initial={{ opacity: 0, y: 50, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 50, scale: 0.9 }}
-              className="absolute bottom-24 right-8 z-40 bg-card backdrop-blur-xl border border-white/10 p-6 rounded-xl shadow-2xl max-w-sm"
-            >
-              <h3 className="text-foreground font-bold text-lg mb-2">Next Episode</h3>
-              <p className="text-muted-foreground text-sm mb-6">
-                Playing Episode {episodes.findIndex(e => e.episode === selectedEpisode?.episode) + 2} in {nextCountdown}s...
-              </p>
-              <div className="flex gap-3">
-                <button 
-                  onClick={() => {
-                    setShowNextEpisode(false);
-                    const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
-                    if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
-                      const nextEpNum = episodes[currentIndex + 1]?.episode || selectedEpisode.episode + 1;
-window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
-                    }
-                  }}
-                  className="flex-1 bg-brand hover:bg-brand-light text-background font-bold py-2 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Play className="w-4 h-4 fill-current" /> Play Now
-                </button>
-                <button 
-                  onClick={() => setShowNextEpisode(false)}
-                  className="px-4 bg-white/10 hover:bg-white/20 text-foreground font-medium rounded-xl transition-colors cursor-pointer"
-                >
-                  Cancel
-                </button>
-              </div>
-            </motion.div>
-          )}
+          {showNextEpisode && (() => {
+            const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
+            const nextEp = currentIndex !== -1 && currentIndex < episodes.length - 1 ? episodes[currentIndex + 1] : null;
+            const nextEpNum = nextEp?.episode || (selectedEpisode?.episode ? selectedEpisode.episode + 1 : null);
+            if (!nextEpNum) return null;
+
+            return (
+              <motion.div 
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 50, scale: 0.9 }}
+                className="absolute bottom-24 right-4 sm:right-8 z-40 bg-card/95 backdrop-blur-2xl border border-white/15 p-4 sm:p-5 rounded-2xl shadow-2xl max-w-sm w-[calc(100vw-2rem)] sm:w-84"
+              >
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-brand bg-brand/15 px-2 py-0.5 rounded-full border border-brand/30">
+                    Up Next
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNextEpisode(false);
+                      hasDismissedNextPrompt.current = true;
+                    }}
+                    className="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    aria-label="Dismiss"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <h3 className="text-foreground font-bold text-sm sm:text-base line-clamp-1 mb-1">
+                  Episode {nextEpNum}{nextEp?.title ? `: ${nextEp.title}` : ''}
+                </h3>
+                <p className="text-muted-foreground text-xs mb-3 font-mono">
+                  Auto-playing in <span className="text-brand font-bold">{nextCountdown}s</span>...
+                </p>
+
+                {/* Countdown progress bar */}
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-4">
+                  <div 
+                    className="h-full bg-brand transition-all duration-1000 ease-linear rounded-full"
+                    style={{ width: `${Math.max(0, Math.min(100, ((5 - nextCountdown) / 5) * 100))}%` }}
+                  />
+                </div>
+
+                <div className="flex gap-2">
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowNextEpisode(false);
+                      window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
+                    }}
+                    className="flex-1 bg-brand hover:bg-brand/90 text-background font-bold py-2.5 px-4 rounded-xl transition-all shadow-lg shadow-brand/25 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
+                  >
+                    <Play className="w-4 h-4 fill-current" /> Play Now
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowNextEpisode(false);
+                      hasDismissedNextPrompt.current = true;
+                    }}
+                    className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-foreground font-semibold rounded-xl transition-colors text-xs cursor-pointer"
+                  >
+                    Stay
+                  </button>
+                </div>
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>
       </div>
 

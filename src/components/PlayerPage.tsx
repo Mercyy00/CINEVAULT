@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Menu, Play, Signal, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Menu, Play, Signal, SkipForward, X } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -76,6 +76,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const [showControls, setShowControls] = useState(true);
   const [showNextEpisode, setShowNextEpisode] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(NEXT_EPISODE_SECONDS);
+  const hasDismissedNextPrompt = useRef(false);
 
   const controlsTimeout = useRef<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -87,6 +88,23 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
   const episodeNumber = type === 'tv' ? selectedEpisode?.episode_number : undefined;
   const seasonNumber = type === 'tv' ? selectedSeason : undefined;
+
+  const nextEpisode = useMemo(() => {
+    if (type !== 'tv' || !selectedEpisode) return null;
+    const index = episodes.findIndex((entry) => entry.id === selectedEpisode.id);
+    return index >= 0 ? (episodes[index + 1] ?? null) : null;
+  }, [type, episodes, selectedEpisode]);
+
+  const nextEpisodeRef = useRef(nextEpisode);
+  useEffect(() => {
+    nextEpisodeRef.current = nextEpisode;
+  }, [nextEpisode]);
+
+  useEffect(() => {
+    hasDismissedNextPrompt.current = false;
+    setShowNextEpisode(false);
+    setNextCountdown(NEXT_EPISODE_SECONDS);
+  }, [selectedEpisode?.id, selectedSeason, id]);
 
   /* ---------------------------------------------------------------------- */
   /* Details                                                                */
@@ -407,13 +425,19 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         payload.ended === true ||
         inner.ended === true;
 
+      const isApproachingEnd =
+        (percentage !== null && percentage >= 90) ||
+        (duration !== null && watched !== null && duration > 0 && duration - watched <= 75);
+
       if (isEnded) {
         progressRef.current = { ...progressRef.current, percentage: 100 };
         persistRef.current(progressRef.current, true);
-        if (type === 'tv' && userProfile.autoPlayNext) {
+        if (type === 'tv' && userProfile.autoPlayNext && nextEpisodeRef.current) {
           setShowNextEpisode(true);
           setNextCountdown(NEXT_EPISODE_SECONDS);
         }
+      } else if (isApproachingEnd && type === 'tv' && nextEpisodeRef.current && !hasDismissedNextPrompt.current) {
+        setShowNextEpisode(true);
       }
     };
 
@@ -432,12 +456,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     },
     [id, selectedSeason]
   );
-
-  const nextEpisode = useMemo(() => {
-    if (type !== 'tv' || !selectedEpisode) return null;
-    const index = episodes.findIndex((entry) => entry.id === selectedEpisode.id);
-    return index >= 0 ? (episodes[index + 1] ?? null) : null;
-  }, [type, episodes, selectedEpisode]);
 
   useEffect(() => {
     if (!showNextEpisode) return;
@@ -599,19 +617,34 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
-            >
-              <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
-              <span className="max-w-[90px] sm:max-w-none truncate">{source.name}</span>
-              {source.quality && (
-                <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
-                  {source.quality}
-                </span>
+            <div className="flex items-center gap-2 shrink-0">
+              {type === 'tv' && nextEpisode && (
+                <button
+                  type="button"
+                  onClick={() => goToEpisode(nextEpisode)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10"
+                  title={`Next: S${selectedSeason} E${nextEpisode.episode_number}`}
+                >
+                  <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
+                  <span className="hidden sm:inline">Next Episode</span>
+                  <span className="sm:hidden">Next</span>
+                </button>
               )}
-            </button>
+
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
+              >
+                <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
+                <span className="max-w-[90px] sm:max-w-none truncate">{source.name}</span>
+                {source.quality && (
+                  <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
+                    {source.quality}
+                  </span>
+                )}
+              </button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -714,27 +747,57 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               initial={{ opacity: 0, y: 50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 50, scale: 0.9 }}
-              className="absolute bottom-24 right-4 sm:right-8 z-40 bg-card backdrop-blur-xl border border-white/10 p-6 rounded-xl shadow-2xl max-w-sm"
+              className="absolute bottom-24 right-4 sm:right-8 z-40 bg-card/95 backdrop-blur-2xl border border-white/15 p-4 sm:p-5 rounded-2xl shadow-2xl max-w-sm w-[calc(100vw-2rem)] sm:w-84"
             >
-              <h2 className="text-foreground font-bold text-lg mb-2">Next episode</h2>
-              <p className="text-muted-foreground text-sm mb-6">
-                Episode {nextEpisode.episode_number}
-                {nextEpisode.name ? ` — ${nextEpisode.name}` : ''} in {nextCountdown}s
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-brand bg-brand/15 px-2 py-0.5 rounded-full border border-brand/30">
+                  Up Next
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNextEpisode(false);
+                    hasDismissedNextPrompt.current = true;
+                  }}
+                  className="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="Dismiss"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <h2 className="text-foreground font-bold text-sm sm:text-base line-clamp-1 mb-1">
+                S{selectedSeason} E{nextEpisode.episode_number}: {nextEpisode.name || 'Next Episode'}
+              </h2>
+              <p className="text-muted-foreground text-xs mb-3 font-mono">
+                Auto-playing in <span className="text-brand font-bold">{nextCountdown}s</span>...
               </p>
-              <div className="flex gap-3">
+
+              {/* Countdown progress bar */}
+              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-4">
+                <div
+                  className="h-full bg-brand transition-all duration-1000 ease-linear rounded-full"
+                  style={{ width: `${Math.max(0, Math.min(100, ((NEXT_EPISODE_SECONDS - nextCountdown) / NEXT_EPISODE_SECONDS) * 100))}%` }}
+                />
+              </div>
+
+              <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => goToEpisode(nextEpisode)}
-                  className="flex-1 bg-brand hover:bg-brand-light text-background font-bold py-2 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 bg-brand hover:bg-brand/90 text-background font-bold py-2.5 px-4 rounded-xl transition-all shadow-lg shadow-brand/25 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
                 >
-                  <Play className="w-4 h-4 fill-current" aria-hidden="true" /> Play now
+                  <Play className="w-4 h-4 fill-current" aria-hidden="true" /> Play Now
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowNextEpisode(false)}
-                  className="px-4 bg-white/10 hover:bg-white/20 text-foreground font-medium rounded-xl transition-colors cursor-pointer"
+                  onClick={() => {
+                    setShowNextEpisode(false);
+                    hasDismissedNextPrompt.current = true;
+                  }}
+                  className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-foreground font-semibold rounded-xl transition-colors text-xs cursor-pointer"
                 >
-                  Cancel
+                  Stay
                 </button>
               </div>
             </motion.div>
