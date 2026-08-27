@@ -20,13 +20,11 @@ const MAX_CONTINUE_WATCHING_ITEMS = 50;
 /**
  * Identity of a continue-watching entry.
  *
- * Exported so the store and the merge logic cannot drift. They previously
- * disagreed: the store de-duplicated on `id` alone while merge used
- * `id_season_episode`, so watching two episodes of one show produced one local
- * entry and two cloud entries that then fought on every sync.
+ * Each show, anime, or movie has exactly ONE entry in Continue Watching,
+ * reflecting the most recently watched episode/progress.
  */
 export function continueWatchingKey(item: ContinueWatchingItem): string {
-  return `${item.id}_${item.season_number ?? 0}_${item.episode_number ?? 0}`;
+  return `${item.media_type ?? 'movie'}_${item.id}`;
 }
 
 /**

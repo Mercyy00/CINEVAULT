@@ -110,6 +110,8 @@ interface AppContextType {
   resetAllLocalData: () => void;
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
+  clearContinueWatching: () => void;
+  removeContinueWatchingItem: (id: string, mediaType?: 'movie' | 'tv' | 'anime') => void;
   deferredInstallPrompt: BeforeInstallPromptEvent | null;
   setDeferredInstallPrompt: React.Dispatch<React.SetStateAction<BeforeInstallPromptEvent | null>>;
   onboardingComplete: boolean;
@@ -188,9 +190,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     readJSON<WatchlistItem[]>(StorageKeys.watchlist, [], Array.isArray)
   );
 
-  const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>(() =>
-    readJSON<ContinueWatchingItem[]>(StorageKeys.continueWatching, [], Array.isArray)
-  );
+  const [continueWatching, setContinueWatching] = useState<ContinueWatchingItem[]>(() => {
+    const raw = readJSON<ContinueWatchingItem[]>(StorageKeys.continueWatching, [], Array.isArray);
+    const map = new Map<string, ContinueWatchingItem>();
+    for (const item of raw) {
+      if (!item?.id) continue;
+      const key = continueWatchingKey(item);
+      const existing = map.get(key);
+      if (!existing || (item.timestamp ?? 0) > (existing.timestamp ?? 0)) {
+        map.set(key, item);
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+  });
 
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -552,9 +564,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const clearWatchlist = useCallback(() => {
     setWatchlist([]);
-    setContinueWatching([]);
-    showToast('List cleared');
+    remove(StorageKeys.watchlist);
+    showToast('Watchlist cleared');
   }, [showToast]);
+
+  const clearContinueWatching = useCallback(() => {
+    setContinueWatching([]);
+    remove(StorageKeys.continueWatching);
+    showToast('Watch history cleared');
+  }, [showToast]);
+
+  const removeContinueWatchingItem = useCallback(
+    (id: string, mediaType?: 'movie' | 'tv' | 'anime') => {
+      setContinueWatching((previous) =>
+        previous.filter((item) => {
+          if (mediaType) {
+            return !(item.id === id && item.media_type === mediaType);
+          }
+          return item.id !== id;
+        })
+      );
+      showToast('Removed from watch history');
+    },
+    [showToast]
+  );
 
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
     setUserProfile((previous) => ({ ...previous, ...updates }));
@@ -618,6 +651,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resetAllLocalData,
       continueWatching,
       updateContinueWatching,
+      clearContinueWatching,
+      removeContinueWatchingItem,
       deferredInstallPrompt,
       setDeferredInstallPrompt,
       onboardingComplete,

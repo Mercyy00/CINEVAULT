@@ -36,7 +36,7 @@ import type { Movie } from '../types';
 /** How long to wait for an embed's `load` event before warning the user. */
 const EMBED_TIMEOUT_MS = 12_000;
 const CONTROLS_HIDE_MS = 3_000;
-const NEXT_EPISODE_SECONDS = 5;
+const NEXT_EPISODE_SECONDS = 35;
 const COMPLETION_THRESHOLD = 90;
 const TOP_ZONE_RATIO = 0.15;
 

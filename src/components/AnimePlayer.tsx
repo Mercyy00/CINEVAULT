@@ -29,15 +29,16 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
+  const NEXT_EPISODE_SECONDS = 35;
   const [showNextEpisode, setShowNextEpisode] = useState(false);
-  const [nextCountdown, setNextCountdown] = useState(5);
+  const [nextCountdown, setNextCountdown] = useState(NEXT_EPISODE_SECONDS);
   const nextEpisodeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const hasDismissedNextPrompt = useRef(false);
 
   useEffect(() => {
     hasDismissedNextPrompt.current = false;
     setShowNextEpisode(false);
-    setNextCountdown(5);
+    setNextCountdown(NEXT_EPISODE_SECONDS);
   }, [id, episode]);
 
   const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: 'megaplay' | 'anikoto' = server, malId?: string, title?: string) => {
@@ -359,7 +360,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
 
       if (hasNext && (isComplete || isApproachingEnd) && !hasDismissedNextPrompt.current) {
         setShowNextEpisode(true);
-        if (isComplete) setNextCountdown(5);
+        if (isComplete) setNextCountdown(NEXT_EPISODE_SECONDS);
       }
     };
 
@@ -546,7 +547,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
                 <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-4">
                   <div 
                     className="h-full bg-brand transition-all duration-1000 ease-linear rounded-full"
-                    style={{ width: `${Math.max(0, Math.min(100, ((5 - nextCountdown) / 5) * 100))}%` }}
+                    style={{ width: `${Math.max(0, Math.min(100, ((NEXT_EPISODE_SECONDS - nextCountdown) / NEXT_EPISODE_SECONDS) * 100))}%` }}
                   />
                 </div>
 

@@ -78,6 +78,8 @@ export function ProfilePage() {
     watchlist,
     replaceWatchlist,
     continueWatching,
+    clearContinueWatching,
+    removeContinueWatchingItem,
     clearWatchlist,
     showToast,
     theme,
@@ -863,6 +865,7 @@ export function ProfilePage() {
 
                         <div className="flex items-center gap-2 shrink-0">
                           <button
+                            type="button"
                             onClick={() => {
                               handleClose();
                               if (item.media_type === 'anime') {
@@ -878,6 +881,15 @@ export function ProfilePage() {
                           >
                             <Play className="w-3.5 h-3.5 fill-current" />
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => removeContinueWatchingItem(item.id, item.media_type)}
+                            className="p-2 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-colors cursor-pointer"
+                            aria-label="Remove item from watch history"
+                            title="Remove from history"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -887,15 +899,14 @@ export function ProfilePage() {
 
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card flex flex-col sm:flex-row gap-3">
                 <button
-                  onClick={() => {
-                    localStorage.removeItem('cinevault_continue_watching');
-                    window.location.reload();
-                  }}
+                  type="button"
+                  onClick={clearContinueWatching}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" /> Clear Watch History
                 </button>
                 <button
+                  type="button"
                   onClick={clearWatchlist}
                   className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
                 >
