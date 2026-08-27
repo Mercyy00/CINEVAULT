@@ -305,24 +305,26 @@ function AppContent() {
         {/* `userPreferences` used to be an array of JSON *strings* that this map
             called `JSON.parse` on during render: one malformed entry threw and
             blanked the whole homepage. The store parses and validates them now. */}
-        {userPreferences.map((pref) => (
-          <MovieRow
-            key={pref.label}
-            title={`Because you like ${pref.label}`}
-            fetchFn={async (page) => {
-              if (pref.label === 'Anime') {
-                const res = await kitsuApi.getByCategory('anime', page);
-                return {
-                  results: (res.data ?? []).map((item) =>
-                    kitsuApi.mapKitsuToInternal(item, res.included ?? [])
-                  ),
-                };
-              }
-              return api.discover(pref.type ?? 'movie', { with_genres: pref.genres, page });
-            }}
-            onMovieSelect={goToDetail}
-          />
-        ))}
+        {userPreferences
+          .filter((pref) => pref && typeof pref.label === 'string' && pref.label.trim() !== '' && pref.label !== 'undefined')
+          .map((pref) => (
+            <MovieRow
+              key={`${pref.label}-${pref.genres}`}
+              title={`Because you like ${pref.label}`}
+              fetchFn={async (page) => {
+                if (pref.label === 'Anime') {
+                  const res = await kitsuApi.getByCategory('anime', page);
+                  return {
+                    results: (res.data ?? []).map((item) =>
+                      kitsuApi.mapKitsuToInternal(item, res.included ?? [])
+                    ),
+                  };
+                }
+                return api.discover(pref.type ?? 'movie', { with_genres: pref.genres, page });
+              }}
+              onMovieSelect={goToDetail}
+            />
+          ))}
 
         <MovieRow
           title="Top rated movies"

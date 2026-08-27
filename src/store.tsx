@@ -151,6 +151,49 @@ export interface UserPreference {
   type?: 'movie' | 'tv';
 }
 
+const GENRE_MAP: Record<string, string> = {
+  '28': 'Action',
+  '878': 'Sci-Fi',
+  '10749': 'Romance',
+  '27': 'Horror',
+  '16': 'Anime',
+  '53': 'Thriller',
+  '35': 'Comedy',
+  '18': 'Drama',
+};
+
+export function sanitizeUserPreferences(raw: unknown): UserPreference[] {
+  if (!Array.isArray(raw)) return [];
+  const results: UserPreference[] = [];
+  for (const item of raw) {
+    if (!item) continue;
+    if (typeof item === 'string') {
+      const label = GENRE_MAP[item] || (item !== 'undefined' ? item : '');
+      if (label) {
+        results.push({ label, genres: item, type: item === '16' ? 'tv' : 'movie' });
+      }
+    } else if (typeof item === 'object') {
+      const rawLabel = (item as any).label;
+      const rawName = (item as any).name;
+      const rawGenres = String((item as any).genres || (item as any).id || '');
+      
+      const label =
+        typeof rawLabel === 'string' && rawLabel.trim() && rawLabel !== 'undefined'
+          ? rawLabel.trim()
+          : typeof rawName === 'string' && rawName.trim() && rawName !== 'undefined'
+            ? rawName.trim()
+            : GENRE_MAP[rawGenres] || null;
+
+      const type = (item as any).type === 'tv' ? 'tv' : 'movie';
+
+      if (label && label !== 'undefined') {
+        results.push({ label, genres: rawGenres || label, type });
+      }
+    }
+  }
+  return results;
+}
+
 /** The non-standard event fired by Chromium for PWA installs. */
 export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -213,9 +256,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [ambientColor, setAmbientColor] = useState<string | null>(null);
 
-  const [userPreferences, setUserPreferencesState] = useState<UserPreference[]>(() =>
-    readJSON<UserPreference[]>(StorageKeys.userPreferences, [], (value) => Array.isArray(value))
-  );
+  const [userPreferences, setUserPreferencesState] = useState<UserPreference[]>(() => {
+    const raw = readJSON<unknown>(StorageKeys.userPreferences, []);
+    return sanitizeUserPreferences(raw);
+  });
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
@@ -512,8 +556,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setUserPreferences = useCallback((value: UserPreference[]) => {
-    setUserPreferencesState(value);
-    writeJSON(StorageKeys.userPreferences, value);
+    const sanitized = sanitizeUserPreferences(value);
+    setUserPreferencesState(sanitized);
+    writeJSON(StorageKeys.userPreferences, sanitized);
   }, []);
 
   /* All watchlist mutations use the updater form. Reading `watchlist` from the
