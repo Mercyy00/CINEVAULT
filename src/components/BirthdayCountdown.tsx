@@ -299,7 +299,12 @@ export function BirthdayCountdown() {
                     onClick={() => {
                       triggerSparkles(20);
                       setShowCelebrationModal(false);
-                      window.location.hash = '#birthday';
+                      sessionStorage.setItem('cv:playBirthdayIntro', 'true');
+                      if (window.location.hash === '#birthday') {
+                        window.dispatchEvent(new CustomEvent('trigger-birthday-intro'));
+                      } else {
+                        window.location.hash = '#birthday';
+                      }
                     }}
                     className="w-full py-3 bg-brand text-background font-bold rounded-xl text-xs sm:text-sm hover:opacity-95 active:scale-98 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
                   >

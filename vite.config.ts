@@ -33,5 +33,8 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     port: 3005,
+    watch: {
+      ignored: ['**/cinematic-kinetic-typography-component/**'],
+    },
   },
 }));

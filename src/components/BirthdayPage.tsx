@@ -1,6 +1,7 @@
-import { useState } from 'react';
-import { motion } from 'motion/react';
+import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Heart, ChevronDown } from 'lucide-react';
+import { BirthdayTypographyIntro } from './BirthdayTypographyIntro';
 import { LoveTreeCanvas } from './LoveTreeCanvas';
 import { SpinningVinylDisc } from './SpinningVinylDisc';
 import { HangingPolaroidsGallery } from './HangingPolaroidsGallery';
@@ -20,6 +21,26 @@ import { LuffyTimeSimulator } from './LuffyTimeSimulator';
 import { BIRTHDAY_SECTIONS_SCHEDULE } from '../config/birthdaySchedule';
 
 export function BirthdayPage() {
+  const [showIntro, setShowIntro] = useState<boolean>(() => {
+    const triggered = sessionStorage.getItem('cv:playBirthdayIntro');
+    if (triggered === 'true') return true;
+    const completed = sessionStorage.getItem('cv:birthdayIntroCompleted');
+    return completed !== 'true';
+  });
+
+  useEffect(() => {
+    const handleTriggerIntro = () => {
+      setShowIntro(true);
+    };
+    window.addEventListener('trigger-birthday-intro', handleTriggerIntro);
+    return () => window.removeEventListener('trigger-birthday-intro', handleTriggerIntro);
+  }, []);
+
+  const handleIntroComplete = () => {
+    setShowIntro(false);
+    sessionStorage.setItem('cv:birthdayIntroCompleted', 'true');
+    sessionStorage.removeItem('cv:playBirthdayIntro');
+  };
 
   // Time Simulator State for testing & live preview
   const [simulatedHour, setSimulatedHour] = useState<number | null>(() => {
@@ -53,6 +74,21 @@ export function BirthdayPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-x-hidden selection:bg-brand/30 selection:text-brand relative">
       
+      {/* Dynamic Birthday Heart & Kinetic Typography Gateway */}
+      <AnimatePresence>
+        {showIntro && (
+          <motion.div
+            key="birthday-typography-gateway"
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.8, ease: 'easeInOut' }}
+            className="fixed inset-0 z-[9999]"
+          >
+            <BirthdayTypographyIntro onComplete={handleIntroComplete} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Background Ambient Glows */}
       <div 
         className="fixed top-12 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full blur-[140px] opacity-20 pointer-events-none transition-all duration-700 -z-10"
@@ -80,17 +116,32 @@ export function BirthdayPage() {
         {/* Magical Blooming Sundrop Flower on Bottom Right */}
         <MagicalCornerFlower />
 
-        {/* Floating Petals / Badges Header */}
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full bg-brand/10 border border-brand/25 text-brand text-xs sm:text-sm font-semibold mb-6 sm:mb-8 backdrop-blur-md shadow-sm"
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>2nd September 2005 • Turning 21 Special</span>
-          <Heart className="w-4 h-4 fill-pink-500 text-pink-500" />
-        </motion.div>
+        {/* Floating Petals / Badges Header & Replay Heart Story Button */}
+        <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3 mb-6 sm:mb-8">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 rounded-full bg-brand/10 border border-brand/25 text-brand text-xs sm:text-sm font-semibold backdrop-blur-md shadow-sm"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>2nd September 2005 • Turning 21 Special</span>
+            <Heart className="w-4 h-4 fill-pink-500 text-pink-500" />
+          </motion.div>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowIntro(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full glass border border-pink-500/30 hover:border-pink-500 text-xs sm:text-sm font-semibold text-pink-400 hover:text-pink-300 transition-all cursor-pointer shadow-sm"
+          >
+            <Heart className="w-3.5 h-3.5 fill-current" />
+            <span>Replay Heart Story 💖</span>
+          </motion.button>
+        </div>
 
         {/* Big Genuine Header Text */}
         <motion.h1

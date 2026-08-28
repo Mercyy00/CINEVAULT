@@ -21,13 +21,27 @@ interface ArcadeGame {
 
 const ARCADE_GAMES: ArcadeGame[] = [
   {
+    id: "cat-pizza",
+    title: "Cat Pizza",
+    shortTitle: "Cat Pizza Cafe 🍕🐱",
+    genre: "Cute Bakery & Kitty Cafe 🍕🐾",
+    icon: "🐱",
+    badge: "NEW GAME 🍕",
+    src: "https://f221e1d1-dcbd-496f-b713-93fb45e4ce63.gdn.poki.com/b8b86622-c2e5-4361-97a5-664ffb9c309d/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-5acd9637b25a72730bee72c735cb51b9c61c2d49&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fcat-pizza&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=4%2C64%2C91%2C145%2C277%2C388%2C839%2C1140%2C1190%2C1205&game_id=f221e1d1-dcbd-496f-b713-93fb45e4ce63&game_version_id=b8b86622-c2e5-4361-97a5-664ffb9c309d&inspector=0&csp=1",
+    instructions: "Bake tasty pizzas, serve hungry feline customers, and run the cutest cat pizzeria! 🍕🐱",
+    challenge: "Can you deliver the perfect piping hot pizza order for all the kitties? 😻",
+    accent: "from-orange-500 to-amber-500",
+    borderGlow: "shadow-[0_0_25px_rgba(249,115,22,0.5)]",
+    aspectClass: "w-full max-w-5xl mx-auto aspect-[16/10] sm:aspect-[16/9] min-h-[500px] max-h-[700px]"
+  },
+  {
     id: "roombox-design",
     title: "Roombox: Dream Home Design",
     shortTitle: "Dream Home Decorator",
     genre: "Cozy 3D Interior Decorating 🏡🎨",
     icon: "🏡",
-    badge: "NEW GAME 🛋️",
-    src: "https://files.crazygames.com/roombox-design/14/index.html?isNewUser=false&utm_medium=organic&utm_source=Pinterest&__nextLocale=en-US&czyExpClientNexx360UserSync2_CZY_20520=ineligible&czyExpClientUnpauseVideos1_CZY_20520=ineligible&czyExpClientAdsDummyAA=ineligible&czyExpClientOptable=disabled&czyExpNewSaveProgressNotice_CZY_19240=enabled&czyExpClientSideLogging_CZY_19610=enabled&czyExpParallelPreroll_CZY_18469_3=ineligible&czyExpRenderResolution_CZY_20444=enabled",
+    badge: "COZY DECOR 🛋️",
+    src: "https://files.crazygames.com/roombox-design/14/index.html?isNewUser=false&__nextLocale=en-US&czyExpClientNexx360UserSync2_CZY_20520=ineligible&czyExpClientUnpauseVideos1_CZY_20520=ineligible&czyExpClientAdsDummyAA=ineligible&czyExpClientOptable=disabled&czyExpNewSaveProgressNotice_CZY_19240=enabled&czyExpClientSideLogging_CZY_19610=enabled&czyExpParallelPreroll_CZY_18469_3=ineligible&czyExpRenderResolution_CZY_20444=enabled",
     instructions: "Drag & drop cute furniture, decorate walls, and design our future cozy dream home! 🛋️🪴",
     challenge: "Can you design our dream master bedroom and cozy reading nook? 💖",
     accent: "from-pink-500 to-rose-500",
@@ -42,7 +56,7 @@ const ARCADE_GAMES: ArcadeGame[] = [
     genre: "Photography & Satirical Comedy 📸",
     icon: "📸",
     badge: "FAN FAVORITE",
-    src: "https://games.poki.com/458768/4041ad3f-ee25-483b-ae8b-51b16b86ac67?tag=pg-60cf9f7d3a2af91247fa212a5f98e4bb8dce371b&site_id=54&iso_lang=tr&country=IN&poki_url=https://poki.com/tr/g/we-become-what-we-behold&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=6,7,37,91,1139&user_id=aom3dGRO6gFtr1PQemHLPA",
+    src: "https://4041ad3f-ee25-483b-ae8b-51b16b86ac67.gdn.poki.com/c2e2e416-d187-42ef-a501-85ff9c905ad4/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-5acd9637b25a72730bee72c735cb51b9c61c2d49&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fwe-become-what-we-behold&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=6%2C7%2C37%2C91%2C1139&special_condition=landing&game_id=4041ad3f-ee25-483b-ae8b-51b16b86ac67&game_version_id=c2e2e416-d187-42ef-a501-85ff9c905ad4&inspector=0&csp=1",
     instructions: "Click & drag your camera viewfinder to snap photos of quirky characters in the square! 📸",
     challenge: "Can you snap all funny moments without bursting into giggles? 🤭",
     accent: "from-amber-500 to-rose-500",
@@ -59,7 +73,8 @@ export function BirthdayArcadeSection() {
     resumeTrack: resumeBgMusic 
   } = useBirthdayMusic();
 
-  const [selectedGameId, setSelectedGameId] = useState<string>("roombox-design");
+  const [selectedGameId, setSelectedGameId] = useState<string>("cat-pizza");
+  const [isGameActive, setIsGameActive] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -129,6 +144,15 @@ export function BirthdayArcadeSection() {
     sendMuteToIframe(isMuted);
   }, [isMuted]);
 
+  // Periodic mute pulse when game is active and muted
+  useEffect(() => {
+    if (!isGameActive || !isMuted) return;
+    const interval = setInterval(() => {
+      sendMuteToIframe(true);
+    }, 800);
+    return () => clearInterval(interval);
+  }, [isGameActive, isMuted]);
+
   const handleToggleMute = () => {
     if (isMuted) {
       // Unmuting game audio: Pause background birthday music to avoid audio overlap
@@ -150,15 +174,28 @@ export function BirthdayArcadeSection() {
   };
 
   const handleSelectGame = (gameId: string) => {
-    if (gameId === selectedGameId) return;
+    if (gameId === selectedGameId && isGameActive) return;
     setIsLoaded(false);
     setSelectedGameId(gameId);
+    setIsGameActive(true);
     setReloadKey(prev => prev + 1);
   };
 
   const handleReload = () => {
     setIsLoaded(false);
     setReloadKey(prev => prev + 1);
+  };
+
+  const handleStopGame = () => {
+    setIsGameActive(false);
+    setIsLoaded(false);
+    if (!isMuted) {
+      setIsMuted(true);
+      if (wasBgMusicPlayingRef.current) {
+        resumeBgMusic();
+        wasBgMusicPlayingRef.current = false;
+      }
+    }
   };
 
   const toggleFullscreen = () => {
@@ -225,12 +262,12 @@ export function BirthdayArcadeSection() {
           viewport={{ once: true }}
           className="text-muted-foreground text-xs sm:text-sm font-medium leading-relaxed"
         >
-          Test out our new <strong className="text-foreground">"Roombox: Dream Home Design"</strong> or switch back to <strong className="text-foreground">"We Become What We Behold"</strong>!
+          Play <strong className="text-foreground">"Cat Pizza"</strong>, design in <strong className="text-foreground">"Dream Home Decorator"</strong>, or snap laughs in <strong className="text-foreground">"Camera Comedy"</strong>!
         </motion.p>
       </div>
 
-      {/* DUAL GAME CARTRIDGE SELECTOR TABS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto mb-8">
+      {/* ARCADE GAME CARTRIDGE SELECTOR TABS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 sm:gap-4 max-w-5xl mx-auto mb-8">
         {ARCADE_GAMES.map((game, idx) => {
           const isSelected = game.id === selectedGameId;
           return (
@@ -367,6 +404,17 @@ export function BirthdayArcadeSection() {
               )}
             </button>
 
+            {isGameActive && (
+              <button
+                onClick={handleStopGame}
+                className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl glass border border-red-500/30 hover:border-red-500/60 text-red-400 hover:text-red-300 text-xs flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer font-mono"
+                title="Stop / Exit Game"
+              >
+                <span>⏹️</span>
+                <span className="hidden sm:inline">Stop Game</span>
+              </button>
+            )}
+
             <button
               onClick={handleReload}
               className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl glass border border-white/10 hover:border-brand/40 text-muted-foreground hover:text-foreground text-xs flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer font-mono"
@@ -414,33 +462,67 @@ export function BirthdayArcadeSection() {
           "relative w-full rounded-2xl overflow-hidden bg-neutral-950 shadow-inner border border-white/5 flex items-center justify-center",
           isFullscreen ? "flex-1 rounded-none border-none h-full" : currentGame.aspectClass
         )}>
-          {/* Loading Spinner */}
-          {!isLoaded && (
-            <div className="absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center text-center p-6 z-20">
-              <div className="w-16 h-16 rounded-2xl bg-brand/15 border-2 border-brand/40 flex items-center justify-center mb-4 animate-bounce text-brand shadow-[0_0_25px_rgba(232,133,42,0.4)]">
-                <Gamepad2 className="w-8 h-8 animate-pulse" />
+          {/* Attract Mode Screen when Game is not active */}
+          {!isGameActive ? (
+            <div className="flex flex-col items-center justify-center text-center p-6 sm:p-10 max-w-lg mx-auto z-20">
+              <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-brand/15 border-2 border-brand/40 flex items-center justify-center text-4xl sm:text-5xl mb-4 shadow-[0_0_35px_rgba(232,133,42,0.35)] animate-bounce">
+                {currentGame.icon}
               </div>
-              <h4 className="text-base font-display font-black text-foreground mb-1">
-                Loading {currentGame.title}... 🕹️✨
-              </h4>
-              <p className="text-xs text-muted-foreground font-mono">
-                Booting up the game window
+              <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-brand/15 text-brand mb-2">
+                {currentGame.badge}
+              </span>
+              <h3 className="text-2xl sm:text-3xl font-display font-black text-foreground mb-2">
+                {currentGame.title}
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground mb-6 leading-relaxed">
+                {currentGame.instructions}
               </p>
+              <button
+                onClick={() => {
+                  setIsGameActive(true);
+                  setIsLoaded(false);
+                }}
+                className="px-8 py-4 bg-brand text-background font-display font-black rounded-2xl text-sm sm:text-base shadow-[0_0_25px_rgba(232,133,42,0.5)] hover:shadow-[0_0_35px_rgba(232,133,42,0.7)] hover:scale-105 active:scale-95 transition-all flex items-center gap-2.5 cursor-pointer"
+              >
+                <Play className="w-5 h-5 fill-current" />
+                <span>Insert Token & Play Game (Muted)</span>
+              </button>
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-3">
+                <VolumeX className="w-3.5 h-3.5 text-amber-400" />
+                <span>100% Muted • Birthday playlist continues playing peacefully</span>
+              </div>
             </div>
-          )}
+          ) : (
+            <>
+              {/* Loading Spinner */}
+              {!isLoaded && (
+                <div className="absolute inset-0 bg-neutral-950 flex flex-col items-center justify-center text-center p-6 z-20">
+                  <div className="w-16 h-16 rounded-2xl bg-brand/15 border-2 border-brand/40 flex items-center justify-center mb-4 animate-bounce text-brand shadow-[0_0_25px_rgba(232,133,42,0.4)]">
+                    <Gamepad2 className="w-8 h-8 animate-pulse" />
+                  </div>
+                  <h4 className="text-base font-display font-black text-foreground mb-1">
+                    Loading {currentGame.title}... 🕹️✨
+                  </h4>
+                  <p className="text-xs text-muted-foreground font-mono">
+                    Booting up the game window (Muted)
+                  </p>
+                </div>
+              )}
 
-          {/* Sandboxed Interactive Iframe (100% full height & width) */}
-          <iframe
-            ref={iframeRef}
-            key={`${currentGame.id}-${reloadKey}`}
-            src={currentGame.src}
-            title={currentGame.title}
-            className="w-full h-full border-0 relative z-10"
-            style={{ width: '100%', height: '100%', minHeight: isFullscreen ? '100%' : '560px' }}
-            allow="autoplay; fullscreen; gamepad; focus-without-user-activation; accelerometer; gyroscope; xr-spatial-tracking"
-            sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
-            onLoad={handleIframeLoad}
-          />
+              {/* Sandboxed Interactive Iframe (No autoplay permission) */}
+              <iframe
+                ref={iframeRef}
+                key={`${currentGame.id}-${reloadKey}`}
+                src={currentGame.src}
+                title={currentGame.title}
+                className="w-full h-full border-0 relative z-10"
+                style={{ width: '100%', height: '100%', minHeight: isFullscreen ? '100%' : '560px' }}
+                allow="fullscreen; gamepad; focus-without-user-activation; accelerometer; gyroscope; xr-spatial-tracking"
+                sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts"
+                onLoad={handleIframeLoad}
+              />
+            </>
+          )}
         </div>
 
         {/* Arcade Footer HUD & Instructions */}

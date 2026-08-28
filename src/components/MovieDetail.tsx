@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Check, Star, Users, Clock, Calendar, ArrowLeft, ChevronDown, Film, Share2 } from 'lucide-react';
+import { Play, Plus, Check, Star, Users, Clock, Calendar, ArrowLeft, ChevronDown, Film, Share2, Download } from 'lucide-react';
 import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
@@ -12,6 +12,7 @@ import { getDominantColor } from '../lib/colorThief';
 export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
   const [movie, setMovie] = useState<Movie | null>(null);
+  const [imdbId, setImdbId] = useState<string>('');
         
   const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedSeason, setSelectedSeason] = useState<number>(1);
@@ -58,6 +59,17 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
         }
         
         const internalMovie = api.mapToInternalMovie({ ...details, media_type: type });
+
+        let resolvedImdb = details.external_ids?.imdb_id || details.imdb_id || '';
+        if (!resolvedImdb) {
+          try {
+            const external = await api.getExternalIds(type, id);
+            resolvedImdb = external.imdb_id ?? '';
+          } catch {}
+        }
+        if (mounted) {
+          setImdbId(resolvedImdb);
+        }
         
         try {
           const credits = await api.getCredits(type, id);
@@ -116,6 +128,18 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
     } finally {
       setIsLoadingEpisodes(false);
     }
+  };
+
+  const handleDownload = (targetSeason?: number, targetEp?: number) => {
+    const finalImdb = imdbId || movie?.imdbId || id;
+    const s = targetSeason !== undefined ? targetSeason : selectedSeason;
+    const e = targetEp !== undefined ? targetEp : selectedEpisode;
+
+    const downloadUrl = type === 'tv'
+      ? `https://rozgarlelo.modiplay.xyz/embed/imdb/tv?id=${finalImdb}&s=${s}&e=${e}`
+      : `https://rozgarlelo.modiplay.xyz/embed/imdb/movie?id=${finalImdb}`;
+
+    window.open(downloadUrl, '_blank', 'noopener,noreferrer');
   };
 
   const handleWatchlistToggle = (e: React.MouseEvent) => {
@@ -343,6 +367,18 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                   Watch Now
                 </button>
               )}
+
+              {/* Download Button (ModiPlay Server) */}
+              <button
+                type="button"
+                onClick={() => handleDownload()}
+                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border font-medium text-xs sm:text-base glass border-white/10 text-foreground hover:bg-white/15 hover:border-brand/40 cursor-pointer"
+                title={type === 'tv' ? `Download S${selectedSeason} E${selectedEpisode} via ModiPlay Server` : 'Download via ModiPlay Server'}
+              >
+                <Download className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
+                <span>{type === 'tv' ? `Download (S${selectedSeason} E${selectedEpisode})` : 'Download'}</span>
+              </button>
+
               <button 
                 onClick={handleWatchlistToggle}
                 className={cn(
@@ -427,14 +463,14 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                     </div>
                   ) : (
                     episodes.map((ep: any) => (
-                      <button
+                      <div
                         key={ep.id}
                         onClick={() => {
                           setSelectedEpisode(ep.episode_number);
                           window.location.hash = `#watch/tv/${id}/${selectedSeason}/${ep.episode_number}`;
                         }}
                         className={cn(
-                          "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-xl transition-all group",
+                          "w-full text-left flex flex-col md:flex-row items-start md:items-center gap-4 p-4 rounded-xl transition-all group cursor-pointer",
                           selectedEpisode === ep.episode_number 
                             ? "bg-brand/10 border border-brand/40 shadow-card" 
                             : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
@@ -457,15 +493,29 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv', id: string }) 
                             </div>
                           )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.episode_number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
-                            {ep.episode_number}. {ep.name}
-                          </h4>
-                          <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                            {ep.overview || "No description available."}
-                          </p>
+                        <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <h4 className={cn("text-base sm:text-lg font-bold mb-1 truncate", selectedEpisode === ep.episode_number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
+                              {ep.episode_number}. {ep.name}
+                            </h4>
+                            <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                              {ep.overview || "No description available."}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDownload(selectedSeason, ep.episode_number);
+                            }}
+                            title={`Download S${selectedSeason} E${ep.episode_number} via ModiPlay Server`}
+                            className="self-start sm:self-center px-3 py-2 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
+                          >
+                            <Download className="w-3.5 h-3.5 text-brand" />
+                            <span>Download</span>
+                          </button>
                         </div>
-                      </button>
+                      </div>
                     ))
                   )}
                 </div>

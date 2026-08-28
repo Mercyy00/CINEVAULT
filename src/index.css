@@ -921,3 +921,39 @@
   left: 1rem !important;
   z-index: 99999 !important;
 }
+
+/* ═══════════════════════════════════════════════════════
+   KINETIC TYPOGRAPHY UTILITIES
+   ═══════════════════════════════════════════════════════ */
+@keyframes shimmerText {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #e8852a, #ff4d6d, #f5a623);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.gradient-text-shimmer {
+  background: linear-gradient(90deg, #e8852a, #ff4d6d, #f5a623, #e8852a, #ff4d6d);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 3s linear infinite;
+}
+
+.glow-gold {
+  text-shadow: 0 0 20px rgba(232, 133, 42, 0.5), 0 0 40px rgba(232, 133, 42, 0.3);
+}
+
+.glow-rose {
+  text-shadow: 0 0 20px rgba(255, 77, 109, 0.5), 0 0 40px rgba(255, 77, 109, 0.3);
+}
+
+.glow-both {
+  text-shadow: 0 0 20px rgba(232, 133, 42, 0.4), 0 0 30px rgba(255, 77, 109, 0.4), 0 0 60px rgba(232, 133, 42, 0.2);
+}

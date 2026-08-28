@@ -28,18 +28,6 @@ export interface StreamSource extends ServerOption {
 
 export const STREAM_SOURCES: StreamSource[] = [
   {
-    id: 'screenscape-hi',
-    name: 'ScreenScape Hindi',
-    quality: '4K',
-    language: 'hindi',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://screenscape.me/embed?tmdb=${id}&type=tv&s=${season}&e=${episode}&lan=hindi`
-        : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=hindi`,
-  },
-  {
     id: 'modiplay-hi',
     name: 'ModiPlay Hindi',
     quality: '4K',
@@ -51,6 +39,18 @@ export const STREAM_SOURCES: StreamSource[] = [
       season && episode
         ? `https://rozgarlelo.modiplay.xyz/embed/imdb/tv?id=${imdbId || id}&s=${season}&e=${episode}`
         : `https://rozgarlelo.modiplay.xyz/embed/imdb/movie?id=${imdbId || id}`,
+  },
+  {
+    id: 'screenscape-hi',
+    name: 'ScreenScape Hindi',
+    quality: '4K',
+    language: 'hindi',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode }) =>
+      season && episode
+        ? `https://screenscape.me/embed?tmdb=${id}&type=tv&s=${season}&e=${episode}&lan=hindi`
+        : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=hindi`,
   },
   {
     id: 'opstream',
@@ -185,16 +185,6 @@ export const TRUSTED_PLAYER_ORIGINS = new Set([
   'https://videasy.net',
   'https://vidsync.xyz',
 ]);
-
-/**
- * Iframe sandbox for third-party embeds.
- *
- * Deliberately omits `allow-top-navigation` and `allow-popups`: these hosts
- * monetise with pop-unders and full-page redirects, and without those tokens
- * the browser blocks both. `allow-same-origin` keeps the embed on its *own*
- * origin (not ours) so its player storage and HLS requests still work.
- */
-export const EMBED_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-presentation';
 
 export function findSource(id: string | undefined): StreamSource | undefined {
   return STREAM_SOURCES.find((source) => source.id === id);

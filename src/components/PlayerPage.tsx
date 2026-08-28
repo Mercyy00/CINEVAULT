@@ -7,7 +7,6 @@ import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
 import { PosterImage } from './PosterImage';
 import {
-  EMBED_SANDBOX,
   STREAM_SOURCES,
   TRUSTED_PLAYER_ORIGINS,
   findSource,
@@ -572,9 +571,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -100 }}
             transition={{ duration: 0.15 }}
-            className="absolute top-0 left-0 right-0 p-4 sm:p-6 z-40 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent"
+            className="absolute top-0 left-0 right-0 p-4 sm:p-6 z-40 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-none"
           >
-            <div className="flex items-center gap-2 sm:gap-4 min-w-0">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 pointer-events-auto">
               <button
                 type="button"
                 onClick={() => {
@@ -591,25 +590,54 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   }, 100);
                 }}
                 aria-label="Back"
-                className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
               >
-                <ArrowLeft className="w-4 h-4 sm:w-6 sm:h-6" aria-hidden="true" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
               </button>
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
                 aria-label="Open episodes and sources"
                 aria-expanded={sidebarOpen}
-                className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
               >
-                <Menu className="w-4 h-4 sm:w-6 sm:h-6" aria-hidden="true" />
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
               </button>
-              <div className="hidden lg:block min-w-0">
-                <h1 className="text-lg sm:text-xl font-bold text-foreground drop-shadow-md truncate">
+
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
+                title="Change server source"
+              >
+                <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
+                <span className="max-w-[75px] sm:max-w-[120px] truncate">{source.name}</span>
+                {source.quality && (
+                  <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
+                    {source.quality}
+                  </span>
+                )}
+              </button>
+
+              {type === 'tv' && nextEpisode && (
+                <button
+                  type="button"
+                  onClick={() => goToEpisode(nextEpisode)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
+                  title={`Next: S${selectedSeason} E${nextEpisode.episode_number}`}
+                >
+                  <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
+                  <span className="hidden md:inline">Next Episode</span>
+                  <span className="md:hidden">Next</span>
+                </button>
+              )}
+
+              <div className="hidden lg:block min-w-0 ml-1">
+                <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">
                   {movie.title}
                 </h1>
                 {type === 'tv' && selectedEpisode && (
-                  <p className="text-xs sm:text-sm text-brand tracking-wide font-medium truncate">
+                  <p className="text-[10px] sm:text-xs text-brand tracking-wide font-medium truncate max-w-[200px] xl:max-w-[320px]">
                     S{selectedSeason} E{selectedEpisode.episode_number}
                     {selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
                   </p>
@@ -617,34 +645,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 shrink-0">
-              {type === 'tv' && nextEpisode && (
-                <button
-                  type="button"
-                  onClick={() => goToEpisode(nextEpisode)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10"
-                  title={`Next: S${selectedSeason} E${nextEpisode.episode_number}`}
-                >
-                  <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
-                  <span className="hidden sm:inline">Next Episode</span>
-                  <span className="sm:hidden">Next</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
-              >
-                <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
-                <span className="max-w-[90px] sm:max-w-none truncate">{source.name}</span>
-                {source.quality && (
-                  <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
-                    {source.quality}
-                  </span>
-                )}
-              </button>
-            </div>
+            {/* Right side is intentionally empty and non-interactive so player native buttons (e.g. server download buttons) remain unblocked */}
+            <div className="w-12 h-6 pointer-events-none" aria-hidden="true" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -664,8 +666,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             )}
             allowFullScreen
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
-            referrerPolicy="no-referrer"
-            sandbox={EMBED_SANDBOX}
           />
         )}
 
