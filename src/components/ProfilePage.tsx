@@ -42,7 +42,7 @@ interface ProfileTheme {
 }
 
 const ALL_THEMES: ProfileTheme[] = [
-  { id: 'crimson-premiere', name: 'Crimson Premiere', tag: 'Cinema Crimson & Black', mode: 'dark', color: '#e50914', bg: '#141414' },
+  { id: 'crimson-premiere', name: 'Crimson Premiere', tag: 'Pure OLED Black & Cinema Crimson', mode: 'dark', color: '#e50914', bg: '#050507' },
   { id: 'cinematic-dark', name: 'Cinematic Dark', tag: 'Warm Amber & Charcoal', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', tag: 'Deep Wine & Cream Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', tag: 'Butter Cream & Forest Pine', mode: 'dark', color: '#ffefb3', bg: '#013e37' },

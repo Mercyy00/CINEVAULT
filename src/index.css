@@ -94,34 +94,34 @@
   }
 
   /* ═══════════════════════════════════════════════════════
-     DARK THEME: Crimson Premiere (Default)
+     DARK THEME: Crimson Premiere (Default) - Pure OLED Black & Cinema Crimson
      ═══════════════════════════════════════════════════════ */
   :root,
   [data-theme="crimson-premiere"] {
-    --theme-bg: #141414;
+    --theme-bg: #050507;
     --theme-fg: #ffffff;
-    --theme-card: #1c1c1c;
-    --theme-popover: #1e1e1e;
+    --theme-card: #0c0c0e;
+    --theme-popover: #0f0f12;
     --theme-primary: #e50914;
     --theme-primary-fg: #ffffff;
-    --theme-secondary: #262626;
-    --theme-muted: #262626;
-    --theme-muted-fg: #999999;
+    --theme-secondary: #141418;
+    --theme-muted: #141418;
+    --theme-muted-fg: #8e8e99;
     --theme-accent: #e50914;
     --theme-accent-fg: #ffffff;
-    --theme-accent-light: #ff3843;
-    --theme-accent-dark: #b80710;
+    --theme-accent-light: #ff2a37;
+    --theme-accent-dark: #ad0710;
     --theme-accent-glow: #e50914;
     --theme-destructive: #e50914;
-    --theme-border: #333333;
-    --theme-input: #262626;
+    --theme-border: #1e1e24;
+    --theme-input: #121216;
     --theme-ring: #e50914;
-    --theme-glass-border: rgba(229, 9, 20, 0.2);
-    --theme-glass-bg: rgba(20, 20, 20, 0.88);
+    --theme-glass-border: rgba(229, 9, 20, 0.22);
+    --theme-glass-bg: rgba(7, 7, 9, 0.90);
 
-    --shadow-card: 0 8px 30px -8px rgba(0, 0, 0, 0.6);
-    --shadow-dock: 0 10px 40px -10px rgba(0, 0, 0, 0.7);
-    --shadow-glow: 0 0 60px rgba(229, 9, 20, 0.45);
+    --shadow-card: 0 12px 36px -8px rgba(0, 0, 0, 0.9);
+    --shadow-dock: 0 14px 48px -10px rgba(0, 0, 0, 0.95);
+    --shadow-glow: 0 0 70px rgba(229, 9, 20, 0.5);
   }
 
   /* ═══════════════════════════════════════════════════════
