@@ -9,11 +9,23 @@ import {
   getDiceBearUrl,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
+import type { LucideIcon } from 'lucide-react';
 import {
+  Flame,
+  Rocket,
+  Sparkles,
+  Crosshair,
+  Skull,
+  Clapperboard,
+  Laugh,
+  Heart,
+  Wand2,
+  Search,
+  Fingerprint,
+  Globe,
   Check,
   LogIn,
   UserCircle2,
-  Sparkles,
   ArrowRight,
   ArrowLeft,
   ShieldCheck,
@@ -21,19 +33,148 @@ import {
   Dice5,
 } from 'lucide-react';
 
-const RICH_GENRES: Array<UserPreference & { id: string; emoji: string; desc: string }> = [
-  { id: '28', label: 'Action', genres: '28', type: 'movie', emoji: '💥', desc: 'Adrenaline & blockbusters' },
-  { id: '878', label: 'Sci-Fi', genres: '878', type: 'movie', emoji: '🚀', desc: 'Cosmos & cyberpunk' },
-  { id: '16', label: 'Anime', genres: '16', type: 'tv', emoji: '🌸', desc: 'Shonen & animation' },
-  { id: '53', label: 'Thriller', genres: '53', type: 'movie', emoji: '🔪', desc: 'Suspense & tension' },
-  { id: '27', label: 'Horror', genres: '27', type: 'movie', emoji: '👻', desc: 'Supernatural & dread' },
-  { id: '18', label: 'Drama', genres: '18', type: 'movie', emoji: '🎭', desc: 'Deep narratives' },
-  { id: '35', label: 'Comedy', genres: '35', type: 'movie', emoji: '😂', desc: 'Laughs & satire' },
-  { id: '10749', label: 'Romance', genres: '10749', type: 'movie', emoji: '❤️', desc: 'Passion & heart' },
-  { id: '14', label: 'Fantasy', genres: '14', type: 'movie', emoji: '🧙', desc: 'Myths & magic realms' },
-  { id: '9648', label: 'Mystery', genres: '9648', type: 'movie', emoji: '🕵️', desc: 'Whodunits & puzzles' },
-  { id: '80', label: 'Crime', genres: '80', type: 'movie', emoji: '🔫', desc: 'Heists & underworld' },
-  { id: '99', label: 'Documentary', genres: '99', type: 'movie', emoji: '🌍', desc: 'Real history & nature' },
+interface RichGenreItem extends UserPreference {
+  id: string;
+  icon: LucideIcon;
+  desc: string;
+  iconColor: string;
+  badgeBg: string;
+  badgeBorder: string;
+}
+
+const RICH_GENRES: RichGenreItem[] = [
+  {
+    id: '28',
+    label: 'Action',
+    genres: '28',
+    type: 'movie',
+    icon: Flame,
+    desc: 'Adrenaline & blockbusters',
+    iconColor: 'text-orange-400',
+    badgeBg: 'bg-orange-500/15',
+    badgeBorder: 'border-orange-500/30',
+  },
+  {
+    id: '878',
+    label: 'Sci-Fi',
+    genres: '878',
+    type: 'movie',
+    icon: Rocket,
+    desc: 'Cosmos & cyberpunk',
+    iconColor: 'text-cyan-400',
+    badgeBg: 'bg-cyan-500/15',
+    badgeBorder: 'border-cyan-500/30',
+  },
+  {
+    id: '16',
+    label: 'Anime',
+    genres: '16',
+    type: 'tv',
+    icon: Sparkles,
+    desc: 'Shonen & animation',
+    iconColor: 'text-pink-400',
+    badgeBg: 'bg-pink-500/15',
+    badgeBorder: 'border-pink-500/30',
+  },
+  {
+    id: '53',
+    label: 'Thriller',
+    genres: '53',
+    type: 'movie',
+    icon: Crosshair,
+    desc: 'Suspense & tension',
+    iconColor: 'text-red-400',
+    badgeBg: 'bg-red-500/15',
+    badgeBorder: 'border-red-500/30',
+  },
+  {
+    id: '27',
+    label: 'Horror',
+    genres: '27',
+    type: 'movie',
+    icon: Skull,
+    desc: 'Supernatural & dread',
+    iconColor: 'text-purple-400',
+    badgeBg: 'bg-purple-500/15',
+    badgeBorder: 'border-purple-500/30',
+  },
+  {
+    id: '18',
+    label: 'Drama',
+    genres: '18',
+    type: 'movie',
+    icon: Clapperboard,
+    desc: 'Deep narratives',
+    iconColor: 'text-amber-400',
+    badgeBg: 'bg-amber-500/15',
+    badgeBorder: 'border-amber-500/30',
+  },
+  {
+    id: '35',
+    label: 'Comedy',
+    genres: '35',
+    type: 'movie',
+    icon: Laugh,
+    desc: 'Laughs & satire',
+    iconColor: 'text-yellow-400',
+    badgeBg: 'bg-yellow-500/15',
+    badgeBorder: 'border-yellow-500/30',
+  },
+  {
+    id: '10749',
+    label: 'Romance',
+    genres: '10749',
+    type: 'movie',
+    icon: Heart,
+    desc: 'Passion & heart',
+    iconColor: 'text-rose-400',
+    badgeBg: 'bg-rose-500/15',
+    badgeBorder: 'border-rose-500/30',
+  },
+  {
+    id: '14',
+    label: 'Fantasy',
+    genres: '14',
+    type: 'movie',
+    icon: Wand2,
+    desc: 'Myths & magic realms',
+    iconColor: 'text-violet-400',
+    badgeBg: 'bg-violet-500/15',
+    badgeBorder: 'border-violet-500/30',
+  },
+  {
+    id: '9648',
+    label: 'Mystery',
+    genres: '9648',
+    type: 'movie',
+    icon: Search,
+    desc: 'Whodunits & puzzles',
+    iconColor: 'text-sky-400',
+    badgeBg: 'bg-sky-500/15',
+    badgeBorder: 'border-sky-500/30',
+  },
+  {
+    id: '80',
+    label: 'Crime',
+    genres: '80',
+    type: 'movie',
+    icon: Fingerprint,
+    desc: 'Heists & underworld',
+    iconColor: 'text-emerald-400',
+    badgeBg: 'bg-emerald-500/15',
+    badgeBorder: 'border-emerald-500/30',
+  },
+  {
+    id: '99',
+    label: 'Documentary',
+    genres: '99',
+    type: 'movie',
+    icon: Globe,
+    desc: 'Real history & nature',
+    iconColor: 'text-teal-400',
+    badgeBg: 'bg-teal-500/15',
+    badgeBorder: 'border-teal-500/30',
+  },
 ];
 
 export function OnboardingModal() {
@@ -124,7 +265,7 @@ export function OnboardingModal() {
           transition={{ duration: 0.4 }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-2xl pointer-events-auto"
         >
-          <div className="bg-[#0f1016]/95 border border-white/15 p-6 sm:p-10 rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] max-w-2xl w-full mx-auto relative overflow-hidden text-foreground">
+          <div className="bg-[#0f1016]/95 border border-white/15 p-5 sm:p-8 md:p-10 rounded-3xl shadow-[0_25px_70px_rgba(0,0,0,0.9)] max-w-2xl sm:max-w-3xl w-full mx-auto relative overflow-hidden text-foreground">
             <FocusLock returnFocus>
               {/* Top Accent Rim */}
               <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-brand/40 via-brand to-[#ffd066]" />
@@ -392,41 +533,55 @@ export function OnboardingModal() {
                     </div>
 
                     {/* Rich Genre Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-6 max-h-60 overflow-y-auto custom-scrollbar pr-1 p-1">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6 max-h-[380px] overflow-y-auto custom-scrollbar pr-1 p-1">
                       {RICH_GENRES.map((g) => {
                         const isSelected = selectedIds.includes(g.id);
+                        const Icon = g.icon;
                         return (
                           <button
                             key={g.id}
                             type="button"
                             onClick={() => toggleGenre(g.id)}
                             className={cn(
-                              'p-3 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between gap-1 group',
+                              'p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between gap-3 group',
                               isSelected
-                                ? 'bg-brand/20 border-brand shadow-md ring-1 ring-brand/40'
+                                ? 'bg-brand/15 border-brand shadow-[0_0_20px_var(--theme-accent-glow,rgba(232,133,42,0.3))] ring-1 ring-brand/40'
                                 : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
                             )}
                           >
                             <div className="flex items-center justify-between">
-                              <span className="text-xl group-hover:scale-110 transition-transform">
-                                {g.emoji}
-                              </span>
+                              <div
+                                className={cn(
+                                  'w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-200 group-hover:scale-110 shadow-sm',
+                                  g.badgeBg,
+                                  g.badgeBorder,
+                                  g.iconColor
+                                )}
+                              >
+                                <Icon className="w-4 h-4" />
+                              </div>
                               {isSelected && (
-                                <div className="w-4 h-4 rounded-full bg-brand text-brand-foreground flex items-center justify-center">
-                                  <Check className="w-3 h-3" />
-                                </div>
+                                <motion.div
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="w-5 h-5 rounded-full bg-brand text-brand-foreground flex items-center justify-center shadow-md shadow-brand/30 shrink-0"
+                                >
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                </motion.div>
                               )}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <h4
                                 className={cn(
-                                  'text-xs font-bold transition-colors',
+                                  'text-xs sm:text-sm font-bold truncate leading-snug transition-colors',
                                   isSelected ? 'text-brand' : 'text-foreground'
                                 )}
                               >
                                 {g.label}
                               </h4>
-                              <p className="text-[10px] text-muted-foreground truncate">{g.desc}</p>
+                              <p className="text-[10px] sm:text-[11px] text-muted-foreground line-clamp-1 mt-0.5 leading-snug">
+                                {g.desc}
+                              </p>
                             </div>
                           </button>
                         );
