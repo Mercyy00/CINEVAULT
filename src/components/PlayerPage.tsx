@@ -26,9 +26,6 @@ import type { Movie } from '../types';
  * - **`position_seconds` is seconds.** Two call sites wrote `Date.now()` into
  *   it, i.e. epoch milliseconds, which made every resume point garbage.
  * - **Loading state is real.** `setTimeout(…, 1000)` faked it; the iframe's
- *   own `load` event drives it now, with a genuine slow-source warning.
- * - **Embeds are sandboxed**, blocking the pop-unders and top-level redirects
- *   these hosts inject.
  * - **`postMessage` handlers verify the origin** before trusting a payload.
  */
 

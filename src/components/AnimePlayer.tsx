@@ -620,7 +620,6 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
           )}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
-          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
           referrerPolicy="no-referrer-when-downgrade"
           onLoad={() => setIsServerLoading(false)}
         />
