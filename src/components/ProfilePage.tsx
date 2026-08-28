@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 import { useApp, Theme } from '../store';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
+import { USER_AVATARS, getAvatarById } from '../lib/avatars';
 import { cn } from '../lib/utils';
 
 type SettingsTab = 'account' | 'general' | 'appearance' | 'history' | 'about';
@@ -222,8 +223,14 @@ export function ProfilePage() {
           <div>
             {/* User Profile Summary */}
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border shadow-sm mb-4">
-              <div className="w-10 h-10 rounded-full bg-brand/15 border border-brand/35 flex items-center justify-center text-brand font-bold text-sm shadow-sm shrink-0">
-                {userProfile.name ? userProfile.name.substring(0, 2).toUpperCase() : <User className="w-5 h-5" />}
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm shrink-0 border"
+                style={{
+                  background: getAvatarById(userProfile.avatar).bg,
+                  borderColor: getAvatarById(userProfile.avatar).border,
+                }}
+              >
+                {getAvatarById(userProfile.avatar).emoji}
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-foreground truncate">{userProfile.name || 'User'}</h4>
@@ -301,14 +308,20 @@ export function ProfilePage() {
             >
               <div>
                 <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Account</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Profile</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Manage profile, persona avatars & cloud sync</p>
               </div>
 
               {/* Profile Card with Banner */}
               <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card relative">
                 <div className="h-28 bg-gradient-to-r from-brand/25 via-brand/10 to-transparent border-b border-border relative" />
-                <div className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-card shadow-md flex items-center justify-center text-brand text-2xl font-display font-black">
-                  {userProfile.name ? userProfile.name.substring(0, 2).toUpperCase() : <User className="w-8 h-8" />}
+                <div
+                  className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-card shadow-md flex items-center justify-center text-3xl font-display"
+                  style={{
+                    background: getAvatarById(userProfile.avatar).bg,
+                    borderColor: getAvatarById(userProfile.avatar).border,
+                  }}
+                >
+                  {getAvatarById(userProfile.avatar).emoji}
                 </div>
 
                 <div className="pt-10 px-6 pb-6">
@@ -349,6 +362,50 @@ export function ProfilePage() {
                       Save Changes
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Avatar Studio Selector Card */}
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-brand" /> Choose Persona & Avatar
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">Select your avatar icon displayed across CineVault</p>
+                  </div>
+                  <span className="text-xs font-mono font-bold text-brand px-2.5 py-1 rounded-full bg-brand/10 border border-brand/25">
+                    {getAvatarById(userProfile.avatar).name}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-1">
+                  {USER_AVATARS.map((avatar) => {
+                    const isSelected = (userProfile.avatar || 'gold-reel') === avatar.id;
+                    return (
+                      <button
+                        key={avatar.id}
+                        type="button"
+                        onClick={() => {
+                          updateUserProfile({ avatar: avatar.id });
+                          showToast(`Avatar updated: ${avatar.name}`);
+                        }}
+                        className={cn(
+                          "p-2.5 rounded-xl border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer group shadow-sm",
+                          isSelected
+                            ? "bg-brand/15 border-brand ring-2 ring-brand/40 shadow-md scale-105"
+                            : "bg-card hover:bg-muted/50 border-border hover:border-white/30"
+                        )}
+                      >
+                        <span className="text-2xl sm:text-3xl group-hover:scale-110 transition-transform">
+                          {avatar.emoji}
+                        </span>
+                        <span className="text-[10px] font-semibold text-foreground/80 truncate w-full">
+                          {avatar.name}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

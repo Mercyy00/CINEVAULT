@@ -142,18 +142,26 @@ export function HeroSpotlight({
       <AnimatePresence initial={false}>
         <motion.div
           key={currentIndex}
-          initial={{ opacity: 0, scale: 1.08 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.02 }}
-          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute inset-0 z-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1.4, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute inset-0 z-0 overflow-hidden"
         >
           <motion.img
             src={currentMovie.backdropUrl ?? undefined}
             alt={currentMovie.title}
             className="w-full h-full object-cover"
-            style={{
-              transform: `translate(${mousePos.x}px, ${mousePos.y}px) scale(1.05)`,
+            initial={{ scale: 1 }}
+            animate={{
+              scale: 1.15,
+              x: mousePos.x,
+              y: mousePos.y,
+            }}
+            transition={{
+              scale: { duration: 8, ease: 'easeOut' },
+              x: { type: 'spring', stiffness: 50, damping: 20 },
+              y: { type: 'spring', stiffness: 50, damping: 20 },
             }}
           />
         </motion.div>

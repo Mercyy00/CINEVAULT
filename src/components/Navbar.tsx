@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
+import { getAvatarById } from '../lib/avatars';
 import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import { BirthdayCountdown } from './BirthdayCountdown';
 import { isBirthdayVisible } from '../config/birthdayAccess';
@@ -552,15 +553,21 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 setShowCustomizer(false); 
                 setShowMusicPlayer(false); 
               }}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/15 flex items-center justify-center text-foreground hover:border-brand/40 transition-all shadow-card cursor-pointer text-base hover:scale-105 active:scale-95"
               aria-label="User Account"
             >
-              {userProfile.isLoggedIn ? (
+              {userProfile.avatar ? (
+                <span className="text-base sm:text-lg select-none drop-shadow-sm">
+                  {getAvatarById(userProfile.avatar).emoji}
+                </span>
+              ) : userProfile.isLoggedIn ? (
                 <span className="text-xs font-bold text-brand font-mono">
                   {userProfile.name ? userProfile.name.substring(0, 2).toUpperCase() : 'U'}
                 </span>
               ) : (
-                <User className="w-5 h-5 opacity-80" />
+                <span className="text-base sm:text-lg select-none">
+                  {getAvatarById('gold-reel').emoji}
+                </span>
               )}
             </button>
 
@@ -573,12 +580,19 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   transition={{ duration: 0.2 }}
                   className="absolute right-0 mt-3 w-56 bg-card rounded-2xl shadow-2xl py-2 border border-border origin-top-right flex flex-col z-[200] text-foreground"
                 >
-                  <div className="px-4 py-2.5 border-b border-border mb-1">
-                    <p className="text-sm font-bold text-foreground truncate">{userProfile.name || 'Guest'}</p>
-                    <p className="text-xs text-muted-foreground truncate">{userProfile.isLoggedIn ? userProfile.email : 'Local Session'}</p>
-                    <div className="mt-1.5 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted border border-border">
-                      <span className={cn("w-1.5 h-1.5 rounded-full", userProfile.isLoggedIn ? "bg-emerald-500 animate-pulse" : "bg-amber-500")} />
-                      <span className="text-muted-foreground">{userProfile.isLoggedIn ? 'Cloud Sync Active' : 'Offline Storage'}</span>
+                  <div className="px-4 py-2.5 border-b border-border mb-1 flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-full flex items-center justify-center text-lg border shrink-0 shadow-sm"
+                      style={{
+                        background: getAvatarById(userProfile.avatar).bg,
+                        borderColor: getAvatarById(userProfile.avatar).border,
+                      }}
+                    >
+                      {getAvatarById(userProfile.avatar).emoji}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-foreground truncate">{userProfile.name || 'Guest'}</p>
+                      <p className="text-xs text-muted-foreground truncate">{userProfile.isLoggedIn ? userProfile.email : 'Local Session'}</p>
                     </div>
                   </div>
 
