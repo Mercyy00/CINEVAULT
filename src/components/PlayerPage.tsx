@@ -62,7 +62,14 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [serversOpen, setServersOpen] = useState(true);
-  const [source, setSource] = useState<StreamSource>(STREAM_SOURCES[0]);
+  // Default to the one source with a documented, matching postMessage API
+  // (`vidlink.pro` sends `PLAYER_EVENT`/`MEDIA_DATA` with real currentTime +
+  // duration). The other entries are undocumented embeds that were never
+  // confirmed to send *any* progress message, which is why "watch progress"
+  // looked broken: `STREAM_SOURCES[0]` (ModiPlay Hindi) opened by default and
+  // simply never reports back, so nothing after the initial open-write ever
+  // updates. Falls back to the first entry if `vidlink` is ever removed.
+  const [source, setSource] = useState<StreamSource>(() => findSource('vidlink') ?? STREAM_SOURCES[0]);
   const [embedState, setEmbedState] = useState<EmbedState>('idle');
   const [retryToken, setRetryToken] = useState(0);
 
@@ -352,7 +359,19 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       if (!rawPayload || typeof rawPayload !== 'object') return;
 
       const payload = rawPayload as Record<string, any>;
-      const inner = payload.data && typeof payload.data === 'object' ? payload.data : payload;
+
+      // VidLink's `MEDIA_DATA` event nests progress under the media's own id
+      // rather than sending flat fields: `{ type: 'MEDIA_DATA', data: { "<id>":
+      // { progress: { watched, duration } } } }`. Unwrap that one extra level
+      // so the generic watched/duration parsing below can find it, same as it
+      // would for a flat `PLAYER_EVENT` payload.
+      let inner = payload.data && typeof payload.data === 'object' ? payload.data : payload;
+      if (payload.type === 'MEDIA_DATA' && inner && typeof inner === 'object') {
+        const entry = inner[String(id)];
+        if (entry && typeof entry === 'object') {
+          inner = { ...entry, ...(entry.progress && typeof entry.progress === 'object' ? entry.progress : {}) };
+        }
+      }
 
       const claimedId = payload.tmdbId ?? payload.id ?? inner.tmdbId ?? inner.id;
       if (claimedId != null && String(claimedId) !== String(id)) return;
