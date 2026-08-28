@@ -5,13 +5,40 @@ import { kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
+import { TRUSTED_PLAYER_ORIGINS } from '../config/servers';
 
-// @ts-ignore - loaded dynamically
-const Artplayer = (window as any).Artplayer;
+export type AnimeServerId = 'vidlink' | 'megaplay' | 'anikoto' | 'vidsrc';
 
+interface AnimeServerOption {
+  id: AnimeServerId;
+  name: string;
+  quality: string;
+  tag: string;
+}
+
+const ANIME_SERVERS: AnimeServerOption[] = [
+  { id: 'vidlink', name: 'VidLink Pro (Live Sync)', quality: '1080p', tag: 'Fast • Live Progress' },
+  { id: 'megaplay', name: 'MegaPlay (MAL)', quality: 'HD', tag: 'Direct MAL Streams' },
+  { id: 'anikoto', name: 'Anikoto (Legacy)', quality: 'HD', tag: 'Server 13 Proxy' },
+  { id: 'vidsrc', name: 'VidSrc Anime', quality: 'HD', tag: 'Multi-host Mirror' },
+];
+
+const TRUSTED_ANIME_ORIGINS = new Set([
+  ...TRUSTED_PLAYER_ORIGINS,
+  'https://vidlink.pro',
+  'https://megaplay.buzz',
+  'https://anikotoapi.site',
+  'https://vidsrc.cc',
+]);
+
+interface PlaybackProgress {
+  positionSeconds: number;
+  durationSeconds: number | null;
+  percentage: number;
+}
 
 export function AnimePlayer({ id, episode }: { id: string; episode: string; malId?: string }) {
-  const { updateContinueWatching, userProfile } = useApp();
+  const { updateContinueWatching, continueWatching, userProfile } = useApp();
   const [movie, setMovie] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);
 
@@ -20,7 +47,8 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [language, setLanguage] = useState<'sub' | 'dub'>('sub');
-  const [server, setServer] = useState<'megaplay' | 'anikoto'>('megaplay');
+  // Default to VidLink with real-time postMessage watch progress reporting
+  const [server, setServer] = useState<AnimeServerId>('vidlink');
   
   const [isLoading, setIsLoading] = useState(true);
   const [isServerLoading, setIsServerLoading] = useState(false);
@@ -28,6 +56,12 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
 
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const progressRef = useRef<PlaybackProgress>({
+    positionSeconds: 0,
+    durationSeconds: null,
+    percentage: 0,
+  });
   
   const NEXT_EPISODE_SECONDS = 35;
   const [showNextEpisode, setShowNextEpisode] = useState(false);
@@ -41,17 +75,20 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     setNextCountdown(NEXT_EPISODE_SECONDS);
   }, [id, episode]);
 
-  const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: 'megaplay' | 'anikoto' = server, malId?: string, title?: string) => {
+  const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: AnimeServerId = server, malId?: string, title?: string) => {
     setIsServerLoading(true);
     setCurrentIframeSrc('about:blank');
     
     setTimeout(async () => {
-      if (srv === 'megaplay' && malId) {
-        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${malId}/${epNum}/${lang}`);
+      const effectiveMalId = malId && malId !== '0' ? malId : id;
+      if (srv === 'vidlink') {
+        setCurrentIframeSrc(`https://vidlink.pro/anime/${effectiveMalId}/${epNum}/${lang}`);
+      } else if (srv === 'megaplay' && effectiveMalId) {
+        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+      } else if (srv === 'vidsrc') {
+        setCurrentIframeSrc(`https://vidsrc.cc/v2/embed/anime/${effectiveMalId}/${epNum}/${lang}`);
       } else {
-        // Anikoto fallback. There is no `anikotoApi` client; loadData resolves
-        // the series through the same public proxy, so do the same here and
-        // embed the matching episode.
+        // Anikoto fallback resolution
         try {
           const searchRes = await fetch(
             `https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(title || movie?.title || '')}`
@@ -78,11 +115,11 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         } catch (e) {
           console.error(e);
         }
-        // If all else fails, fall back to the MAL-based MegaPlay stream.
-        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${malId || '1'}/${epNum}/${lang}`);
+        // Fallback to VidLink or MegaPlay
+        setCurrentIframeSrc(`https://vidlink.pro/anime/${effectiveMalId}/${epNum}/${lang}`);
       }
       setIsServerLoading(false);
-    }, 1000);
+    }, 200);
   };
 
   
@@ -217,148 +254,245 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   };
 
 
-  // Update continue watching & Real-Time Cloud Firestore Sync for anime
+  // Initialize & sync progress from real watch history and postMessage telemetry
   useEffect(() => {
     if (!movie || !selectedEpisode) return;
 
-    let existingProgress = 5;
-    let existingCurrentTime = 0;
-    const durationSecs = 1440; // ~24 mins for anime episode
+    const defaultDuration = movie.duration ? parseInt(movie.duration) * 60 : 1440;
+    let initialPosition = 0;
+    let initialDuration = defaultDuration;
+    let initialPercentage = 0;
 
+    // Check existing continue watching for this anime episode
     try {
-      const rawCW = localStorage.getItem('cinevault_continue_watching');
-      if (rawCW) {
-        const cwList = JSON.parse(rawCW);
-        const match = cwList.find((i: any) => 
-          i.id.toString() === movie.id.toString() &&
-          i.episode_number === selectedEpisode?.episode
-        );
-        if (match && match.progress_percentage > 0) {
-          existingProgress = match.progress_percentage;
-          existingCurrentTime = match.time || Math.round((existingProgress / 100) * durationSecs);
-        }
+      const match = continueWatching.find((i: any) =>
+        String(i.id) === String(movie.id) &&
+        (i.episode_number === selectedEpisode.episode || i.episode_number === selectedEpisode.number)
+      );
+      if (match) {
+        initialPosition = match.position_seconds || (match.progress_percentage ? Math.round((match.progress_percentage / 100) * defaultDuration) : 0);
+        initialDuration = match.duration_seconds || defaultDuration;
+        initialPercentage = match.progress_percentage || 0;
       }
     } catch {}
 
-    const sessionStart = Date.now();
+    progressRef.current = {
+      positionSeconds: initialPosition,
+      durationSeconds: initialDuration,
+      percentage: initialPercentage,
+    };
+
     const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
     const effectiveName = userProfile.name || 'Guest Viewer';
 
-    const syncProgress = (force = false) => {
-      const elapsedSeconds = Math.floor((Date.now() - sessionStart) / 1000);
-      const currentSeconds = Math.min(durationSecs, existingCurrentTime + elapsedSeconds);
-      const calculatedProgress = Math.min(95, Math.max(existingProgress, Math.round((currentSeconds / durationSecs) * 1000) / 10));
-      const nowTime = Date.now();
+    // Initial sync write
+    updateContinueWatching({
+      id: movie.id,
+      media_type: 'anime',
+      title: movie.title,
+      poster_path: movie.posterUrl || '',
+      backdrop_path: movie.backdropUrl || '',
+      episode_number: selectedEpisode.episode || selectedEpisode.number,
+      progress_percentage: initialPercentage,
+      timestamp: Date.now(),
+      position_seconds: initialPosition,
+      duration_seconds: initialDuration,
+      mal_id: movie.malId,
+    });
 
-      updateContinueWatching({
-        id: movie.id,
-        media_type: 'anime',
-        title: movie.title,
-        poster_path: movie.posterUrl || '',
-        backdrop_path: movie.backdropUrl || '',
-        episode_number: selectedEpisode?.episode,
-        progress_percentage: calculatedProgress,
-        timestamp: nowTime,
-        position_seconds: currentSeconds,
-        duration_seconds: durationSecs,
-        mal_id: movie.malId
-      });
+    watchTrackingService.logWatchProgress({
+      uid: effectiveUid,
+      userName: effectiveName,
+      userAvatar: userProfile.avatar || null,
+      mediaId: String(movie.id),
+      mediaType: 'anime',
+      title: movie.title,
+      posterPath: movie.posterUrl || null,
+      backdropPath: movie.backdropUrl || null,
+      episodeNumber: selectedEpisode.episode || selectedEpisode.number,
+      episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
+      currentTime: initialPosition,
+      duration: initialDuration,
+      progressPercentage: initialPercentage,
+      status: initialPercentage >= 90 ? 'completed' : 'watching',
+    }, true);
 
-      watchTrackingService.logWatchProgress({
-        uid: effectiveUid,
-        userName: effectiveName,
-        userAvatar: userProfile.avatar || null,
-        mediaId: String(movie.id),
-        mediaType: 'anime',
-        title: movie.title,
-        posterPath: movie.posterUrl || null,
-        backdropPath: movie.backdropUrl || null,
-        episodeNumber: selectedEpisode?.episode,
-        episodeTitle: `Episode ${selectedEpisode?.episode}`,
-        currentTime: currentSeconds,
-        duration: durationSecs,
-        progressPercentage: calculatedProgress,
-        status: calculatedProgress >= 90 ? 'completed' : 'watching',
-      }, force);
-    };
+    const flushProgress = () => {
+      const { positionSeconds, durationSeconds, percentage } = progressRef.current;
+      if (positionSeconds > 0) {
+        updateContinueWatching({
+          id: movie.id,
+          media_type: 'anime',
+          title: movie.title,
+          poster_path: movie.posterUrl || '',
+          backdrop_path: movie.backdropUrl || '',
+          episode_number: selectedEpisode.episode || selectedEpisode.number,
+          progress_percentage: percentage,
+          timestamp: Date.now(),
+          position_seconds: positionSeconds,
+          duration_seconds: durationSeconds,
+          mal_id: movie.malId,
+        });
 
-    syncProgress(true);
-
-    const interval = setInterval(() => {
-      syncProgress(false);
-    }, 5000);
-
-    const handleBeforeUnload = () => {
-      syncProgress(true);
-    };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-      syncProgress(true);
-    };
-  }, [movie, selectedEpisode, updateContinueWatching, userProfile]);
-
-
-  // Player specific shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) return;
-      if (e.key === 's' || e.key === 'S') {
-        setSidebarOpen(prev => !prev);
-      } else if (e.key === 'f' || e.key === 'F') {
-        const iframe = document.querySelector('iframe');
-        if (iframe) {
-          if (!document.fullscreenElement) {
-            iframe.requestFullscreen().catch(err => console.error(err));
-          } else {
-            document.exitFullscreen();
-          }
-        }
-      } else if (e.key === 'n' || e.key === 'N') {
-        const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
-        if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
-          const nextEpNum = episodes[currentIndex + 1]?.episode || selectedEpisode.episode + 1;
-window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
-        }
+        watchTrackingService.logWatchProgress({
+          uid: effectiveUid,
+          userName: effectiveName,
+          userAvatar: userProfile.avatar || null,
+          mediaId: String(movie.id),
+          mediaType: 'anime',
+          title: movie.title,
+          posterPath: movie.posterUrl || null,
+          backdropPath: movie.backdropUrl || null,
+          episodeNumber: selectedEpisode.episode || selectedEpisode.number,
+          episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
+          currentTime: positionSeconds,
+          duration: durationSeconds || 0,
+          progressPercentage: percentage,
+          status: percentage >= 90 ? 'completed' : 'watching',
+        }, true);
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [episodes, selectedEpisode]);
 
-  // PostMessage handler for episode completion & telemetry
+    window.addEventListener('beforeunload', flushProgress);
+    return () => {
+      window.removeEventListener('beforeunload', flushProgress);
+      flushProgress();
+    };
+  }, [movie?.id, selectedEpisode?.episode, updateContinueWatching, userProfile.uid]);
+
+  // PostMessage handler for live watch telemetry and auto-next prompt
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      let data = event.data;
-      if (typeof data === 'string') {
+      // Origin verification
+      if (!TRUSTED_ANIME_ORIGINS.has(event.origin)) return;
+
+      let rawPayload = event.data;
+      if (typeof rawPayload === 'string') {
         try {
-          data = JSON.parse(data);
+          rawPayload = JSON.parse(rawPayload);
         } catch {
           return;
         }
       }
-      if (!data || typeof data !== 'object') return;
+      if (!rawPayload || typeof rawPayload !== 'object') return;
 
-      const inner = data.data && typeof data.data === 'object' ? data.data : data;
-      const eventName = String(data.event || data.type || inner.event || inner.type || '');
-      const isComplete = eventName === 'complete' || eventName === 'ended' || eventName === 'playback_ended' || data.ended === true || inner.ended === true;
+      const payload = rawPayload as Record<string, any>;
 
-      const watched = typeof inner.currentTime === 'number' ? inner.currentTime : (typeof inner.watched === 'number' ? inner.watched : null);
-      const duration = typeof inner.duration === 'number' && inner.duration > 0 ? inner.duration : null;
-      let percentage = typeof inner.progress === 'number' ? (inner.progress <= 1 ? inner.progress * 100 : inner.progress) : (typeof inner.percentage === 'number' ? inner.percentage : null);
-
-      if (percentage === null && watched !== null && duration !== null && duration > 0) {
-        percentage = (watched / duration) * 100;
+      // VidLink MEDIA_DATA unwrap for anime
+      let inner = payload.data && typeof payload.data === 'object' ? payload.data : payload;
+      if (payload.type === 'MEDIA_DATA' && inner && typeof inner === 'object') {
+        const entry =
+          inner[String(id)] ??
+          (movie?.malId ? inner[String(movie.malId)] : null) ??
+          (selectedEpisode?.episode ? inner[String(selectedEpisode.episode)] : null) ??
+          Object.values(inner)[0];
+        if (entry && typeof entry === 'object') {
+          inner = { ...entry, ...(entry.progress && typeof entry.progress === 'object' ? entry.progress : {}) };
+        }
       }
 
-      const isApproachingEnd = (percentage !== null && percentage >= 90) || (duration !== null && watched !== null && (duration - watched) <= 75);
+      const claimedId = payload.tmdbId ?? payload.id ?? payload.malId ?? inner.tmdbId ?? inner.id ?? inner.malId;
+      if (
+        claimedId != null &&
+        String(claimedId) !== String(id) &&
+        String(claimedId) !== String(movie?.malId) &&
+        String(claimedId) !== String(selectedEpisode?.episode)
+      ) {
+        return;
+      }
 
-      const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
+      const watched =
+        typeof inner.watched === 'number'
+          ? inner.watched
+          : typeof inner.currentTime === 'number'
+            ? inner.currentTime
+            : typeof inner.position === 'number'
+              ? inner.position
+              : typeof inner.time === 'number'
+                ? inner.time
+                : typeof payload.watched === 'number'
+                  ? payload.watched
+                  : typeof payload.currentTime === 'number'
+                    ? payload.currentTime
+                    : null;
+
+      const duration =
+        typeof inner.duration === 'number' && inner.duration > 0
+          ? inner.duration
+          : typeof inner.totalTime === 'number' && inner.totalTime > 0
+            ? inner.totalTime
+            : typeof payload.duration === 'number' && payload.duration > 0
+              ? payload.duration
+              : typeof payload.totalTime === 'number' && payload.totalTime > 0
+                ? payload.totalTime
+                : null;
+
+      if (watched == null || watched < 0) return;
+
+      const defaultDuration = movie?.duration ? parseInt(movie.duration) * 60 : 1440;
+      const finalDuration = duration ?? progressRef.current.durationSeconds ?? defaultDuration;
+      const calculatedPercentage = finalDuration > 0
+        ? Math.min(100, Math.round((watched / finalDuration) * 1000) / 10)
+        : 0;
+
+      progressRef.current = {
+        positionSeconds: Math.round(watched),
+        durationSeconds: finalDuration ? Math.round(finalDuration) : null,
+        percentage: calculatedPercentage,
+      };
+
+      const eventName = String(payload.event || payload.type || inner.event || inner.type || '');
+      const isComplete =
+        eventName === 'complete' ||
+        eventName === 'ended' ||
+        eventName === 'playback_ended' ||
+        payload.ended === true ||
+        inner.ended === true ||
+        calculatedPercentage >= 90;
+
+      const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
+      const effectiveName = userProfile.name || 'Guest Viewer';
+
+      // Update state in app store & Firestore
+      if (movie && selectedEpisode) {
+        updateContinueWatching({
+          id: movie.id,
+          media_type: 'anime',
+          title: movie.title,
+          poster_path: movie.posterUrl || '',
+          backdrop_path: movie.backdropUrl || '',
+          episode_number: selectedEpisode.episode || selectedEpisode.number,
+          progress_percentage: calculatedPercentage,
+          timestamp: Date.now(),
+          position_seconds: Math.round(watched),
+          duration_seconds: finalDuration ? Math.round(finalDuration) : null,
+          mal_id: movie.malId,
+        });
+
+        watchTrackingService.logWatchProgress({
+          uid: effectiveUid,
+          userName: effectiveName,
+          userAvatar: userProfile.avatar || null,
+          mediaId: String(movie.id),
+          mediaType: 'anime',
+          title: movie.title,
+          posterPath: movie.posterUrl || null,
+          backdropPath: movie.backdropUrl || null,
+          episodeNumber: selectedEpisode.episode || selectedEpisode.number,
+          episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
+          currentTime: Math.round(watched),
+          duration: finalDuration ? Math.round(finalDuration) : 0,
+          progressPercentage: calculatedPercentage,
+          status: isComplete ? 'completed' : 'watching',
+        }, false);
+      }
+
+      // Check for approaching end or completion to prompt next episode
+      const isApproachingEnd = isComplete || (finalDuration > 0 && (finalDuration - watched) <= 75);
+      const currentIndex = episodes.findIndex((e) => e.episode === selectedEpisode?.episode);
       const hasNext = currentIndex !== -1 && currentIndex < episodes.length - 1;
 
-      if (hasNext && (isComplete || isApproachingEnd) && !hasDismissedNextPrompt.current) {
+      if (hasNext && isApproachingEnd && !hasDismissedNextPrompt.current) {
         setShowNextEpisode(true);
         if (isComplete) setNextCountdown(NEXT_EPISODE_SECONDS);
       }
@@ -366,7 +500,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
 
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [episodes, selectedEpisode]);
+  }, [id, movie, selectedEpisode, episodes, updateContinueWatching, userProfile]);
 
   useEffect(() => {
     if (showNextEpisode && nextCountdown > 0) {
@@ -476,11 +610,19 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
       {/* Video Container */}
       <div className="w-full h-full relative bg-black">
         <iframe
+          ref={iframeRef}
+          key={`${server}-${language}-${selectedEpisode?.episode || episode}-${movie?.id}`}
           src={currentIframeSrc || undefined}
-          className={cn("w-full h-full border-0 transition-opacity duration-500", isServerLoading ? "opacity-0" : "opacity-100")}
-          allowFullScreen={true}
-          allow="autoplay; fullscreen"
-          scrolling="no"
+          title={movie?.title || 'Anime Player'}
+          className={cn(
+            "w-full h-full border-0 bg-black transition-opacity duration-300",
+            isServerLoading ? "opacity-0" : "opacity-100"
+          )}
+          allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+          allowFullScreen
+          sandbox="allow-scripts allow-same-origin allow-forms allow-presentation"
+          referrerPolicy="no-referrer-when-downgrade"
+          onLoad={() => setIsServerLoading(false)}
         />
         
         {/* Loading Overlay */}
@@ -653,10 +795,39 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
 
               {/* Server Selection */}
               <div className="px-6 mt-6">
-                <h3 className="text-foreground font-bold mb-2 flex items-center gap-2"><Globe className="w-4 h-4 text-brand" /> Servers</h3>
+                <h3 className="text-foreground font-bold mb-2 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-brand" /> Stream Servers
+                </h3>
                 <div className="flex flex-col gap-2">
-                  <button onClick={() => { setServer('megaplay'); updateIframeSrc(selectedEpisode?.episode || 1, language, 'megaplay', movie?.malId, movie?.title); }} className={`p-2 rounded border text-sm text-left transition-colors ${server === 'megaplay' ? 'border-brand bg-brand/20 text-brand' : 'border-white/10 hover:bg-white/5 text-foreground/80'}`}>MegaPlay (MAL)</button>
-                  <button onClick={() => { setServer('anikoto'); updateIframeSrc(selectedEpisode?.episode || 1, language, 'anikoto', movie?.malId, movie?.title); }} className={`p-2 rounded border text-sm text-left transition-colors ${server === 'anikoto' ? 'border-brand bg-brand/20 text-brand' : 'border-white/10 hover:bg-white/5 text-foreground/80'}`}>Anikoto (Legacy) - Server 13</button>
+                  {ANIME_SERVERS.map((srv) => (
+                    <button
+                      key={srv.id}
+                      onClick={() => {
+                        setServer(srv.id);
+                        updateIframeSrc(
+                          selectedEpisode?.episode || parseInt(episode) || 1,
+                          language,
+                          srv.id,
+                          movie?.malId,
+                          movie?.title
+                        );
+                      }}
+                      className={cn(
+                        "p-2.5 rounded-xl border text-sm text-left transition-all flex items-center justify-between cursor-pointer",
+                        server === srv.id
+                          ? "border-brand bg-brand/15 text-brand shadow-sm shadow-brand/20"
+                          : "border-white/10 hover:bg-white/5 text-foreground/80"
+                      )}
+                    >
+                      <div>
+                        <div className="font-semibold text-xs sm:text-sm">{srv.name}</div>
+                        <div className="text-[11px] text-muted-foreground">{srv.tag}</div>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-white/10 text-foreground/80">
+                        {srv.quality}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
