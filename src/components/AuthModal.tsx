@@ -106,7 +106,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
         {/* Header Icon & Title */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-brand/15 border border-brand/30 text-brand flex items-center justify-center mx-auto mb-3 shadow-inner">
+          <div className="w-14 h-14 rounded-full bg-brand/15 border border-brand/30 text-brand flex items-center justify-center mx-auto mb-3 shadow-inner">
             <Sparkles className="w-6 h-6" />
           </div>
           <h3 className="text-2xl font-display font-bold text-foreground">

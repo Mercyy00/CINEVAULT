@@ -243,17 +243,17 @@ export function OnboardingModal() {
                     {/* Live Avatar Preview & Name Input */}
                     <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-white/5 border border-white/15 mb-5 shadow-inner">
                       <div className="relative group shrink-0">
-                        <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden bg-black/60 border-2 border-brand shadow-[0_0_25px_var(--theme-accent-glow,rgba(232,133,42,0.4))] flex items-center justify-center p-1.5 transition-transform duration-300">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden bg-black/70 border-2 border-brand shadow-[0_0_25px_var(--theme-accent-glow,rgba(232,133,42,0.45))] flex items-center justify-center p-1.5 transition-transform duration-300">
                           <img
                             src={getUserAvatarUrl(selectedAvatarUrl)}
                             alt="Avatar Preview"
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain rounded-full"
                           />
                         </div>
                         <button
                           type="button"
                           onClick={handleRandomize}
-                          className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-brand text-brand-foreground flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                          className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-brand text-brand-foreground flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform cursor-pointer border border-black/40"
                           title="Generate Random Avatar"
                         >
                           <Dice5 className="w-4 h-4" />
@@ -291,7 +291,7 @@ export function OnboardingModal() {
                                 setSelectedAvatarUrl(getDiceBearUrl(style.id, nameInput || 'Cinephile'));
                               }}
                               className={cn(
-                                "px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold whitespace-nowrap border transition-all cursor-pointer",
+                                "px-2.5 py-1 rounded-full text-[10px] font-mono font-bold whitespace-nowrap border transition-all cursor-pointer",
                                 activeStyle === style.id
                                   ? "bg-brand text-brand-foreground border-brand shadow-sm"
                                   : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
@@ -304,7 +304,7 @@ export function OnboardingModal() {
                       </div>
                     </div>
 
-                    {/* Presets Gallery */}
+                    {/* Presets Gallery in Rounded Circles */}
                     <div className="mb-5">
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-mono uppercase font-bold text-muted-foreground tracking-wider">
@@ -319,7 +319,7 @@ export function OnboardingModal() {
                         </button>
                       </div>
 
-                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 max-h-36 overflow-y-auto custom-scrollbar pr-1 p-1">
+                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 max-h-36 overflow-y-auto custom-scrollbar pr-1 p-1">
                         {PRESET_AVATARS.map((avatar) => {
                           const isSelected = selectedAvatarUrl === avatar.url;
                           return (
@@ -331,16 +331,17 @@ export function OnboardingModal() {
                                 setActiveStyle(avatar.style);
                               }}
                               className={cn(
-                                'flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all cursor-pointer relative group',
+                                'w-12 h-12 rounded-full border transition-all cursor-pointer relative group flex items-center justify-center p-1 overflow-hidden mx-auto',
                                 isSelected
-                                  ? 'bg-brand/20 border-brand shadow-lg scale-105 ring-2 ring-brand/40'
-                                  : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'
+                                  ? 'bg-brand/20 border-brand shadow-lg scale-110 ring-2 ring-brand/50'
+                                  : 'bg-white/5 border-white/10 hover:border-white/40 hover:bg-white/15'
                               )}
+                              title={avatar.name}
                             >
                               <img
                                 src={avatar.url}
                                 alt={avatar.name}
-                                className="w-9 h-9 object-contain group-hover:scale-110 transition-transform"
+                                className="w-full h-full object-contain rounded-full group-hover:scale-110 transition-transform"
                                 loading="lazy"
                               />
                             </button>

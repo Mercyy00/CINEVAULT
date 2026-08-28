@@ -390,7 +390,7 @@ export function ProfilePage() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 pt-1">
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 pt-2">
                   {PRESET_AVATARS.map((avatar) => {
                     const isSelected = (userProfile.avatar || '') === avatar.url;
                     return (
@@ -402,22 +402,19 @@ export function ProfilePage() {
                           showToast(`Avatar set: ${avatar.name}`);
                         }}
                         className={cn(
-                          "p-2 rounded-xl border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer group shadow-sm bg-black/40",
+                          "w-14 h-14 sm:w-16 sm:h-16 rounded-full border transition-all flex flex-col items-center justify-center p-1 cursor-pointer group shadow-sm bg-black/50 overflow-hidden mx-auto relative",
                           isSelected
-                            ? "bg-brand/20 border-brand ring-2 ring-brand/50 shadow-md scale-105"
-                            : "hover:bg-white/10 border-border hover:border-white/30"
+                            ? "bg-brand/25 border-brand ring-2 ring-brand/60 shadow-lg scale-110"
+                            : "hover:bg-white/10 border-border hover:border-white/40"
                         )}
                         title={avatar.name}
                       >
                         <img
                           src={avatar.url}
                           alt={avatar.name}
-                          className="w-10 h-10 object-contain group-hover:scale-110 transition-transform"
+                          className="w-full h-full object-contain rounded-full group-hover:scale-110 transition-transform"
                           loading="lazy"
                         />
-                        <span className="text-[9px] font-semibold text-foreground/80 truncate w-full">
-                          {avatar.name}
-                        </span>
                       </button>
                     );
                   })}
