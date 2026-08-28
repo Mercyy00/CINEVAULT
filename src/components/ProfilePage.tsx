@@ -42,6 +42,7 @@ interface ProfileTheme {
 }
 
 const ALL_THEMES: ProfileTheme[] = [
+  { id: 'crimson-premiere', name: 'Crimson Premiere', tag: 'Cinema Crimson & Black', mode: 'dark', color: '#e50914', bg: '#141414' },
   { id: 'cinematic-dark', name: 'Cinematic Dark', tag: 'Warm Amber & Charcoal', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', tag: 'Deep Wine & Cream Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', tag: 'Butter Cream & Forest Pine', mode: 'dark', color: '#ffefb3', bg: '#013e37' },
@@ -49,7 +50,6 @@ const ALL_THEMES: ProfileTheme[] = [
   { id: 'vibrant-lime', name: 'Lime & Black', tag: 'Electric Lime & Obsidian', mode: 'dark', color: '#d3f00a', bg: '#0b0e02' },
   { id: 'imperial-violet', name: 'Imperial Violet', tag: 'Lavender & Plum Orchid', mode: 'dark', color: '#e2cbff', bg: '#190b24' },
   { id: 'midnight-ocean', name: 'Midnight Ocean', tag: 'Aqua Cyan & Deep Navy', mode: 'dark', color: '#00f5d4', bg: '#0a1128' },
-  { id: 'crimson-premiere', name: 'Crimson Premiere', tag: 'Cinema Crimson & Black', mode: 'dark', color: '#ffffff', bg: '#141414' },
   { id: 'neon-cyberpunk', name: 'Neon Cyberpunk', tag: 'Synthwave Cyan & Pink', mode: 'dark', color: '#05d9e8', bg: '#1a0b2e' },
   { id: 'elegant-light', name: 'Elegant Ivory', tag: 'Warm Parchment & Espresso', mode: 'light', color: '#3e2723', bg: '#f5f0e8' },
   { id: 'clean-daylight', name: 'Clean Daylight', tag: 'Modern Bright & Royal Blue', mode: 'light', color: '#0f172a', bg: '#ffffff' },

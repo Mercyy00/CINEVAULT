@@ -19,6 +19,7 @@ interface ThemeOption {
 
 const THEMES: ThemeOption[] = [
   // Dark Themes
+  { id: 'crimson-premiere', name: 'Crimson Premiere', mode: 'dark', color: '#e50914', bg: '#141414' },
   { id: 'cinematic-dark', name: 'Cinematic Dark', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', mode: 'dark', color: '#ffefb3', bg: '#013e37' },
@@ -26,7 +27,6 @@ const THEMES: ThemeOption[] = [
   { id: 'vibrant-lime', name: 'Lime & Black', mode: 'dark', color: '#d3f00a', bg: '#0b0e02' },
   { id: 'imperial-violet', name: 'Imperial Violet', mode: 'dark', color: '#e2cbff', bg: '#190b24' },
   { id: 'midnight-ocean', name: 'Midnight Ocean', mode: 'dark', color: '#00f5d4', bg: '#0a1128' },
-  { id: 'crimson-premiere', name: 'Crimson Premiere', mode: 'dark', color: '#ffffff', bg: '#141414' },
   { id: 'neon-cyberpunk', name: 'Neon Cyberpunk', mode: 'dark', color: '#05d9e8', bg: '#1a0b2e' },
   // Light Themes
   { id: 'elegant-light', name: 'Elegant Ivory', mode: 'light', color: '#3e2723', bg: '#f5f0e8' },

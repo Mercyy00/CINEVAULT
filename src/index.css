@@ -94,9 +94,39 @@
   }
 
   /* ═══════════════════════════════════════════════════════
-     DARK THEME: Cinematic Dark (Default)
+     DARK THEME: Crimson Premiere (Default)
      ═══════════════════════════════════════════════════════ */
   :root,
+  [data-theme="crimson-premiere"] {
+    --theme-bg: #141414;
+    --theme-fg: #ffffff;
+    --theme-card: #1c1c1c;
+    --theme-popover: #1e1e1e;
+    --theme-primary: #e50914;
+    --theme-primary-fg: #ffffff;
+    --theme-secondary: #262626;
+    --theme-muted: #262626;
+    --theme-muted-fg: #999999;
+    --theme-accent: #e50914;
+    --theme-accent-fg: #ffffff;
+    --theme-accent-light: #ff3843;
+    --theme-accent-dark: #b80710;
+    --theme-accent-glow: #e50914;
+    --theme-destructive: #e50914;
+    --theme-border: #333333;
+    --theme-input: #262626;
+    --theme-ring: #e50914;
+    --theme-glass-border: rgba(229, 9, 20, 0.2);
+    --theme-glass-bg: rgba(20, 20, 20, 0.88);
+
+    --shadow-card: 0 8px 30px -8px rgba(0, 0, 0, 0.6);
+    --shadow-dock: 0 10px 40px -10px rgba(0, 0, 0, 0.7);
+    --shadow-glow: 0 0 60px rgba(229, 9, 20, 0.45);
+  }
+
+  /* ═══════════════════════════════════════════════════════
+     DARK THEME: Cinematic Dark
+     ═══════════════════════════════════════════════════════ */
   [data-theme="cinematic-dark"] {
     --theme-bg: #0a0a0a;
     --theme-fg: #fafafa;
@@ -304,35 +334,6 @@
     --shadow-glow: 0 0 60px rgba(0, 245, 212, 0.3);
   }
 
-  /* ═══════════════════════════════════════════════════════
-     DARK THEME: Crimson Premiere
-     ═══════════════════════════════════════════════════════ */
-  [data-theme="crimson-premiere"] {
-    --theme-bg: #141414;
-    --theme-fg: #ffffff;
-    --theme-card: #1c1c1c;
-    --theme-popover: #1e1e1e;
-    --theme-primary: #ffffff;
-    --theme-primary-fg: #141414;
-    --theme-secondary: #262626;
-    --theme-muted: #262626;
-    --theme-muted-fg: #999999;
-    --theme-accent: #ffffff;
-    --theme-accent-fg: #141414;
-    --theme-accent-light: #ffffff;
-    --theme-accent-dark: #cccccc;
-    --theme-accent-glow: #e50914;
-    --theme-destructive: #e50914;
-    --theme-border: #333333;
-    --theme-input: #262626;
-    --theme-ring: #e50914;
-    --theme-glass-border: rgba(229, 9, 20, 0.15);
-    --theme-glass-bg: rgba(20, 20, 20, 0.85);
-
-    --shadow-card: 0 8px 30px -8px rgba(0, 0, 0, 0.5);
-    --shadow-dock: 0 10px 40px -10px rgba(0, 0, 0, 0.6);
-    --shadow-glow: 0 0 60px rgba(229, 9, 20, 0.35);
-  }
 
   /* ═══════════════════════════════════════════════════════
      DARK THEME: Neon Cyberpunk

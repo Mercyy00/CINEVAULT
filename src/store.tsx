@@ -50,7 +50,7 @@ export const THEMES = [
 export type Theme = (typeof THEMES)[number];
 export type AppFont = AppFontId;
 
-const DEFAULT_THEME: Theme = 'cinematic-dark';
+const DEFAULT_THEME: Theme = 'crimson-premiere';
 const DEFAULT_FONT: AppFont = 'bricolage';
 
 /** Cloud writes are batched: state changes in bursts, Firestore bills per write. */
