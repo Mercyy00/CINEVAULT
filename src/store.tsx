@@ -436,6 +436,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [debouncedPush]);
 
+  // Keep all users (including guests) recorded in the directory for real-time tracking
+  useEffect(() => {
+    const uid = userProfile.uid || guestUidRef.current;
+    if (!uid) return;
+    void watchTrackingService.recordUser({
+      uid,
+      displayName: userProfile.name || (userProfile.isLoggedIn ? 'User' : 'Guest Viewer'),
+      photoURL: userProfile.avatar || null,
+      isGuest: !userProfile.isLoggedIn,
+    });
+  }, [userProfile.uid, userProfile.name, userProfile.avatar, userProfile.isLoggedIn]);
+
   const hydrateFromCloud = useCallback(async (authUser: AuthUser) => {
     const { watchlist: localList, continueWatching: localContinue } = latest.current;
     try {
@@ -635,7 +647,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
-    setUserProfile((previous) => ({ ...previous, ...updates }));
+    setUserProfile((previous) => {
+      const updated = { ...previous, ...updates };
+      const uid = updated.uid || guestUidRef.current;
+      if (uid) {
+        void watchTrackingService.recordUser({
+          uid,
+          displayName: updated.name || (updated.isLoggedIn ? 'User' : 'Guest Viewer'),
+          photoURL: updated.avatar || null,
+          isGuest: !updated.isLoggedIn,
+        });
+      }
+      return updated;
+    });
   }, []);
 
   const clearProfile = useCallback(() => {

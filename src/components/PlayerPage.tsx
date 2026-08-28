@@ -276,10 +276,13 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         duration_seconds: progress.durationSeconds,
       });
 
+      const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
+      const effectiveName = userProfile.name || (userProfile.isLoggedIn ? 'User' : 'Guest Viewer');
+
       void watchTrackingService.logWatchProgress(
         {
-          uid: userProfile.uid || '',
-          userName: userProfile.name || 'Guest',
+          uid: effectiveUid,
+          userName: effectiveName,
           userAvatar: userProfile.avatar ?? null,
           mediaId: String(movie.id),
           mediaType: type,
@@ -310,6 +313,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       userProfile.uid,
       userProfile.name,
       userProfile.avatar,
+      userProfile.isLoggedIn,
     ]
   );
 
