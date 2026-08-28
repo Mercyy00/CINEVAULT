@@ -57,7 +57,7 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
 
   if (loading || movies.length === 0) {
     return (
-      <div className="w-full h-[88vh] min-h-[580px] max-h-[900px] relative skeleton-shimmer border-b border-white/5" />
+      <div className="w-full min-h-[100dvh] h-[100dvh] relative skeleton-shimmer border-b border-white/5" />
     );
   }
 
@@ -90,7 +90,7 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
 
   return (
     <div
-      className="w-full min-h-[580px] h-[88vh] max-h-[880px] relative overflow-hidden flex items-end select-none"
+      className="w-full min-h-[100dvh] h-[100dvh] relative overflow-hidden flex items-end select-none pb-24 sm:pb-32"
       onMouseMove={handleMouseMove}
     >
       {/* Dynamic Ambient Mesh Glow Orbs */}
