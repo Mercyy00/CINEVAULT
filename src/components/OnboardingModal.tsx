@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import FocusLock from 'react-focus-lock';
 import { useApp, type UserPreference } from '../store';
-import { USER_AVATARS, getAvatarById } from '../lib/avatars';
+import {
+  DICEBEAR_STYLES,
+  PRESET_AVATARS,
+  getUserAvatarUrl,
+  getDiceBearUrl,
+} from '../lib/avatars';
 import { cn } from '../lib/utils';
 import {
   Check,
@@ -13,6 +18,7 @@ import {
   ArrowLeft,
   ShieldCheck,
   Zap,
+  Dice5,
 } from 'lucide-react';
 
 const RICH_GENRES: Array<UserPreference & { id: string; emoji: string; desc: string }> = [
@@ -42,7 +48,11 @@ export function OnboardingModal() {
   } = useApp();
 
   const [step, setStep] = useState(0);
-  const [selectedAvatarId, setSelectedAvatarId] = useState(userProfile.avatar || 'gold-reel');
+  const [activeStyle, setActiveStyle] = useState('constellation');
+  const [customSeed, setCustomSeed] = useState('');
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState(
+    userProfile.avatar || getDiceBearUrl('constellation', 'OrionVault')
+  );
   const [nameInput, setNameInput] = useState(userProfile.name || 'Cinephile');
   const [selectedIds, setSelectedIds] = useState<string[]>(['28', '878', '16']);
   const [isVisible, setIsVisible] = useState(false);
@@ -71,11 +81,17 @@ export function OnboardingModal() {
     setAuthModalOpen(true);
   };
 
+  const handleRandomize = () => {
+    const randomSeeds = ['CineVault', 'NeoMatrix', 'Auteur', 'Starlight', 'Valkyrie', 'Solaris', 'Quantum', 'Miru', 'CyberRogue'];
+    const randomSeed = randomSeeds[Math.floor(Math.random() * randomSeeds.length)] + Math.floor(Math.random() * 999);
+    setCustomSeed(randomSeed);
+    setSelectedAvatarUrl(getDiceBearUrl(activeStyle, randomSeed));
+  };
+
   const handleFinish = () => {
-    const chosenAvatar = getAvatarById(selectedAvatarId);
     updateUserProfile({
       name: nameInput.trim() || 'Cinephile',
-      avatar: chosenAvatar.id,
+      avatar: selectedAvatarUrl,
     });
 
     const chosenGenres = RICH_GENRES.filter((g) => selectedIds.includes(g.id)).map(
@@ -95,8 +111,6 @@ export function OnboardingModal() {
     setIsVisible(false);
     window.setTimeout(() => setOnboardingComplete(true), 450);
   };
-
-  const currentAvatar = getAvatarById(selectedAvatarId);
 
   if (onboardingComplete) return null;
 
@@ -217,69 +231,118 @@ export function OnboardingModal() {
                       <span className="text-xs font-mono text-brand font-bold">STEP 1 OF 2</span>
                     </div>
 
-                    <div className="text-center mb-6">
+                    <div className="text-center mb-5">
                       <h2 className="text-2xl sm:text-3xl font-black font-display text-foreground mb-1">
                         Choose Your Persona
                       </h2>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        Select a cinematic avatar and enter your display name
+                        Powered by DiceBear 10.x Vector Avatar API
                       </p>
                     </div>
 
                     {/* Live Avatar Preview & Name Input */}
-                    <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-white/5 border border-white/10 mb-6 shadow-inner">
-                      <div
-                        className="w-16 h-16 sm:w-20 sm:h-20 rounded-full flex items-center justify-center text-3xl sm:text-4xl shadow-xl shrink-0 transition-transform duration-300 scale-105"
-                        style={{
-                          background: currentAvatar.bg,
-                          border: `2px solid ${currentAvatar.border}`,
-                          boxShadow: `0 0 20px ${currentAvatar.color}40`,
-                        }}
-                      >
-                        {currentAvatar.emoji}
+                    <div className="flex flex-col sm:flex-row items-center gap-5 p-4 rounded-2xl bg-white/5 border border-white/15 mb-5 shadow-inner">
+                      <div className="relative group shrink-0">
+                        <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden bg-black/60 border-2 border-brand shadow-[0_0_25px_var(--theme-accent-glow,rgba(232,133,42,0.4))] flex items-center justify-center p-1.5 transition-transform duration-300">
+                          <img
+                            src={getUserAvatarUrl(selectedAvatarUrl)}
+                            alt="Avatar Preview"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRandomize}
+                          className="absolute -bottom-2 -right-2 w-7 h-7 rounded-full bg-brand text-brand-foreground flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform cursor-pointer"
+                          title="Generate Random Avatar"
+                        >
+                          <Dice5 className="w-4 h-4" />
+                        </button>
                       </div>
 
-                      <div className="flex-1 w-full text-center sm:text-left">
-                        <label className="text-[11px] font-mono uppercase font-bold text-muted-foreground tracking-wider block mb-1.5">
-                          Display Name
-                        </label>
-                        <input
-                          type="text"
-                          value={nameInput}
-                          onChange={(e) => setNameInput(e.target.value)}
-                          placeholder="Your Cinephile Name..."
-                          maxLength={30}
-                          className="w-full bg-black/40 border border-white/20 rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all"
-                        />
+                      <div className="flex-1 w-full text-center sm:text-left space-y-2">
+                        <div>
+                          <label className="text-[11px] font-mono uppercase font-bold text-muted-foreground tracking-wider block mb-1">
+                            Display Name
+                          </label>
+                          <input
+                            type="text"
+                            value={nameInput}
+                            onChange={(e) => {
+                              setNameInput(e.target.value);
+                              if (!customSeed) {
+                                setSelectedAvatarUrl(getDiceBearUrl(activeStyle, e.target.value || 'Cinephile'));
+                              }
+                            }}
+                            placeholder="Your Cinephile Name..."
+                            maxLength={30}
+                            className="w-full bg-black/50 border border-white/20 rounded-xl px-4 py-2 text-sm font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all"
+                          />
+                        </div>
+
+                        {/* Quick Style Switcher */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pt-1">
+                          {DICEBEAR_STYLES.slice(0, 6).map((style) => (
+                            <button
+                              key={style.id}
+                              type="button"
+                              onClick={() => {
+                                setActiveStyle(style.id);
+                                setSelectedAvatarUrl(getDiceBearUrl(style.id, nameInput || 'Cinephile'));
+                              }}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold whitespace-nowrap border transition-all cursor-pointer",
+                                activeStyle === style.id
+                                  ? "bg-brand text-brand-foreground border-brand shadow-sm"
+                                  : "bg-white/5 border-white/10 text-muted-foreground hover:text-white"
+                              )}
+                            >
+                              {style.name}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    {/* Avatar Selection Grid */}
-                    <div className="mb-6">
-                      <span className="text-xs font-mono uppercase font-bold text-muted-foreground tracking-wider block mb-3">
-                        Select Avatar ({USER_AVATARS.length} Available)
-                      </span>
-                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 max-h-48 overflow-y-auto custom-scrollbar pr-1 p-1">
-                        {USER_AVATARS.map((avatar) => {
-                          const isSelected = selectedAvatarId === avatar.id;
+                    {/* Presets Gallery */}
+                    <div className="mb-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-mono uppercase font-bold text-muted-foreground tracking-wider">
+                          Featured Avatars ({PRESET_AVATARS.length})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={handleRandomize}
+                          className="text-xs text-brand font-semibold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Dice5 className="w-3.5 h-3.5" /> Randomize
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2 max-h-36 overflow-y-auto custom-scrollbar pr-1 p-1">
+                        {PRESET_AVATARS.map((avatar) => {
+                          const isSelected = selectedAvatarUrl === avatar.url;
                           return (
                             <button
                               key={avatar.id}
                               type="button"
-                              onClick={() => setSelectedAvatarId(avatar.id)}
+                              onClick={() => {
+                                setSelectedAvatarUrl(avatar.url);
+                                setActiveStyle(avatar.style);
+                              }}
                               className={cn(
-                                'flex flex-col items-center justify-center p-2.5 rounded-2xl border transition-all cursor-pointer relative group',
+                                'flex flex-col items-center justify-center p-1.5 rounded-xl border transition-all cursor-pointer relative group',
                                 isSelected
                                   ? 'bg-brand/20 border-brand shadow-lg scale-105 ring-2 ring-brand/40'
                                   : 'bg-white/5 border-white/10 hover:border-white/30 hover:bg-white/10'
                               )}
                             >
-                              <span className="text-2xl sm:text-3xl mb-1 group-hover:scale-110 transition-transform">
-                                {avatar.emoji}
-                              </span>
-                              <span className="text-[10px] font-medium text-foreground/80 truncate w-full text-center">
-                                {avatar.name}
-                              </span>
+                              <img
+                                src={avatar.url}
+                                alt={avatar.name}
+                                className="w-9 h-9 object-contain group-hover:scale-110 transition-transform"
+                                loading="lazy"
+                              />
                             </button>
                           );
                         })}

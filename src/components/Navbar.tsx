@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
-import { getAvatarById } from '../lib/avatars';
+import { getUserAvatarUrl } from '../lib/avatars';
 import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import { BirthdayCountdown } from './BirthdayCountdown';
 import { isBirthdayVisible } from '../config/birthdayAccess';
@@ -553,22 +553,14 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 setShowCustomizer(false); 
                 setShowMusicPlayer(false); 
               }}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/15 flex items-center justify-center text-foreground hover:border-brand/40 transition-all shadow-card cursor-pointer text-base hover:scale-105 active:scale-95"
+              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/15 flex items-center justify-center text-foreground hover:border-brand/40 transition-all shadow-card cursor-pointer p-0.5 hover:scale-105 active:scale-95 overflow-hidden"
               aria-label="User Account"
             >
-              {userProfile.avatar ? (
-                <span className="text-base sm:text-lg select-none drop-shadow-sm">
-                  {getAvatarById(userProfile.avatar).emoji}
-                </span>
-              ) : userProfile.isLoggedIn ? (
-                <span className="text-xs font-bold text-brand font-mono">
-                  {userProfile.name ? userProfile.name.substring(0, 2).toUpperCase() : 'U'}
-                </span>
-              ) : (
-                <span className="text-base sm:text-lg select-none">
-                  {getAvatarById('gold-reel').emoji}
-                </span>
-              )}
+              <img
+                src={getUserAvatarUrl(userProfile.avatar, userProfile.name || 'Cinephile')}
+                alt="Profile Avatar"
+                className="w-full h-full object-contain rounded-full"
+              />
             </button>
 
             <AnimatePresence>
@@ -581,14 +573,12 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   className="absolute right-0 mt-3 w-56 bg-card rounded-2xl shadow-2xl py-2 border border-border origin-top-right flex flex-col z-[200] text-foreground"
                 >
                   <div className="px-4 py-2.5 border-b border-border mb-1 flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-full flex items-center justify-center text-lg border shrink-0 shadow-sm"
-                      style={{
-                        background: getAvatarById(userProfile.avatar).bg,
-                        borderColor: getAvatarById(userProfile.avatar).border,
-                      }}
-                    >
-                      {getAvatarById(userProfile.avatar).emoji}
+                    <div className="w-10 h-10 rounded-full overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                      <img
+                        src={getUserAvatarUrl(userProfile.avatar, userProfile.name || 'Cinephile')}
+                        alt="User Avatar"
+                        className="w-full h-full object-contain"
+                      />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold text-foreground truncate">{userProfile.name || 'Guest'}</p>

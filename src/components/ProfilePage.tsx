@@ -22,7 +22,12 @@ import {
 } from 'lucide-react';
 import { useApp, Theme } from '../store';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
-import { USER_AVATARS, getAvatarById } from '../lib/avatars';
+import {
+  DICEBEAR_STYLES,
+  PRESET_AVATARS,
+  getUserAvatarUrl,
+  getDiceBearUrl,
+} from '../lib/avatars';
 import { cn } from '../lib/utils';
 
 type SettingsTab = 'account' | 'general' | 'appearance' | 'history' | 'about';
@@ -223,14 +228,12 @@ export function ProfilePage() {
           <div>
             {/* User Profile Summary */}
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border shadow-sm mb-4">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-lg shadow-sm shrink-0 border"
-                style={{
-                  background: getAvatarById(userProfile.avatar).bg,
-                  borderColor: getAvatarById(userProfile.avatar).border,
-                }}
-              >
-                {getAvatarById(userProfile.avatar).emoji}
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shadow-sm shrink-0">
+                <img
+                  src={getUserAvatarUrl(userProfile.avatar, userProfile.name)}
+                  alt="User Avatar"
+                  className="w-full h-full object-contain"
+                />
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-foreground truncate">{userProfile.name || 'User'}</h4>
@@ -314,14 +317,12 @@ export function ProfilePage() {
               {/* Profile Card with Banner */}
               <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card relative">
                 <div className="h-28 bg-gradient-to-r from-brand/25 via-brand/10 to-transparent border-b border-border relative" />
-                <div
-                  className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-card shadow-md flex items-center justify-center text-3xl font-display"
-                  style={{
-                    background: getAvatarById(userProfile.avatar).bg,
-                    borderColor: getAvatarById(userProfile.avatar).border,
-                  }}
-                >
-                  {getAvatarById(userProfile.avatar).emoji}
+                <div className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-black/80 shadow-md flex items-center justify-center p-1 overflow-hidden">
+                  <img
+                    src={getUserAvatarUrl(userProfile.avatar, userProfile.name)}
+                    alt="User Avatar"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
 
                 <div className="pt-10 px-6 pb-6">
@@ -370,37 +371,51 @@ export function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-brand" /> Choose Persona & Avatar
+                      <Sparkles className="w-4 h-4 text-brand" /> DiceBear Vector Avatars
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Select your avatar icon displayed across CineVault</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Choose from official DiceBear 10.x styles and presets</p>
                   </div>
-                  <span className="text-xs font-mono font-bold text-brand px-2.5 py-1 rounded-full bg-brand/10 border border-brand/25">
-                    {getAvatarById(userProfile.avatar).name}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const randomStyle = DICEBEAR_STYLES[Math.floor(Math.random() * DICEBEAR_STYLES.length)].id;
+                      const randomSeed = 'User_' + Math.floor(Math.random() * 9999);
+                      const newUrl = getDiceBearUrl(randomStyle, randomSeed);
+                      updateUserProfile({ avatar: newUrl });
+                      showToast(`Generated random ${randomStyle} avatar`);
+                    }}
+                    className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" /> Randomize
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2.5 pt-1">
-                  {USER_AVATARS.map((avatar) => {
-                    const isSelected = (userProfile.avatar || 'gold-reel') === avatar.id;
+                <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 pt-1">
+                  {PRESET_AVATARS.map((avatar) => {
+                    const isSelected = (userProfile.avatar || '') === avatar.url;
                     return (
                       <button
                         key={avatar.id}
                         type="button"
                         onClick={() => {
-                          updateUserProfile({ avatar: avatar.id });
-                          showToast(`Avatar updated: ${avatar.name}`);
+                          updateUserProfile({ avatar: avatar.url });
+                          showToast(`Avatar set: ${avatar.name}`);
                         }}
                         className={cn(
-                          "p-2.5 rounded-xl border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer group shadow-sm",
+                          "p-2 rounded-xl border transition-all text-center flex flex-col items-center justify-center gap-1 cursor-pointer group shadow-sm bg-black/40",
                           isSelected
-                            ? "bg-brand/15 border-brand ring-2 ring-brand/40 shadow-md scale-105"
-                            : "bg-card hover:bg-muted/50 border-border hover:border-white/30"
+                            ? "bg-brand/20 border-brand ring-2 ring-brand/50 shadow-md scale-105"
+                            : "hover:bg-white/10 border-border hover:border-white/30"
                         )}
+                        title={avatar.name}
                       >
-                        <span className="text-2xl sm:text-3xl group-hover:scale-110 transition-transform">
-                          {avatar.emoji}
-                        </span>
-                        <span className="text-[10px] font-semibold text-foreground/80 truncate w-full">
+                        <img
+                          src={avatar.url}
+                          alt={avatar.name}
+                          className="w-10 h-10 object-contain group-hover:scale-110 transition-transform"
+                          loading="lazy"
+                        />
+                        <span className="text-[9px] font-semibold text-foreground/80 truncate w-full">
                           {avatar.name}
                         </span>
                       </button>
