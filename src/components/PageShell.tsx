@@ -333,13 +333,15 @@ export function PageShell({
                 {movies.map((movie, index) => (
                   <motion.div
                     key={`${activePill}-${movie.type}-${movie.id}`}
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                    initial={{ opacity: 0, scale: 0.93, y: 32 }}
                     whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                    viewport={{ once: true, margin: '50px' }}
+                    viewport={{ once: true, amount: 0.1 }}
                     exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                    // Capped: the previous `(idx % 20) * 0.05` meant the last
-                    // card in a row waited almost a second to appear.
-                    transition={{ duration: 0.35, delay: Math.min((index % 6) * 0.05, MAX_STAGGER_S) }}
+                    transition={{
+                      duration: 0.5,
+                      delay: Math.min((index % 6) * 0.06, MAX_STAGGER_S),
+                      ease: [0.16, 1, 0.3, 1],
+                    }}
                   >
                     <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
                   </motion.div>

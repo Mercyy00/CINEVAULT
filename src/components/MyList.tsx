@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { Play, Trash2, GripVertical, CheckCircle, Clock } from 'lucide-react';
 import { useApp } from '../store';
@@ -75,9 +75,17 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                 {items.map((item, index) => (
                   <Draggable key={item.movieId} draggableId={item.movieId} index={index}>
                     {(provided, snapshot) => (
-                      <div
+                      <motion.div
                         ref={provided.innerRef}
                         {...provided.draggableProps}
+                        initial={{ opacity: 0, y: 25, scale: 0.96 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{
+                          duration: 0.4,
+                          delay: Math.min(index * 0.05, 0.3),
+                          ease: [0.16, 1, 0.3, 1],
+                        }}
                         className={cn(
                           "glass rounded-xl p-4 flex items-center gap-4 group transition-transform duration-300 ease-in-out",
                           snapshot.isDragging ? "dragging-card" : "hover:border-brand/50 hover:bg-white/5"
@@ -149,7 +157,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                             <Trash2 className="w-5 h-5" />
                           </button>
                         </div>
-                      </div>
+                      </motion.div>
                     )}
                   </Draggable>
                 ))}

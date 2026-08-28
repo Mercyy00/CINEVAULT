@@ -298,13 +298,21 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           onTouchMove={handleDragMove}
           className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-3 sm:px-6 lg:px-8 pb-5 pt-2 snap-x select-none list-none m-0"
         >
-          {movies.map((movie) => (
-            <li
+          {movies.map((movie, idx) => (
+            <motion.li
               key={`${movie.type}-${movie.id}`}
+              initial={{ opacity: 0, y: 35, scale: 0.94 }}
+              whileInView={{ opacity: 1, y: 0, scale: 1 }}
+              viewport={{ once: true, amount: 0.1 }}
+              transition={{
+                duration: 0.5,
+                delay: Math.min((idx % 6) * 0.06, 0.35),
+                ease: [0.16, 1, 0.3, 1],
+              }}
               className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px]"
             >
               <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
-            </li>
+            </motion.li>
           ))}
           {loadingMore && (
             <li className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
