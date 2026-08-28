@@ -653,23 +653,23 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
 
       {/* Bottom Floating Dock (Hidden on Birthday Page) */}
       {currentHash !== '#birthday' && (
-        <nav 
+        <nav
           aria-label="Main Navigation"
-          className="fixed bottom-6 sm:bottom-8 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto select-none"
+          className="fixed bottom-5 sm:bottom-7 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto select-none"
         >
-          <div className="rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-1.5 border border-black/10 dark:border-white/15 shadow-[0_14px_35px_-8px_var(--theme-accent-glow,rgba(0,0,0,0.15))] backdrop-blur-2xl bg-white/85 dark:bg-black/65 ring-1 ring-brand/25 transition-all duration-300">
+          <div className="rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-3xl bg-[#0a0b10]/85 ring-1 ring-brand/30 transition-all duration-300">
             {navLinks.map((link) => {
               const isActive = currentHash === link.href;
               const Icon = link.icon;
               return (
-                <a 
-                  key={link.name} 
+                <a
+                  key={link.name}
                   href={link.href}
                   className={cn(
-                    "relative h-11 w-11 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-colors duration-200 group cursor-pointer",
-                    isActive 
-                      ? "text-brand-foreground" 
-                      : "text-foreground/75 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 active:scale-95"
+                    "relative h-11 w-11 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all duration-300 group cursor-pointer",
+                    isActive
+                      ? "text-brand-foreground"
+                      : "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
                   )}
                   aria-label={link.name}
                   title={link.name}
@@ -677,18 +677,25 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   {isActive && (
                     <motion.div
                       layoutId="active-dock-pill"
-                      className="absolute inset-0 rounded-full bg-brand shadow-[0_0_20px_var(--theme-accent-glow,rgba(232,133,42,0.45))] ring-1 ring-brand/35"
+                      className="absolute inset-0 rounded-full bg-brand shadow-[0_0_24px_var(--theme-accent-glow,rgba(232,133,42,0.6))] ring-1 ring-brand/50"
                       transition={{
                         type: "spring",
-                        stiffness: 380,
-                        damping: 30
+                        stiffness: 400,
+                        damping: 28,
                       }}
                     />
                   )}
-                  <Icon className={cn(
-                    "relative z-10 w-5 h-5 sm:w-5 sm:h-5 transition-transform duration-200 group-hover:scale-110",
-                    isActive ? "text-brand-foreground font-bold" : "text-foreground/75 group-hover:text-foreground"
-                  )} />
+                  <Icon
+                    className={cn(
+                      "relative z-10 w-5 h-5 transition-transform duration-200 group-hover:scale-110",
+                      isActive ? "text-brand-foreground font-bold" : "text-white/75 group-hover:text-white"
+                    )}
+                  />
+
+                  {/* Micro Tooltip on Hover */}
+                  <span className="absolute -top-9 opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-200 pointer-events-none px-2.5 py-1 rounded-full text-[10px] font-bold font-display uppercase tracking-wider bg-black/80 backdrop-blur-md text-white border border-white/15 shadow-xl whitespace-nowrap">
+                    {link.name}
+                  </span>
                 </a>
               );
             })}

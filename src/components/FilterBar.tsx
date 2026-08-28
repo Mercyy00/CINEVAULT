@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { api } from '../api';
 import { cn } from '../lib/utils';
 
@@ -23,12 +23,11 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
     let isMounted = true;
     api.getWatchProviders(type === 'anime' ? 'tv' : type, country).then((data: any) => {
       if (isMounted && data.results) {
-        // Sort and slice top 20 providers
         const sorted = data.results.sort((a: any, b: any) => a.display_priority - b.display_priority).slice(0, 20);
         setProviders(sorted);
-        setProviderId(''); // Reset provider on type/country change
+        setProviderId('');
       }
-    }).catch(err => {
+    }).catch((err) => {
       console.error('Error fetching providers', err);
     });
     return () => { isMounted = false; };
@@ -37,13 +36,10 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   useEffect(() => {
     let filters: any = { type, country };
     if (providerId) filters.providerId = providerId;
-    
-    // Auto-apply logic for Anime (TV + JA + Gen 16) or Bollywood (hi) based on selections
+
     if (type === 'anime') {
       filters.genreId = '16';
       filters.language = 'ja';
-    } else if (country === 'IN' && type === 'movie') {
-      // For India, we could optionally filter by hindi, but let's just pass country and let the user pick
     }
     onFilterChange(filters);
   }, [type, country, providerId]);
@@ -63,10 +59,11 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
 
   const DropdownItem = ({ active, onClick, children }: any) => (
     <button
+      type="button"
       onClick={onClick}
       className={cn(
-        "w-full text-left px-4 py-2 text-sm transition-colors hover:bg-black/10 dark:hover:bg-white/10 flex items-center gap-2",
-        active ? "text-brand font-bold bg-brand/5" : "text-foreground"
+        "w-full text-left px-3.5 py-2 text-xs sm:text-sm rounded-lg transition-all flex items-center gap-2.5 cursor-pointer",
+        active ? "text-brand font-bold bg-brand/10" : "text-foreground hover:bg-white/10"
       )}
     >
       {children}
@@ -74,102 +71,154 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   );
 
   return (
-    <div className="px-4 md:px-10 py-6 flex flex-wrap items-center gap-4 md:gap-8 border-b border-brand/10 relative z-30">
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm font-medium">Type:</span>
-        <div className="relative">
-          <button 
-            onClick={() => setShowType(!showType)} 
-            onBlur={() => setTimeout(() => setShowType(false), 200)}
-            className="glass px-4 py-2 rounded-full text-sm font-medium text-foreground border border-white/10 hover:border-brand flex items-center gap-2 transition-colors"
-          >
-            {TYPES.find(t => t.id === type)?.name}
-            <ChevronDown className="w-4 h-4 opacity-50" />
-          </button>
-          <AnimatePresence>
-            {showType && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full left-0 mt-2 w-40 glass rounded-xl py-2 border border-brand/20 shadow-xl"
-              >
-                {TYPES.map(t => (
-                  <DropdownItem key={t.id} active={type === t.id} onClick={() => setType(t.id)}>
-                    {t.name}
-                  </DropdownItem>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+    <div className="px-4 sm:px-8 lg:px-10 py-5 flex flex-wrap items-center gap-3 sm:gap-6 border-b border-white/5 relative z-30 select-none">
+      <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mr-1">
+        <SlidersHorizontal className="w-3.5 h-3.5 text-brand" />
+        <span>Filters</span>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm font-medium">Country:</span>
-        <div className="relative">
-          <button 
-            onClick={() => setShowCountry(!showCountry)} 
-            onBlur={() => setTimeout(() => setShowCountry(false), 200)}
-            className="glass px-4 py-2 rounded-full text-sm font-medium text-foreground border border-white/10 hover:border-brand flex items-center gap-2 transition-colors"
-          >
-            {COUNTRIES.find(c => c.code === country)?.name}
-            <ChevronDown className="w-4 h-4 opacity-50" />
-          </button>
-          <AnimatePresence>
-            {showCountry && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full left-0 mt-2 w-48 glass rounded-xl py-2 border border-brand/20 shadow-xl"
-              >
-                {COUNTRIES.map(c => (
-                  <DropdownItem key={c.code} active={country === c.code} onClick={() => setCountry(c.code)}>
-                    {c.name}
-                  </DropdownItem>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-2">
-        <span className="text-muted-foreground text-sm font-medium">Streaming On:</span>
-        <div className="relative">
-          <button 
-            onClick={() => setShowProviders(!showProviders)} 
-            onBlur={() => setTimeout(() => setShowProviders(false), 200)}
-            className="glass px-4 py-2 rounded-full text-sm font-medium text-foreground border border-white/10 hover:border-brand flex items-center gap-2 transition-colors"
-          >
-            {providerId ? providers.find(p => p.provider_id.toString() === providerId)?.provider_name : 'Any Provider'}
-            <ChevronDown className="w-4 h-4 opacity-50" />
-          </button>
-          <AnimatePresence>
-            {showProviders && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 10 }}
-                className="absolute top-full left-0 mt-2 w-56 max-h-64 overflow-y-auto glass rounded-xl py-2 border border-brand/20 shadow-xl scrollbar-hide"
-              >
-                <DropdownItem active={providerId === ''} onClick={() => setProviderId('')}>
-                  Any Provider
+      {/* Type Filter */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setShowType(!showType);
+            setShowCountry(false);
+            setShowProviders(false);
+          }}
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+        >
+          <span className="text-muted-foreground text-xs font-normal">Type:</span>
+          <span>{TYPES.find((t) => t.id === type)?.name}</span>
+          <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+        </button>
+        <AnimatePresence>
+          {showType && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-0 mt-2 w-44 bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+            >
+              {TYPES.map((t) => (
+                <DropdownItem
+                  key={t.id}
+                  active={type === t.id}
+                  onClick={() => {
+                    setType(t.id);
+                    setShowType(false);
+                  }}
+                >
+                  {t.name}
                 </DropdownItem>
-                {providers.map(p => (
-                  <DropdownItem key={p.provider_id} active={providerId === p.provider_id.toString()} onClick={() => setProviderId(p.provider_id.toString())}>
-                    {p.logo_path && (
-                      <img loading="lazy" src={`https://image.tmdb.org/t/p/w45${p.logo_path}`} alt={p.provider_name} className="w-5 h-5 rounded-sm" />
-                    )}
-                    <span className="truncate">{p.provider_name}</span>
-                  </DropdownItem>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Country Filter */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setShowCountry(!showCountry);
+            setShowType(false);
+            setShowProviders(false);
+          }}
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+        >
+          <span className="text-muted-foreground text-xs font-normal">Region:</span>
+          <span>{COUNTRIES.find((c) => c.code === country)?.name}</span>
+          <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+        </button>
+        <AnimatePresence>
+          {showCountry && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-0 mt-2 w-48 bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+            >
+              {COUNTRIES.map((c) => (
+                <DropdownItem
+                  key={c.code}
+                  active={country === c.code}
+                  onClick={() => {
+                    setCountry(c.code);
+                    setShowCountry(false);
+                  }}
+                >
+                  {c.name}
+                </DropdownItem>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Provider Filter */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setShowProviders(!showProviders);
+            setShowType(false);
+            setShowCountry(false);
+          }}
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+        >
+          <span className="text-muted-foreground text-xs font-normal">Network:</span>
+          <span className="truncate max-w-[120px]">
+            {providerId ? providers.find((p) => p.provider_id.toString() === providerId)?.provider_name : 'All Networks'}
+          </span>
+          <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+        </button>
+        <AnimatePresence>
+          {showProviders && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+            >
+              <DropdownItem
+                active={providerId === ''}
+                onClick={() => {
+                  setProviderId('');
+                  setShowProviders(false);
+                }}
+              >
+                All Networks
+              </DropdownItem>
+              {providers.map((p) => (
+                <DropdownItem
+                  key={p.provider_id}
+                  active={providerId === p.provider_id.toString()}
+                  onClick={() => {
+                    setProviderId(p.provider_id.toString());
+                    setShowProviders(false);
+                  }}
+                >
+                  {p.logo_path && (
+                    <img
+                      loading="lazy"
+                      src={`https://image.tmdb.org/t/p/w45${p.logo_path}`}
+                      alt={p.provider_name}
+                      className="w-4 h-4 rounded-md shadow-sm"
+                    />
+                  )}
+                  <span className="truncate">{p.provider_name}</span>
+                </DropdownItem>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );
 }
+

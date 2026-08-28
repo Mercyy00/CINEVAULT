@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getDominantColor } from '../lib/colorThief';
-import { Play, Plus, Check, Info } from 'lucide-react';
+import { Play, Plus, Check, Info, Star } from 'lucide-react';
 import { Movie, formatRating } from '../types';
 import { api } from '../api';
 import { useApp } from '../store';
+import { cn } from '../lib/utils';
 
 export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: string) => void }) {
   const [movies, setMovies] = useState<Movie[]>([]);
@@ -14,9 +15,9 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
 
   useEffect(() => {
     let isMounted = true;
-    api.getTrending('all', 'day').then(data => {
+    api.getTrending('all', 'day').then((data) => {
       if (isMounted && data.results) {
-        setMovies(data.results.slice(0, 3).map(api.mapToInternalMovie));
+        setMovies(data.results.slice(0, 5).map(api.mapToInternalMovie));
         setLoading(false);
       }
     }).catch(() => {
@@ -27,11 +28,11 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
 
   useEffect(() => {
     if (movies.length <= 1) return;
-    
+
     const currentMovie = movies[currentIndex];
     if (currentMovie && currentMovie.backdropUrl) {
       const imageUrl = currentMovie.backdropUrl;
-      getDominantColor(imageUrl).then(color => {
+      getDominantColor(imageUrl).then((color) => {
         setAmbientColor(color);
       }).catch(() => {
         setAmbientColor(null);
@@ -40,24 +41,23 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
 
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % movies.length);
-    }, 6000);
+    }, 7000);
     return () => {
       clearInterval(interval);
-      setAmbientColor(null);
     };
-  }, [movies.length]);
+  }, [currentIndex, movies, setAmbientColor]);
 
   // Mouse Parallax effect for backdrop
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const handleMouseMove = (e: React.MouseEvent) => {
-    const x = (e.clientX / window.innerWidth - 0.5) * 20;
-    const y = (e.clientY / window.innerHeight - 0.5) * 20;
+    const x = (e.clientX / window.innerWidth - 0.5) * 15;
+    const y = (e.clientY / window.innerHeight - 0.5) * 15;
     setMousePos({ x, y });
   };
 
   if (loading || movies.length === 0) {
     return (
-      <div className="w-full h-[88vh] min-h-[560px] relative skeleton-shimmer border-b border-white/5" />
+      <div className="w-full h-[88vh] min-h-[580px] max-h-[900px] relative skeleton-shimmer border-b border-white/5" />
     );
   }
 
@@ -70,9 +70,9 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
     } else {
       addToWatchlist(currentMovie);
       const rect = e.currentTarget.getBoundingClientRect();
-      const x = rect.left + rect.width / 2;
-      const y = rect.top + rect.height / 2;
-      
+      const clickX = rect.left + rect.width / 2;
+      const clickY = rect.top + rect.height / 2;
+
       for (let i = 0; i < 8; i++) {
         const particle = document.createElement('div');
         particle.className = 'particle';
@@ -80,8 +80,8 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
         const distance = 40 + Math.random() * 20;
         particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
         particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
-        particle.style.left = `${x}px`;
-        particle.style.top = `${y}px`;
+        particle.style.left = `${clickX}px`;
+        particle.style.top = `${clickY}px`;
         document.body.appendChild(particle);
         setTimeout(() => particle.remove(), 600);
       }
@@ -89,116 +89,167 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
   };
 
   return (
-    <div 
-      className="w-full h-[88vh] min-h-[560px] relative overflow-hidden flex items-end"
+    <div
+      className="w-full min-h-[580px] h-[88vh] max-h-[880px] relative overflow-hidden flex items-end select-none"
       onMouseMove={handleMouseMove}
     >
+      {/* Dynamic Ambient Mesh Glow Orbs */}
+      <div className="ambient-glow-orb -top-20 -left-20 w-[450px] h-[450px] bg-brand/30 z-0" />
+      <div className="ambient-glow-orb top-1/3 right-0 w-[500px] h-[500px] bg-[#ffd066]/20 z-0" />
+
+      {/* Backdrop Image Transitions */}
       <AnimatePresence initial={false}>
         <motion.div
           key={currentIndex}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.5, ease: 'easeInOut' }}
+          initial={{ opacity: 0, scale: 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.02 }}
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
           className="absolute inset-0 z-0"
         >
           <motion.img
             src={currentMovie.backdropUrl || undefined}
             alt={currentMovie.title}
             className="w-full h-full object-cover"
-            style={{ 
+            style={{
               transform: `translate(${mousePos.x}px, ${mousePos.y}px) scale(1.05)`,
-            }}
-            animate={{
-              scale: [1.05, 1.15],
-            }}
-            transition={{
-              duration: 10,
-              ease: 'linear',
-              repeat: Infinity,
-              repeatType: 'reverse'
             }}
           />
         </motion.div>
       </AnimatePresence>
 
-      <div className="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/40 to-transparent" />
-      <div className="absolute inset-0 z-10 bg-gradient-to-r from-background/80 via-background/30 to-transparent" />
+      {/* Cinema Gradient Scrims & Shading */}
+      <div className="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/50 to-transparent" />
+      <div className="absolute inset-0 z-10 bg-gradient-to-r from-background/90 via-background/40 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 h-40 z-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
 
       {/* Floating Particles Overlay */}
-      <div className="absolute inset-0 z-10 pointer-events-none opacity-30 mix-blend-screen" 
-           style={{ backgroundImage: 'radial-gradient(circle, var(--theme-accent) 1px, transparent 1px)', backgroundSize: '100px 100px', animation: 'drift 20s linear infinite' }} />
+      <div
+        className="absolute inset-0 z-10 pointer-events-none opacity-20 mix-blend-screen"
+        style={{
+          backgroundImage: 'radial-gradient(circle, var(--theme-accent) 1px, transparent 1px)',
+          backgroundSize: '80px 80px',
+        }}
+      />
 
-      <div className="relative z-20 max-w-4xl w-full pb-28 sm:pb-36 px-4 sm:px-10 lg:px-14">
+      {/* Main Hero Content */}
+      <div className="relative z-20 max-w-5xl w-full pb-24 sm:pb-28 px-4 sm:px-10 lg:px-14">
         <motion.div
           key={`content-${currentIndex}`}
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          transition={{ duration: 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
         >
           {/* Metadata Badges */}
-          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mb-3 sm:mb-5">
-            <span className="bg-white/15 backdrop-blur-md border border-white/10 rounded-full px-2.5 sm:px-3.5 py-0.5 sm:py-1 text-[11px] sm:text-sm text-foreground uppercase tracking-wider font-bold shadow-sm">
-              {currentMovie.type === 'tv' ? 'Series' : 'Movie'}
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-4">
+            <span className="bg-brand/20 text-brand border border-brand/40 rounded-full px-3 py-1 text-[11px] sm:text-xs uppercase tracking-widest font-mono font-bold shadow-sm backdrop-blur-md">
+              {currentMovie.type === 'tv' ? 'Series' : 'Featured Movie'}
             </span>
-            <div className="flex items-center gap-1 text-sm sm:text-lg text-foreground font-bold drop-shadow-md">
-              <span className="text-brand">★</span>
+
+            <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-xs sm:text-sm text-foreground font-bold shadow-sm">
+              <Star className="w-3.5 h-3.5 text-[#ffd066] fill-[#ffd066]" />
               <span>{formatRating(currentMovie.rating)}</span>
-              <span className="text-muted-foreground text-[10px] sm:text-sm font-normal">/ 10</span>
+              <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span>
             </div>
-            <span className="text-foreground/90 text-sm sm:text-lg font-semibold">{currentMovie.year}</span>
+
+            <span className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-foreground/90 text-xs sm:text-sm font-semibold">
+              {currentMovie.year || '2024'}
+            </span>
+
             {currentMovie.genres && currentMovie.genres.length > 0 && (
-              <div className="hidden xs:flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <div className="hidden xs:flex flex-wrap items-center gap-1.5">
                 {currentMovie.genres.slice(0, 2).map((genre: string) => (
-                  <span key={genre} className="bg-white/10 backdrop-blur-sm border border-white/5 rounded-full px-2.5 py-0.5 sm:px-3 sm:py-1 text-[10px] sm:text-sm text-foreground/80 font-medium">{genre}</span>
+                  <span
+                    key={genre}
+                    className="bg-white/5 backdrop-blur-md border border-white/5 rounded-full px-2.5 py-0.5 text-[11px] text-foreground/80 font-medium"
+                  >
+                    {genre}
+                  </span>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Hero Title */}
-          <h1 className="text-2xl sm:text-6xl lg:text-7xl font-display font-black text-foreground mb-3 sm:mb-5 leading-[1.08] tracking-tight drop-shadow-2xl line-clamp-2">
+          {/* Hero Headline */}
+          <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display font-black text-foreground mb-3 sm:mb-4 leading-[1.08] tracking-tight drop-shadow-2xl line-clamp-2">
             {currentMovie.title}
           </h1>
 
           {/* Description */}
-          <p className="text-xs sm:text-xl lg:text-2xl text-foreground/90 mb-5 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-2xl font-normal leading-relaxed drop-shadow-lg">
+          <p className="text-xs sm:text-base lg:text-lg text-foreground/85 mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-2xl font-normal leading-relaxed drop-shadow-md">
             {currentMovie.tagline || currentMovie.description}
           </p>
 
-          {/* Actions */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
-            <button 
-              onClick={() => onMovieSelect(currentMovie.id, currentMovie.type)}
-              className="flex items-center gap-2 sm:gap-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-full px-5 sm:px-7 h-10 sm:h-14 text-xs sm:text-lg font-bold transition-all duration-300 hover:scale-105 shadow-xl cursor-pointer"
-            >
-              <Play className="w-4 h-4 sm:w-6 sm:h-6 fill-current" />
-              View Details
-            </button>
-            <button 
-              onClick={handleWatchlistToggle}
-              className="flex items-center gap-2 glass border border-white/15 text-foreground hover:bg-white/20 rounded-full px-4 sm:px-6 h-10 sm:h-14 text-xs sm:text-lg font-semibold transition-all duration-300 relative overflow-hidden group shadow-lg cursor-pointer"
-            >
-              {inWatchlist ? <Check className="w-4 h-4 sm:w-6 sm:h-6 text-brand" /> : <Plus className="w-4 h-4 sm:w-6 sm:h-6" />}
-              {inWatchlist ? 'In Watchlist' : 'My List'}
-            </button>
+          {/* Double-Bezel Island Actions */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+            {/* Primary Action Button */}
             <button
+              type="button"
               onClick={() => onMovieSelect(currentMovie.id, currentMovie.type)}
-              className="w-10 h-10 sm:w-14 sm:h-14 rounded-full glass flex items-center justify-center border border-white/15 hover:bg-white/20 transition-all text-foreground shadow-lg cursor-pointer hover:scale-105"
+              className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-5 pr-2 py-2 text-xs sm:text-base font-bold shadow-[0_10px_30px_-5px_var(--theme-accent-glow,rgba(232,133,42,0.5))] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+            >
+              <span>Watch Now</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
+                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5" />
+              </div>
+            </button>
+
+            {/* Watchlist Toggle */}
+            <button
+              type="button"
+              onClick={handleWatchlistToggle}
+              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 text-foreground rounded-full px-5 py-3 text-xs sm:text-sm font-semibold backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+            >
+              {inWatchlist ? (
+                <Check className="w-4 h-4 text-brand" />
+              ) : (
+                <Plus className="w-4 h-4" />
+              )}
+              <span>{inWatchlist ? 'In Watchlist' : 'My List'}</span>
+            </button>
+
+            {/* Info Button */}
+            <button
+              type="button"
+              onClick={() => onMovieSelect(currentMovie.id, currentMovie.type)}
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/5 hover:bg-white/15 border border-white/15 flex items-center justify-center text-foreground backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-md"
               aria-label="More Info"
             >
-              <Info className="w-4 h-4 sm:w-6 sm:h-6" />
+              <Info className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         </motion.div>
       </div>
-      
-      <style>{`
-        @keyframes drift {
-          from { background-position: 0 0; }
-          to { background-position: -100px 100px; }
-        }
-      `}</style>
+
+      {/* Interactive Carousel Switcher Pills (Bottom Right) */}
+      {movies.length > 1 && (
+        <div className="absolute bottom-24 sm:bottom-28 right-4 sm:right-10 z-30 hidden sm:flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl">
+          {movies.map((m, idx) => (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => setCurrentIndex(idx)}
+              aria-label={`Slide ${idx + 1}: ${m.title}`}
+              className={cn(
+                "relative rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center justify-center",
+                currentIndex === idx
+                  ? "w-8 h-8 sm:w-10 sm:h-10 ring-2 ring-brand shadow-lg"
+                  : "w-6 h-6 sm:w-8 sm:h-8 opacity-60 hover:opacity-100"
+              )}
+            >
+              {m.posterUrl ? (
+                <img src={m.posterUrl} alt={m.title} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-white/20" />
+              )}
+              {currentIndex === idx && (
+                <div className="absolute inset-0 bg-brand/20 backdrop-blur-[0.5px]" />
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
+

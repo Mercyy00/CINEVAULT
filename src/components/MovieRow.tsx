@@ -195,28 +195,42 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 2;
   };
 
-  const numberedPrefix = index != null ? `[${String(index + 1).padStart(2, '0')}]` : null;
+  const numberedPrefix = index != null ? String(index + 1).padStart(2, '0') : null;
 
   const heading = (
-    <h2 className="font-display text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground mb-4 px-2 sm:px-4 lg:px-6 flex items-center gap-2">
-      {numberedPrefix && (
-        <span className="font-mono text-xs sm:text-sm tracking-widest text-muted-foreground/80">
-          {numberedPrefix}
+    <div className="flex items-center justify-between mb-4 px-3 sm:px-6 lg:px-8">
+      <div className="flex items-center gap-3">
+        {/* Category Accent Pip */}
+        <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))]" />
+
+        {numberedPrefix && (
+          <span className="font-mono text-xs sm:text-sm tracking-widest text-brand/80 font-bold">
+            {numberedPrefix}
+          </span>
+        )}
+
+        <h2 className="font-display text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
+          {title}
+        </h2>
+      </div>
+
+      {movies.length > 0 && (
+        <span className="text-[11px] font-mono text-muted-foreground/70 tracking-wider uppercase hidden sm:inline-block">
+          Explore All →
         </span>
       )}
-      {title}
-    </h2>
+    </div>
   );
 
   if (loading) {
     return (
-      <section className="mb-10 w-full" aria-busy="true" aria-label={`${title}, loading`}>
+      <section className="mb-10 sm:mb-14 w-full" aria-busy="true" aria-label={`${title}, loading`}>
         {heading}
-        <div className="flex gap-3.5 sm:gap-4.5 overflow-hidden px-2 sm:px-4 lg:px-6">
+        <div className="flex gap-4 sm:gap-5 overflow-hidden px-3 sm:px-6 lg:px-8">
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] aspect-[2/3] rounded-xl skeleton-shimmer border border-white/5"
+              className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5"
             />
           ))}
         </div>
@@ -226,19 +240,17 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
 
   if (error) {
     return (
-      <section className="mb-10 w-full px-2 sm:px-4 lg:px-6">
+      <section className="mb-10 sm:mb-14 w-full px-3 sm:px-6 lg:px-8">
         {heading}
         <div
           role="alert"
-          className="w-full py-12 glass border border-red-500/20 rounded-xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4"
+          className="w-full py-12 glass border border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4 shadow-card"
         >
-          <p className="text-lg">Couldn’t load {title}.</p>
-          {/* One reload path, incremented as state, rather than a second copy
-              of the fetch-and-map logic pasted into the button handler. */}
+          <p className="text-sm sm:text-base font-medium">Couldn’t load {title}.</p>
           <button
             type="button"
             onClick={() => setReloadToken((value) => value + 1)}
-            className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 transition-colors"
+            className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-xs sm:text-sm font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
           >
             Try again
           </button>
@@ -250,10 +262,10 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
   if (movies.length === 0) return null;
 
   const arrowClasses =
-    'absolute top-1/2 -translate-y-1/2 z-[70] w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/95 dark:bg-black/85 backdrop-blur-xl border border-black/10 dark:border-white/15 flex items-center justify-center text-foreground hover:bg-brand hover:text-brand-foreground hover:border-brand shadow-[0_4px_16px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.6)] hover:scale-110 active:scale-95 transition-all cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
+    'absolute top-1/2 -translate-y-1/2 z-[70] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
 
   return (
-    <section className="mb-10 md:mb-12 relative group/row w-full" aria-label={title}>
+    <section className="mb-10 sm:mb-14 relative group/row w-full" aria-label={title}>
       {heading}
 
       <div className="relative w-full">
@@ -261,13 +273,13 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           {showLeftArrow && (
             <motion.button
               type="button"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.8, x: -10 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: -10 }}
               transition={{ duration: 0.2 }}
               onClick={() => scrollByPage('left')}
               aria-label={`Scroll ${title} left`}
-              className={`${arrowClasses} left-1 sm:left-3`}
+              className={`${arrowClasses} left-2 sm:left-4`}
             >
               <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
             </motion.button>
@@ -284,23 +296,18 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           onTouchStart={handleDragStart}
           onTouchEnd={handleDragEnd}
           onTouchMove={handleDragMove}
-          className="flex gap-3.5 sm:gap-4.5 overflow-x-auto scrollbar-none px-2 sm:px-4 lg:px-6 pb-4 pt-2 snap-x select-none list-none m-0"
+          className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-3 sm:px-6 lg:px-8 pb-5 pt-2 snap-x select-none list-none m-0"
         >
           {movies.map((movie) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] 2xl:w-[290px]"
+              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px]"
             >
-              {/* Routes through the parent's handler. This component received
-                  onMovieSelect but ignored it, hard-coding
-                  `window.location.hash = '#' + type + '/' + id` -- which for
-                  anime produced `#anime/123`, a route that does not exist, so
-                  every anime card was a dead link. */}
               <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
             </li>
           ))}
           {loadingMore && (
-            <li className="flex-shrink-0 w-[160px] sm:w-[190px] md:w-[220px] lg:w-[250px] xl:w-[270px] aspect-[2/3] rounded-xl skeleton-shimmer border border-white/5" />
+            <li className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
           )}
         </ul>
 
@@ -308,13 +315,13 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           {showRightArrow && (
             <motion.button
               type="button"
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.8, x: 10 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              exit={{ opacity: 0, scale: 0.8, x: 10 }}
               transition={{ duration: 0.2 }}
               onClick={() => scrollByPage('right')}
               aria-label={`Scroll ${title} right`}
-              className={`${arrowClasses} right-1 sm:right-3`}
+              className={`${arrowClasses} right-2 sm:right-4`}
             >
               <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
             </motion.button>
