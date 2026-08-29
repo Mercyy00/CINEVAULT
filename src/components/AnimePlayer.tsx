@@ -523,7 +523,44 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
 
 
   if (isLoading || !movie) {
-    return <div className="min-h-screen bg-background flex items-center justify-center"><div className="w-10 h-10 border-4 border-brand border-t-transparent rounded-full animate-spin" /></div>;
+    return (
+      <div
+        className="min-h-screen bg-black flex flex-col justify-between p-4 sm:p-8 select-none"
+        role="status"
+        aria-label="Loading anime player"
+      >
+        {/* Top bar placeholder */}
+        <div className="flex items-center justify-between w-full max-w-7xl mx-auto pt-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full skeleton-shimmer bg-white/10" />
+            <div className="h-6 w-48 rounded-lg skeleton-shimmer bg-white/10" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-24 h-8 rounded-full skeleton-shimmer bg-white/10" />
+            <div className="w-9 h-9 rounded-full skeleton-shimmer bg-white/10" />
+          </div>
+        </div>
+
+        {/* Center Stage Video Player Skeleton */}
+        <div className="w-full max-w-7xl mx-auto my-auto aspect-video rounded-2xl skeleton-shimmer bg-[#0e0f16] border border-white/10 relative overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.9)]">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-brand/20 border border-brand/40 flex items-center justify-center">
+              <div className="w-0 h-0 border-y-8 border-y-transparent border-l-12 border-l-brand ml-1 opacity-70" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom Server Bar Skeleton */}
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-between pt-4">
+          <div className="flex items-center gap-2">
+            <div className="w-20 h-7 rounded-full skeleton-shimmer bg-white/10" />
+            <div className="w-20 h-7 rounded-full skeleton-shimmer bg-white/10" />
+            <div className="w-20 h-7 rounded-full skeleton-shimmer bg-white/10" />
+          </div>
+          <div className="w-28 h-7 rounded-full skeleton-shimmer bg-white/10" />
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -319,7 +319,21 @@ export function PageShell({
             aria-busy="true"
           >
             {Array.from({ length: 12 }, (_, i) => (
-              <div key={`skeleton-${i}`} className="aspect-[2/3] rounded-xl skeleton-shimmer" />
+              <div
+                key={`skeleton-${i}`}
+                className="aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
+              >
+                <div className="w-full h-full skeleton-shimmer bg-[#12131b] rounded-[calc(1.25rem-1.5px)] p-3 flex flex-col justify-between">
+                  <div className="flex justify-between items-center">
+                    <div className="w-10 h-4 rounded-full bg-white/10" />
+                    <div className="w-8 h-4 rounded-full bg-white/10" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="w-3/4 h-3.5 rounded bg-white/10" />
+                    <div className="w-1/2 h-2.5 rounded bg-white/5" />
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
         ) : movies.length > 0 ? (
@@ -342,8 +356,14 @@ export function PageShell({
                       delay: Math.min((index % 6) * 0.06, MAX_STAGGER_S),
                       ease: [0.16, 1, 0.3, 1],
                     }}
+                    className="relative hover:z-30"
                   >
-                    <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
+                    <MovieCard
+                      movie={movie}
+                      onClick={() => onMovieSelect(movie.id, movie.type)}
+                      cardIndex={index}
+                      totalCards={movies.length}
+                    />
                   </motion.div>
                 ))}
               </AnimatePresence>

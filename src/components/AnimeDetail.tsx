@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Check, ArrowLeft, Star, Clock, Calendar, Share2, Users, ChevronDown, Film } from 'lucide-react';
+import { Play, Plus, Check, ArrowLeft, Star, Clock, Calendar, Share2, Users, ChevronDown } from 'lucide-react';
 import { kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -8,6 +8,7 @@ import { formatRating } from '../types';
 import { Movie } from '../types';
 import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
+import { PosterImage } from './PosterImage';
 
 export function AnimeDetail({ id }: { id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
@@ -186,8 +187,45 @@ export function AnimeDetail({ id }: { id: string }) {
 
   if (isLoading) {
     return (
-      <div className="pt-32 min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
+      <div className="min-h-screen bg-background pb-28 sm:pb-36 relative overflow-hidden" role="status" aria-label="Loading anime">
+        {/* Banner shimmer */}
+        <div className="absolute top-0 inset-x-0 h-[75vh] pointer-events-none skeleton-shimmer bg-[#12131a] opacity-30">
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/50 to-transparent" />
+        </div>
+
+        <div className="relative z-10 w-full px-4 sm:px-8 lg:px-12 pt-[15vh]">
+          <div className="w-24 h-8 rounded-full skeleton-shimmer bg-white/10 mb-8" />
+
+          <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 mb-16 items-start">
+            {/* Poster Skeleton */}
+            <div className="w-full max-w-[320px] mx-auto lg:mx-0 aspect-[2/3] rounded-xl skeleton-shimmer bg-[#15161f] border border-white/10 shrink-0 shadow-card" />
+
+            {/* Content Skeleton */}
+            <div className="flex-1 w-full space-y-5 pt-4 lg:pt-0">
+              <div className="h-10 sm:h-14 w-3/4 max-w-xl rounded-xl skeleton-shimmer bg-white/10" />
+              <div className="h-5 w-1/2 max-w-sm rounded-lg skeleton-shimmer bg-white/5" />
+
+              <div className="flex items-center gap-3 pt-1">
+                <div className="h-7 w-16 rounded-full skeleton-shimmer bg-white/10" />
+                <div className="h-7 w-20 rounded-full skeleton-shimmer bg-white/10" />
+                <div className="h-7 w-24 rounded-full skeleton-shimmer bg-white/10" />
+              </div>
+
+              <div className="flex items-center gap-3 pt-3">
+                <div className="h-12 w-36 rounded-full skeleton-shimmer bg-brand/30" />
+                <div className="h-12 w-12 rounded-full skeleton-shimmer bg-white/10" />
+                <div className="h-12 w-12 rounded-full skeleton-shimmer bg-white/10" />
+              </div>
+
+              <div className="space-y-2.5 pt-4 max-w-3xl">
+                <div className="h-4 w-full rounded skeleton-shimmer bg-white/5" />
+                <div className="h-4 w-11/12 rounded skeleton-shimmer bg-white/5" />
+                <div className="h-4 w-4/5 rounded skeleton-shimmer bg-white/5" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -261,14 +299,11 @@ export function AnimeDetail({ id }: { id: string }) {
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
               className="aspect-[2/3] rounded-xl overflow-hidden border border-white/10 relative shadow-card"
             >
-              {movie.posterUrl ? (
-                <img loading="lazy" src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full bg-black/50 glass flex flex-col items-center justify-center text-muted-foreground">
-                  <Film className="w-20 h-20 text-brand opacity-50 mb-4" />
-                  <span className="text-xl font-medium text-center px-4">{movie.title}</span>
-                </div>
-              )}
+              <PosterImage
+                src={movie.posterUrl}
+                title={movie.title}
+                className="w-full h-full object-cover"
+              />
             </motion.div>
           </motion.div>
 
@@ -364,113 +399,107 @@ export function AnimeDetail({ id }: { id: string }) {
                 <Share2 className="w-5 h-5" /> Share
               </button>
             </div>
-
-            {/* Principal Cast / Characters */}
-            {cast.length > 0 && (
-              <div className="mb-16">
-                <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-6 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-brand" /> Principal Characters & Cast
-                </h3>
-                <div className="flex gap-6 overflow-x-auto scrollbar-hide pb-6 -mx-4 px-4 lg:mx-0 lg:px-0">
-                  {cast.map((actor, idx) => (
-                    <motion.div 
-                      key={actor.id}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      whileInView={{ opacity: 1, scale: 1 }}
-                      viewport={{ once: true }}
-                      transition={{ delay: idx * 0.08, duration: 0.4 }}
-                      className="flex flex-col items-center text-center group cursor-pointer w-24 shrink-0 relative"
-                    >
-                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-brand transition-colors mb-3">
-                        <img loading="lazy" src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-                      </div>
-                      <span className="text-sm font-medium text-foreground mb-1 truncate w-full">{actor.name}</span>
-                      
-                      {/* Tooltip */}
-                      <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-card border border-white/10 px-3 py-1.5 rounded-lg text-xs text-brand whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20 shadow-card">
-                        {actor.character}
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-card border-b border-r border-white/10 rotate-45" />
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Episode Selector & Grid */}
-            <div className="mb-16 glass rounded-2xl p-6 border border-white/10">
-              <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-                <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
-                  <Play className="w-5 h-5 text-brand fill-current" /> Episodes
-                </h3>
-                {chunkOptions.length > 0 && (
-                  <div className="relative min-w-[220px]">
-                    <select
-                      value={selectedChunk}
-                      onChange={(e) => setSelectedChunk(parseInt(e.target.value))}
-                      className="w-full appearance-none bg-black/40 border border-white/20 hover:border-brand rounded-full px-6 py-3 text-foreground focus:outline-none focus:border-brand text-base font-display transition-colors cursor-pointer"
-                    >
-                      {chunkOptions.map((chunk, idx) => (
-                        <option key={idx} value={idx} className="bg-background text-foreground">
-                          {chunk.label}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-                {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
-                  <button
-                    key={ep.id}
-                    onClick={() => {
-                      setSelectedEpisode(ep.number);
-                      window.location.hash = `#watch/ani/${id}/${movie.malId || '0'}/${ep.number}`;
-                    }}
-                    className={cn(
-                      "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-xl transition-all group cursor-pointer",
-                      selectedEpisode === ep.number 
-                        ? "bg-brand/10 border border-brand/40 shadow-card" 
-                        : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
-                    )}
-                  >
-                    <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
-                      {ep.image ? (
-                        <img loading="lazy" src={ep.image} alt={ep.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                          <Play className="w-8 h-8" />
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
-                        24m
-                      </div>
-                      {selectedEpisode === ep.number && (
-                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
-                          <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
-                        {ep.number}. {ep.title}
-                      </h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                        {ep.overview || `Episode ${ep.number} of ${movie.title}`}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
           </motion.div>
         </div>
 
+        {/* Principal Cast / Characters (Full Width) */}
+        {cast.length > 0 && (
+          <div className="mb-14 w-full">
+            <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5 flex items-center gap-2">
+              <Users className="w-5 h-5 text-brand" /> Principal Characters & Cast
+            </h3>
+            <div className="flex gap-5 overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
+              {cast.map((actor, idx) => (
+                <motion.div 
+                  key={actor.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: idx * 0.05, duration: 0.3 }}
+                  className="flex flex-col items-center text-center group cursor-pointer w-24 shrink-0 relative"
+                >
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-brand transition-colors mb-2.5">
+                    <img loading="lazy" src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                  </div>
+                  <span className="text-xs sm:text-sm font-semibold text-foreground mb-1 truncate w-full">{actor.name}</span>
+                  <span className="text-[11px] text-muted-foreground line-clamp-1 font-mono w-full">{actor.character}</span>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Episode Selector & Grid (Full Width) */}
+        <div className="mb-14 glass rounded-3xl p-6 sm:p-8 border border-white/10 w-full">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+            <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
+              <Play className="w-5 h-5 text-brand fill-current" /> Episodes
+            </h3>
+            {chunkOptions.length > 0 && (
+              <div className="relative min-w-[220px]">
+                <select
+                  value={selectedChunk}
+                  onChange={(e) => setSelectedChunk(parseInt(e.target.value))}
+                  className="w-full appearance-none bg-black/40 border border-white/20 hover:border-brand rounded-full px-6 py-3 text-foreground focus:outline-none focus:border-brand text-base font-display transition-colors cursor-pointer"
+                >
+                  {chunkOptions.map((chunk, idx) => (
+                    <option key={idx} value={idx} className="bg-background text-foreground">
+                      {chunk.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+            {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
+              <button
+                key={ep.id}
+                onClick={() => {
+                  setSelectedEpisode(ep.number);
+                  window.location.hash = `#watch/ani/${id}/${movie.malId || '0'}/${ep.number}`;
+                }}
+                className={cn(
+                  "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer",
+                  selectedEpisode === ep.number 
+                    ? "bg-brand/10 border border-brand/40 shadow-card" 
+                    : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
+                )}
+              >
+                <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
+                  {ep.image ? (
+                    <img loading="lazy" src={ep.image} alt={ep.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
+                      <Play className="w-8 h-8" />
+                    </div>
+                  )}
+                  <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
+                    24m
+                  </div>
+                  {selectedEpisode === ep.number && (
+                    <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
+                      <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
+                    {ep.number}. {ep.title}
+                  </h4>
+                  <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                    {ep.overview || `Episode ${ep.number} of ${movie.title}`}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* More Like This */}
-        <div className="mt-12">
+        <div className="mt-8 space-y-10 w-full">
           <MovieRow 
             title="More Like This" 
             fetchFn={async (page) => {

@@ -277,6 +277,25 @@ export const api = {
       tmdbUrl(`/${mediaType}/${id}/similar`, { page })
     ),
 
+  getRecommendations: (mediaType: string, id: string, page = 1) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/${mediaType}/${id}/recommendations`, { page })
+    ),
+
+  getPersonDetails: (personId: string) =>
+    request<{
+      id: number;
+      name: string;
+      biography?: string;
+      profile_path?: string | null;
+      known_for_department?: string;
+      birthday?: string;
+      place_of_birth?: string;
+    }>(tmdbUrl(`/person/${personId}`)),
+
+  getPersonCombinedCredits: (personId: string) =>
+    request<{ cast: TmdbItem[] }>(tmdbUrl(`/person/${personId}/combined_credits`)),
+
   getAnimeCategory: (params: Record<string, string | number> = {}) =>
     api.discover('tv', { with_genres: '16', with_original_language: 'ja', ...params }),
 
@@ -289,6 +308,17 @@ export const api = {
     request<TmdbEpisode>(
       tmdbUrl(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`)
     ),
+
+  getVideos: (mediaType: string, id: string) =>
+    request<{ id: number; results: Array<{ id: string; key: string; name: string; site: string; type: string; official?: boolean }> }>(
+      tmdbUrl(`/${mediaType}/${id}/videos`)
+    ),
+
+  getVideoTrailer,
+
+  prefetchMovieDetails: (type: 'movie' | 'tv' | 'anime', id: string) => {
+    prefetchMovieDetails(type, id);
+  },
 
   getGenres: (mediaType: 'movie' | 'tv' = 'movie') =>
     request<{ genres: TmdbGenre[] }>(tmdbUrl(`/genre/${mediaType}/list`)),
@@ -470,5 +500,86 @@ export const kitsuApi = {
     };
   },
 };
+
+const trailerCache = new Map<string, string | null>();
+
+export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'): Promise<string | null> {
+  const cacheKey = `${type}-${id}`;
+  if (trailerCache.has(cacheKey)) {
+    return trailerCache.get(cacheKey) ?? null;
+  }
+
+  try {
+    if (type === 'anime') {
+      // 1. Try Kitsu details for youtubeVideoId
+      try {
+        const kitsuData = await kitsuApi.getDetails(id);
+        const ytId = kitsuData.data?.attributes?.youtubeVideoId;
+        if (ytId && typeof ytId === 'string' && ytId.trim()) {
+          const cleanId = ytId.trim();
+          trailerCache.set(cacheKey, cleanId);
+          return cleanId;
+        }
+      } catch {}
+
+      // 2. Fallback to TMDB tv/movie search or videos if numeric ID
+      if (/^\d+$/.test(id)) {
+        try {
+          const res = await api.getVideos('tv', id);
+          const yt = res.results?.find(
+            (v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser' || v.type === 'Clip')
+          );
+          if (yt?.key) {
+            trailerCache.set(cacheKey, yt.key);
+            return yt.key;
+          }
+        } catch {}
+      }
+
+      trailerCache.set(cacheKey, null);
+      return null;
+    }
+
+    const res = await api.getVideos(type === 'tv' ? 'tv' : 'movie', id);
+    if (!res?.results || res.results.length === 0) {
+      trailerCache.set(cacheKey, null);
+      return null;
+    }
+
+    // Prioritize official Trailer > any Trailer > Teaser > Clip > any YouTube video
+    const youtubeVideos = res.results.filter((v) => v.site === 'YouTube' && v.key);
+    const officialTrailer = youtubeVideos.find((v) => v.type === 'Trailer' && v.official);
+    const anyTrailer = youtubeVideos.find((v) => v.type === 'Trailer');
+    const anyTeaser = youtubeVideos.find((v) => v.type === 'Teaser');
+    const anyClip = youtubeVideos.find((v) => v.type === 'Clip');
+    const selected = officialTrailer || anyTrailer || anyTeaser || anyClip || youtubeVideos[0];
+
+    const key = selected?.key || null;
+    trailerCache.set(cacheKey, key);
+    return key;
+  } catch {
+    trailerCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+export async function prefetchMovieDetails(type: 'movie' | 'tv' | 'anime', id: string): Promise<void> {
+  try {
+    if (type === 'anime') {
+      void kitsuApi.getDetails(id).catch(() => {});
+      void kitsuApi.getEpisodes(id).catch(() => {});
+      void kitsuApi.getCharacters(id).catch(() => {});
+    } else {
+      const mediaType = type === 'tv' ? 'tv' : 'movie';
+      void api.getDetails(mediaType, id).catch(() => {});
+      void api.getCredits(mediaType, id).catch(() => {});
+      void api.getExternalIds(mediaType, id).catch(() => {});
+      if (mediaType === 'tv') {
+        void api.getSeasonDetails(id, 1).catch(() => {});
+      }
+    }
+    void getVideoTrailer(id, type).catch(() => {});
+  } catch {}
+}
 
 export type { Quality };

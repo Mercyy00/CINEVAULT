@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieCard } from './MovieCard';
 import type { Movie } from '../types';
 import { api } from '../api';
+import { useApp } from '../store';
 
 interface RowPage {
   results: unknown[];
@@ -32,7 +33,19 @@ function normalise(results: unknown[]): Movie[] {
   );
 }
 
+function filterKidsContent(items: Movie[]): Movie[] {
+  const adultRatings = new Set(['R', 'NC-17', 'TV-MA', '18+', 'MATURE', 'X']);
+  const adultGenres = new Set(['Horror', 'Erotica', 'Crime']);
+  return items.filter((m) => {
+    if ((m as any).adult) return false;
+    if (m.ageRating && adultRatings.has(m.ageRating.toUpperCase())) return false;
+    if (m.genres?.some((g) => adultGenres.has(g))) return false;
+    return true;
+  });
+}
+
 export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps) {
+  const { isKidsMode } = useApp();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState<number | null>(null);
@@ -42,6 +55,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
   const [reloadToken, setReloadToken] = useState(0);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const rowRef = useRef<HTMLUListElement>(null);
   const isDown = useRef(false);
@@ -81,7 +95,8 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
       .then((data) => {
         if (!active) return;
         const results = Array.isArray(data?.results) ? data.results : [];
-        setMovies(normalise(results));
+        const normalised = normalise(results);
+        setMovies(isKidsMode ? filterKidsContent(normalised) : normalised);
         setPage(1);
         setTotalPages(
           typeof data?.total_pages === 'number' ? data.total_pages : results.length ? null : 1
@@ -98,7 +113,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     return () => {
       active = false;
     };
-  }, [title, reloadToken]);
+  }, [title, reloadToken, isKidsMode]);
 
   // Arrow visibility depends on content width, which changes with the list and
   // on resize. A ResizeObserver replaces the previous setTimeout(…, 150) guesses.
@@ -120,13 +135,10 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
       const data = await fetchRef.current(nextPage);
       const results = Array.isArray(data?.results) ? data.results : [];
       if (results.length === 0) {
-        // An empty page is the only reliable end-of-list signal when the API
-        // does not report total_pages. Assuming "fewer than 20 means the end"
-        // silently truncated any row whose page size was not exactly 20.
         setTotalPages(nextPage - 1);
         return;
       }
-      const mapped = normalise(results);
+      const mapped = isKidsMode ? filterKidsContent(normalise(results)) : normalise(results);
       setMovies((previous) => {
         const seen = new Set(previous.map((item) => item.id));
         return [...previous, ...mapped.filter((item) => !seen.has(item.id))];
@@ -142,9 +154,6 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     }
   }, [hasMore, page, title]);
 
-  /* Scroll handling is coalesced into one rAF callback. The previous version
-   * ran two layout reads plus setState on every scroll event, which on a
-   * trackpad fires far faster than the browser can paint. */
   const handleScroll = useCallback(() => {
     if (scrollFrame.current !== null) return;
     scrollFrame.current = requestAnimationFrame(() => {
@@ -195,6 +204,21 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 2;
   };
 
+  // Calculate horizontal sibling shift when an item expands in landscape mode
+  const getShiftX = (i: number) => {
+    if (expandedIdx === null) return 0;
+    const isFirst = expandedIdx === 0;
+    const isLast = expandedIdx === movies.length - 1;
+    const shift = 60;
+    if (i < expandedIdx) {
+      return isLast ? -shift * 2 : -shift;
+    }
+    if (i > expandedIdx) {
+      return isFirst ? shift * 2 : shift;
+    }
+    return 0;
+  };
+
   const numberedPrefix = index != null ? String(index + 1).padStart(2, '0') : null;
 
   const heading = (
@@ -226,12 +250,23 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     return (
       <section className="mb-10 sm:mb-14 w-full" aria-busy="true" aria-label={`${title}, loading`}>
         {heading}
-        <div className="flex gap-4 sm:gap-5 overflow-hidden px-3 sm:px-6 lg:px-8">
+        <div className="flex gap-4 sm:gap-5 overflow-hidden px-4 sm:px-8 lg:px-12">
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5"
-            />
+              className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
+            >
+              <div className="w-full h-full skeleton-shimmer bg-[#12131b] rounded-[calc(1.25rem-1.5px)] p-3 flex flex-col justify-between">
+                <div className="flex justify-between items-center">
+                  <div className="w-10 h-4 rounded-full bg-white/10" />
+                  <div className="w-8 h-4 rounded-full bg-white/10" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="w-3/4 h-3.5 rounded bg-white/10" />
+                  <div className="w-1/2 h-2.5 rounded bg-white/5" />
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       </section>
@@ -262,10 +297,10 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
   if (movies.length === 0) return null;
 
   const arrowClasses =
-    'absolute top-1/2 -translate-y-1/2 z-[70] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
+    'absolute top-1/2 -translate-y-1/2 z-[90] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
 
   return (
-    <section className="mb-10 sm:mb-14 relative group/row w-full" aria-label={title}>
+    <section className="mb-8 sm:mb-10 relative group/row w-full" aria-label={title}>
       {heading}
 
       <div className="relative w-full">
@@ -296,7 +331,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           onTouchStart={handleDragStart}
           onTouchEnd={handleDragEnd}
           onTouchMove={handleDragMove}
-          className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-3 sm:px-6 lg:px-8 pb-5 pt-2 snap-x select-none list-none m-0"
+          className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-4 sm:px-8 lg:px-12 pt-14 pb-20 -my-10 snap-x select-none list-none m-0"
         >
           {movies.map((movie, idx) => (
             <motion.li
@@ -304,14 +339,27 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
               initial={{ opacity: 0, y: 35, scale: 0.94 }}
               whileInView={{ opacity: 1, y: 0, scale: 1 }}
               viewport={{ once: true, amount: 0.1 }}
-              transition={{
-                duration: 0.5,
-                delay: Math.min((idx % 6) * 0.06, 0.35),
-                ease: [0.16, 1, 0.3, 1],
+              animate={{
+                x: getShiftX(idx),
+                zIndex: expandedIdx === idx ? 80 : 1,
               }}
-              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px]"
+              transition={{
+                x: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+                zIndex: { duration: 0 },
+                opacity: { duration: 0.5, delay: Math.min((idx % 6) * 0.06, 0.35), ease: [0.16, 1, 0.3, 1] },
+                scale: { duration: 0.5, delay: Math.min((idx % 6) * 0.06, 0.35), ease: [0.16, 1, 0.3, 1] },
+              }}
+              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative"
             >
-              <MovieCard movie={movie} onClick={() => onMovieSelect(movie.id, movie.type)} />
+              <MovieCard
+                movie={movie}
+                onClick={() => onMovieSelect(movie.id, movie.type)}
+                cardIndex={idx}
+                totalCards={movies.length}
+                onExpandChange={(expanded) => {
+                  setExpandedIdx(expanded ? idx : null);
+                }}
+              />
             </motion.li>
           ))}
           {loadingMore && (

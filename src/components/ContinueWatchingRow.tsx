@@ -4,6 +4,8 @@ import { Play } from 'lucide-react';
 import { useApp } from '../store';
 import { api } from '../api';
 
+import { PosterImage } from './PosterImage';
+
 export function ContinueWatchingRow() {
   const { continueWatching } = useApp();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -86,8 +88,7 @@ export function ContinueWatchingRow() {
               }
             }}
           >
-            <img
-              loading="lazy"
+            <PosterImage
               src={
                 (item.backdrop_path
                   ? item.backdrop_path?.startsWith('http')
@@ -99,7 +100,7 @@ export function ContinueWatchingRow() {
                     : api.getImageUrl(item.poster_path)
                   : undefined) ?? undefined
               }
-              alt={item.title}
+              title={item.title}
               className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"
             />
 

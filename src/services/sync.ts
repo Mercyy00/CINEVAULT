@@ -7,6 +7,8 @@ export interface UserCloudData {
   watchlist: WatchlistItem[];
   continueWatching: ContinueWatchingItem[];
   profile: Partial<UserProfile>;
+  profiles?: any[];
+  activeProfileId?: string;
   theme?: Theme;
   appFont?: AppFont;
   updatedAt?: number;
@@ -102,10 +104,12 @@ export const syncService = {
     const { db } = getFirebase();
     if (!db) return;
 
-    let payload = {
+    let payload: any = {
       watchlist: slimWatchlist(data.watchlist ?? []),
       continueWatching: (data.continueWatching ?? []).slice(0, MAX_CONTINUE_WATCHING_ITEMS),
       profile: slimProfile(data.profile ?? {}),
+      profiles: data.profiles ?? null,
+      activeProfileId: data.activeProfileId ?? null,
       theme: data.theme ?? null,
       appFont: data.appFont ?? null,
       updatedAt: Date.now(),
@@ -145,6 +149,8 @@ export const syncService = {
         watchlist: Array.isArray(data.watchlist) ? data.watchlist : [],
         continueWatching: Array.isArray(data.continueWatching) ? data.continueWatching : [],
         profile: typeof data.profile === 'object' && data.profile ? data.profile : {},
+        profiles: Array.isArray(data.profiles) ? data.profiles : undefined,
+        activeProfileId: typeof data.activeProfileId === 'string' ? data.activeProfileId : undefined,
         theme: data.theme ?? undefined,
         appFont: data.appFont ?? undefined,
         updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : undefined,

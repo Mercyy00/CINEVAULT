@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
 import { getUserAvatarUrl } from '../lib/avatars';
-import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack } from 'lucide-react';
+import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users } from 'lucide-react';
 import { BirthdayCountdown } from './BirthdayCountdown';
 import { isBirthdayVisible } from '../config/birthdayAccess';
 import { useBirthdayMusic } from '../context/BirthdayMusicContext';
@@ -63,6 +63,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     setAppFont, 
     showToast, 
     userProfile, 
+    profiles,
+    activeProfile,
+    switchProfile,
+    isKidsMode,
     clearProfile, 
     deferredInstallPrompt, 
     setDeferredInstallPrompt,
@@ -553,14 +557,23 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 setShowCustomizer(false); 
                 setShowMusicPlayer(false); 
               }}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/15 flex items-center justify-center text-foreground hover:border-brand/40 transition-all shadow-card cursor-pointer p-0.5 hover:scale-105 active:scale-95 overflow-hidden"
+              className={cn(
+                "h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border flex items-center justify-center text-foreground hover:border-brand/40 transition-all shadow-card cursor-pointer p-0.5 hover:scale-105 active:scale-95 overflow-hidden relative",
+                isKidsMode ? "border-pink-500/60 ring-2 ring-pink-500/20" : "border-white/15"
+              )}
               aria-label="User Account"
+              title={`${activeProfile.name}${isKidsMode ? ' (Kids Mode)' : ''}`}
             >
               <img
-                src={getUserAvatarUrl(userProfile.avatar, userProfile.name || 'Cinephile')}
+                src={getUserAvatarUrl(activeProfile.avatar, activeProfile.name || 'Cinephile')}
                 alt="Profile Avatar"
                 className="w-full h-full object-contain rounded-full"
               />
+              {isKidsMode && (
+                <span className="absolute -bottom-0.5 -right-0.5 px-1 py-0.2 bg-pink-500 text-[8px] font-black text-white rounded-full leading-none shadow">
+                  K
+                </span>
+              )}
             </button>
 
             <AnimatePresence>
@@ -570,21 +583,83 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
                   transition={{ duration: 0.2 }}
-                  className="absolute right-0 mt-3 w-56 bg-card rounded-2xl shadow-2xl py-2 border border-border origin-top-right flex flex-col z-[200] text-foreground"
+                  className="absolute right-0 mt-3 w-64 bg-card rounded-2xl shadow-2xl py-2 border border-border origin-top-right flex flex-col z-[200] text-foreground"
                 >
+                  {/* Current Active Profile Banner */}
                   <div className="px-4 py-2.5 border-b border-border mb-1 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shrink-0 shadow-sm">
+                    <div className="w-10 h-10 rounded-2xl overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shrink-0 shadow-sm relative">
                       <img
-                        src={getUserAvatarUrl(userProfile.avatar, userProfile.name || 'Cinephile')}
+                        src={getUserAvatarUrl(activeProfile.avatar, activeProfile.name || 'Cinephile')}
                         alt="User Avatar"
                         className="w-full h-full object-contain"
                       />
+                      {isKidsMode && (
+                        <div className="absolute top-0.5 left-0.5 px-1 py-0.2 rounded bg-pink-500 text-[7px] font-black text-white uppercase">
+                          KIDS
+                        </div>
+                      )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-sm font-bold text-foreground truncate">{userProfile.name || 'Guest'}</p>
-                      <p className="text-xs text-muted-foreground truncate">{userProfile.isLoggedIn ? userProfile.email : 'Local Session'}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-foreground truncate">{activeProfile.name || 'Guest'}</p>
+                        {isKidsMode && (
+                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-pink-500/20 text-pink-400 border border-pink-500/30">
+                            KIDS
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{userProfile.isLoggedIn ? userProfile.email : 'Local Household'}</p>
                     </div>
                   </div>
+
+                  {/* Switch Profile Action */}
+                  <a
+                    href="#profiles"
+                    onClick={() => setShowProfile(false)}
+                    className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-foreground hover:bg-brand/10 hover:text-brand transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Users className="w-4 h-4 text-brand" />
+                      <span>Switch Profile</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full">
+                      {profiles.length} profiles
+                    </span>
+                  </a>
+
+                  {/* Quick Profile Switcher Row */}
+                  {profiles.length > 1 && (
+                    <div className="px-3 py-1.5 flex items-center gap-1.5 overflow-x-auto border-y border-border/50 bg-white/[0.02]">
+                      {profiles.map((p) => {
+                        const isCurrent = p.id === activeProfile.id;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => {
+                              switchProfile(p.id);
+                              setShowProfile(false);
+                            }}
+                            title={`Switch to ${p.name}`}
+                            className={cn(
+                              "w-8 h-8 rounded-xl p-0.5 border transition-all shrink-0 cursor-pointer overflow-hidden flex items-center justify-center relative",
+                              isCurrent 
+                                ? "border-brand ring-1 ring-brand bg-brand/10" 
+                                : "border-white/10 opacity-70 hover:opacity-100 hover:border-white/40"
+                            )}
+                          >
+                            <img
+                              src={getUserAvatarUrl(p.avatar, p.name)}
+                              alt={p.name}
+                              className="w-full h-full object-contain"
+                            />
+                            {p.isKids && (
+                              <span className="absolute bottom-0 right-0 w-2 h-2 bg-pink-500 rounded-full" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {!userProfile.isLoggedIn && (
                     <div className="px-3 py-1.5">

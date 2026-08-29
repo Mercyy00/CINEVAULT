@@ -95,7 +95,32 @@ export function HeroSpotlight({
   }, [movies, currentIndex, setAmbientColor]);
 
   if (!movies.length) {
-    return <div className="min-h-[100dvh] h-[100dvh] w-full skeleton-shimmer border-b border-white/5" />;
+    return (
+      <div className="min-h-[100dvh] h-[100dvh] w-full relative overflow-hidden bg-[#0a0a0f] border-b border-white/5 select-none" role="status" aria-label="Loading featured spotlight">
+        {/* Backdrop Shimmer */}
+        <div className="absolute inset-0 skeleton-shimmer bg-[#12131c] opacity-40">
+          <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent" />
+        </div>
+
+        {/* Content container placeholder */}
+        <div className="relative z-10 w-full h-full flex flex-col justify-end px-4 sm:px-8 lg:px-12 pb-24 sm:pb-32 max-w-4xl space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-20 h-6 rounded-full skeleton-shimmer bg-white/10" />
+            <div className="w-16 h-6 rounded-full skeleton-shimmer bg-white/10" />
+          </div>
+          <div className="w-3/4 max-w-lg h-12 sm:h-16 rounded-2xl skeleton-shimmer bg-white/15" />
+          <div className="space-y-2 max-w-xl">
+            <div className="w-full h-4 rounded skeleton-shimmer bg-white/5" />
+            <div className="w-5/6 h-4 rounded skeleton-shimmer bg-white/5" />
+          </div>
+          <div className="flex items-center gap-4 pt-2">
+            <div className="w-36 h-12 rounded-full skeleton-shimmer bg-brand/40" />
+            <div className="w-32 h-12 rounded-full skeleton-shimmer bg-white/10" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   const currentMovie = movies[currentIndex];

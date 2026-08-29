@@ -22,6 +22,8 @@ export const StorageKeys = {
   userPreferences: `${NAMESPACE}userPreferences`,
   guestUid: `${NAMESPACE}guestUid`,
   profile: `${NAMESPACE}profile`,
+  profiles: `${NAMESPACE}profiles`,
+  activeProfileId: `${NAMESPACE}activeProfileId`,
   /** Read by the pre-paint bootstrap in index.html. Keep the names in sync. */
   theme: `${NAMESPACE}theme`,
   themeMode: `${NAMESPACE}themeMode`,

@@ -5,6 +5,7 @@ import { Play, Trash2, GripVertical, CheckCircle, Clock } from 'lucide-react';
 import { useApp } from '../store';
 import { WatchStatus } from '../types';
 import { cn } from '../lib/utils';
+import { PosterImage } from './PosterImage';
 
 export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: string) => void }) {
   const { watchlist, replaceWatchlist, removeFromWatchlist, updateStatus, showToast } = useApp();
@@ -100,7 +101,11 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                           className="w-16 md:w-24 aspect-[2/3] rounded overflow-hidden cursor-pointer shrink-0"
                           onClick={() => onMovieSelect(item.movieId, item.movie.type)}
                         >
-                          <img loading="lazy" src={item.movie.posterUrl || undefined} alt={item.movie.title} className="w-full h-full object-cover" />
+                          <PosterImage
+                            src={item.movie.posterUrl}
+                            title={item.movie.title}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         
                         <div className="flex-1 min-w-0">

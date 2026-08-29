@@ -81,6 +81,19 @@ export interface UserProfile {
   reducedMotion: boolean;
 }
 
+export interface ProfileItem {
+  id: string;
+  name: string;
+  avatar: string;
+  isKids: boolean;
+  maxAgeRating?: string;
+  language?: string;
+  theme?: Theme;
+  appFont?: AppFont;
+  watchlist?: WatchlistItem[];
+  continueWatching?: ContinueWatchingItem[];
+}
+
 export interface Toast {
   id: string;
   message: string;
@@ -112,6 +125,17 @@ interface AppContextType {
   updateContinueWatching: (item: ContinueWatchingItem) => void;
   clearContinueWatching: () => void;
   removeContinueWatchingItem: (id: string, mediaType?: 'movie' | 'tv' | 'anime') => void;
+  
+  /* Multi-Profile Management */
+  profiles: ProfileItem[];
+  activeProfileId: string;
+  activeProfile: ProfileItem;
+  switchProfile: (profileId: string) => void;
+  createProfile: (newProfile: { name: string; avatar: string; isKids: boolean; maxAgeRating?: string }) => string;
+  updateProfile: (profileId: string, updates: Partial<ProfileItem>) => void;
+  deleteProfile: (profileId: string) => void;
+  isKidsMode: boolean;
+
   deferredInstallPrompt: BeforeInstallPromptEvent | null;
   setDeferredInstallPrompt: React.Dispatch<React.SetStateAction<BeforeInstallPromptEvent | null>>;
   onboardingComplete: boolean;
@@ -283,6 +307,62 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return { ...fallback, ...stored, uid: stored.uid || fallback.uid };
   });
 
+  // ── Multi-Profile Management ─────────────────────────────────────────
+  const [profiles, setProfiles] = useState<ProfileItem[]>(() => {
+    const stored = readJSON<ProfileItem[]>(StorageKeys.profiles, [], Array.isArray);
+    if (stored && stored.length > 0) return stored;
+    const legacyWatchlist = readJSON<WatchlistItem[]>(StorageKeys.watchlist, [], Array.isArray);
+    const legacyCW = readJSON<ContinueWatchingItem[]>(StorageKeys.continueWatching, [], Array.isArray);
+    const legacyProf = readJSON<Partial<UserProfile>>(StorageKeys.profile, {});
+    return [
+      {
+        id: 'default',
+        name: legacyProf.name || 'Primary',
+        avatar: legacyProf.avatar || 'constellation-orion',
+        isKids: false,
+        watchlist: legacyWatchlist,
+        continueWatching: legacyCW,
+      },
+      {
+        id: 'kids',
+        name: 'Kids',
+        avatar: 'big-smile',
+        isKids: true,
+        maxAgeRating: 'PG',
+        watchlist: [],
+        continueWatching: [],
+      },
+    ];
+  });
+
+  const [activeProfileId, setActiveProfileId] = useState<string>(() => {
+    return readString(StorageKeys.activeProfileId, 'default');
+  });
+
+  const activeProfile = useMemo<ProfileItem>(() => {
+    return (
+      profiles.find((p) => p.id === activeProfileId) ||
+      profiles[0] || {
+        id: 'default',
+        name: 'Primary',
+        avatar: 'constellation-orion',
+        isKids: false,
+        watchlist: [],
+        continueWatching: [],
+      }
+    );
+  }, [profiles, activeProfileId]);
+
+  const isKidsMode = Boolean(activeProfile.isKids);
+
+  useEffect(() => {
+    writeJSON(StorageKeys.profiles, profiles);
+  }, [profiles]);
+
+  useEffect(() => {
+    writeString(StorageKeys.activeProfileId, activeProfileId);
+  }, [activeProfileId]);
+
   const [theme, setThemeState] = useState<Theme>(() => {
     const stored = readString(StorageKeys.theme, DEFAULT_THEME);
     return isTheme(stored) ? stored : DEFAULT_THEME;
@@ -324,11 +404,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     writeJSON(StorageKeys.watchlist, watchlist);
-  }, [watchlist]);
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === activeProfileId ? { ...p, watchlist } : p
+      )
+    );
+  }, [watchlist, activeProfileId]);
 
   useEffect(() => {
     writeJSON(StorageKeys.continueWatching, continueWatching);
-  }, [continueWatching]);
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === activeProfileId ? { ...p, continueWatching } : p
+      )
+    );
+  }, [continueWatching, activeProfileId]);
 
   useEffect(() => {
     const mode = LIGHT_THEME_IDS.has(theme) ? 'light' : 'dark';
@@ -374,10 +464,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /* Latest values in refs so the debounced sync and the auth listener can read
    * current state without being re-created on every change. */
-  const latest = useRef({ watchlist, continueWatching, userProfile, theme, appFont });
+  const latest = useRef({ watchlist, continueWatching, userProfile, profiles, activeProfileId, theme, appFont });
   useEffect(() => {
-    latest.current = { watchlist, continueWatching, userProfile, theme, appFont };
-  }, [watchlist, continueWatching, userProfile, theme, appFont]);
+    latest.current = { watchlist, continueWatching, userProfile, profiles, activeProfileId, theme, appFont };
+  }, [watchlist, continueWatching, userProfile, profiles, activeProfileId, theme, appFont]);
 
   const pushToCloud = useCallback(async () => {
     const { userProfile: profile, ...rest } = latest.current;
@@ -387,6 +477,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         watchlist: rest.watchlist,
         continueWatching: rest.continueWatching,
         profile,
+        profiles: rest.profiles,
+        activeProfileId: rest.activeProfileId,
         theme: rest.theme,
         appFont: rest.appFont,
       });
@@ -409,12 +501,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       JSON.stringify([
         watchlist.map((item) => `${item.movieId}:${item.status}`),
         continueWatching.map((item) => `${continueWatchingKey(item)}:${item.progress_percentage}`),
+        profiles.map((p) => `${p.id}:${p.name}:${p.avatar}:${p.isKids}`),
+        activeProfileId,
         theme,
         appFont,
         userProfile.isLoggedIn,
         userProfile.uid,
       ]),
-    [watchlist, continueWatching, theme, appFont, userProfile.isLoggedIn, userProfile.uid]
+    [watchlist, continueWatching, profiles, activeProfileId, theme, appFont, userProfile.isLoggedIn, userProfile.uid]
   );
 
   useEffect(() => {
@@ -459,8 +553,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         cloud?.continueWatching ?? []
       );
 
-      setWatchlist(merged.watchlist);
-      setContinueWatching(merged.continueWatching);
+      if (cloud?.profiles && cloud.profiles.length > 0) {
+        setProfiles(cloud.profiles);
+        const targetId = cloud.activeProfileId || cloud.profiles[0].id;
+        setActiveProfileId(targetId);
+        const active = cloud.profiles.find((p: any) => p.id === targetId) || cloud.profiles[0];
+        setWatchlist(active.watchlist || []);
+        setContinueWatching(active.continueWatching || []);
+      } else {
+        setWatchlist(merged.watchlist);
+        setContinueWatching(merged.continueWatching);
+      }
+      
       if (cloud?.theme && isTheme(cloud.theme)) setThemeState(cloud.theme);
       if (cloud?.appFont && isAppFontId(cloud.appFont)) setAppFontState(cloud.appFont);
 
@@ -697,6 +801,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [watchlist]
   );
 
+  const switchProfile = useCallback((profileId: string) => {
+    setProfiles((currentProfiles) => {
+      const target = currentProfiles.find((p) => p.id === profileId);
+      if (!target) return currentProfiles;
+      setActiveProfileId(profileId);
+      writeString(StorageKeys.activeProfileId, profileId);
+      setWatchlist(target.watchlist || []);
+      setContinueWatching(target.continueWatching || []);
+      if (target.theme && isTheme(target.theme)) setThemeState(target.theme);
+      if (target.appFont && isAppFontId(target.appFont)) setAppFontState(target.appFont);
+      showToast(`Switched to ${target.name}${target.isKids ? ' (Kids Mode)' : ''}`);
+      return currentProfiles;
+    });
+  }, [showToast]);
+
+  const createProfile = useCallback(
+    (newProf: { name: string; avatar: string; isKids: boolean; maxAgeRating?: string }) => {
+      const newId = `prof_${Date.now()}_${crypto.randomUUID().slice(0, 4)}`;
+      const created: ProfileItem = {
+        id: newId,
+        name: newProf.name.trim() || 'New Profile',
+        avatar: newProf.avatar || 'constellation-orion',
+        isKids: Boolean(newProf.isKids),
+        maxAgeRating: newProf.maxAgeRating || (newProf.isKids ? 'PG' : undefined),
+        watchlist: [],
+        continueWatching: [],
+      };
+      setProfiles((prev) => [...prev, created]);
+      showToast(`Profile "${created.name}" created!`);
+      return newId;
+    },
+    [showToast]
+  );
+
+  const updateProfile = useCallback(
+    (profileId: string, updates: Partial<ProfileItem>) => {
+      setProfiles((prev) =>
+        prev.map((p) => (p.id === profileId ? { ...p, ...updates } : p))
+      );
+      showToast('Profile updated');
+    },
+    [showToast]
+  );
+
+  const deleteProfile = useCallback(
+    (profileId: string) => {
+      setProfiles((prev) => {
+        if (prev.length <= 1) {
+          showToast('Cannot delete the only profile');
+          return prev;
+        }
+        const filtered = prev.filter((p) => p.id !== profileId);
+        if (activeProfileId === profileId) {
+          const nextActive = filtered[0].id;
+          setActiveProfileId(nextActive);
+          writeString(StorageKeys.activeProfileId, nextActive);
+          setWatchlist(filtered[0].watchlist || []);
+          setContinueWatching(filtered[0].continueWatching || []);
+        }
+        showToast('Profile deleted');
+        return filtered;
+      });
+    },
+    [activeProfileId, showToast]
+  );
+
   /* Memoised: this was an inline object literal, so every consumer of the
    * context re-rendered on any state change anywhere in the app. */
   const value = useMemo<AppContextType>(
@@ -722,6 +892,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateContinueWatching,
       clearContinueWatching,
       removeContinueWatchingItem,
+      profiles,
+      activeProfileId,
+      activeProfile,
+      switchProfile,
+      createProfile,
+      updateProfile,
+      deleteProfile,
+      isKidsMode,
       deferredInstallPrompt,
       setDeferredInstallPrompt,
       onboardingComplete,
@@ -763,6 +941,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resetAllLocalData,
       continueWatching,
       updateContinueWatching,
+      profiles,
+      activeProfileId,
+      activeProfile,
+      switchProfile,
+      createProfile,
+      updateProfile,
+      deleteProfile,
+      isKidsMode,
       deferredInstallPrompt,
       onboardingComplete,
       setOnboardingComplete,

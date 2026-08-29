@@ -18,7 +18,8 @@ import {
   
   LogOut,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  Users
 } from 'lucide-react';
 import { useApp, Theme } from '../store';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
@@ -87,6 +88,9 @@ export function ProfilePage() {
     clearContinueWatching,
     removeContinueWatchingItem,
     clearWatchlist,
+    profiles,
+    activeProfile,
+    switchProfile,
     showToast,
     theme,
     setTheme,
@@ -363,6 +367,69 @@ export function ProfilePage() {
                       Save Changes
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Household Profiles Card */}
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <Users className="w-4 h-4 text-brand" /> Household Profiles
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Switch between viewer profiles or manage child safety restrictions
+                    </p>
+                  </div>
+                  <a
+                    href="#profiles"
+                    className="text-xs font-bold text-brand px-3.5 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  >
+                    <Users className="w-3.5 h-3.5" /> Manage Profiles
+                  </a>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+                  {profiles.map((p) => {
+                    const isCurrent = p.id === activeProfile.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => switchProfile(p.id)}
+                        className={cn(
+                          "p-3 rounded-2xl border transition-all cursor-pointer flex flex-col items-center text-center gap-2 relative overflow-hidden group",
+                          isCurrent
+                            ? "bg-brand/10 border-brand ring-2 ring-brand/30 shadow-md"
+                            : "bg-card hover:bg-white/[0.04] border-border hover:border-white/20"
+                        )}
+                      >
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden bg-black/60 border border-white/10 p-1 shrink-0 relative">
+                          <img
+                            src={getUserAvatarUrl(p.avatar, p.name)}
+                            alt={p.name}
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform"
+                          />
+                          {p.isKids && (
+                            <div className="absolute top-1 left-1 px-1 rounded bg-pink-500 text-[7px] font-black text-white uppercase">
+                              KIDS
+                            </div>
+                          )}
+                        </div>
+                        <div className="min-w-0 w-full">
+                          <div className="text-xs font-bold text-foreground truncate">{p.name}</div>
+                          <div className="text-[10px] text-muted-foreground mt-0.5">
+                            {isCurrent ? (
+                              <span className="text-brand font-bold">● Active</span>
+                            ) : p.isKids ? (
+                              <span className="text-pink-400 font-semibold">Kids Mode</span>
+                            ) : (
+                              'Standard'
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { MovieRow } from './components/MovieRow';
+import { Top10Row } from './components/Top10Row';
 import { FilterBar } from './components/FilterBar';
 import { SearchOverlay } from './components/SearchOverlay';
 import { Footer } from './components/Footer';
@@ -36,6 +37,9 @@ const MyList = lazy(() => import('./components/MyList').then((m) => ({ default: 
 const ProfilePage = lazy(() =>
   import('./components/ProfilePage').then((m) => ({ default: m.ProfilePage }))
 );
+const ProfileSwitcher = lazy(() =>
+  import('./components/ProfileSwitcher').then((m) => ({ default: m.ProfileSwitcher }))
+);
 const MoodFinderOverlay = lazy(() =>
   import('./components/MoodFinderOverlay').then((m) => ({ default: m.MoodFinderOverlay }))
 );
@@ -65,6 +69,7 @@ const ROUTE_TITLES: Record<string, string> = {
   birthday: 'Birthday — CineVault',
   admin: 'Watch activity — CineVault',
   profile: 'Profile — CineVault',
+  profiles: "Who's watching? — CineVault",
 };
 
 function documentTitleFor(route: string, searchQuery: string): string {
@@ -102,6 +107,8 @@ function AppContent() {
     ambientColor,
     toasts,
     userPreferences,
+    continueWatching,
+    isKidsMode,
     authModalOpen,
     setAuthModalOpen,
     authModalMode,
@@ -288,6 +295,76 @@ function AppContent() {
       );
     }
 
+    if (isKidsMode) {
+      return (
+        <motion.div
+          key="kids-home-rows"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <MovieRow
+            title="✨ Animated & Family Favorites"
+            fetchFn={(page) =>
+              api.discover('movie', {
+                page,
+                with_genres: '16,10751',
+                sort_by: 'popularity.desc',
+              })
+            }
+            onMovieSelect={goToDetail}
+          />
+          <MovieRow
+            title="🍿 Family Movie Night"
+            fetchFn={(page) =>
+              api.discover('movie', {
+                page,
+                with_genres: '10751',
+                sort_by: 'vote_average.desc',
+                'vote_count.gte': 100,
+              })
+            }
+            onMovieSelect={goToDetail}
+          />
+          <MovieRow
+            title="📺 Popular Kids & Cartoon TV"
+            fetchFn={(page) =>
+              api.discover('tv', {
+                page,
+                with_genres: '16,10762',
+                sort_by: 'popularity.desc',
+              })
+            }
+            onMovieSelect={goToDetail}
+          />
+          <MovieRow
+            title="🎌 Kid-Friendly Anime"
+            fetchFn={async (page) => {
+              const res = await kitsuApi.getByCategory('kids', page);
+              return {
+                results: (res.data ?? []).map((item) =>
+                  kitsuApi.mapKitsuToInternal(item, res.included ?? [])
+                ),
+              };
+            }}
+            onMovieSelect={goToDetail}
+          />
+          <MovieRow
+            title="🚀 Fantasy & Adventure"
+            fetchFn={(page) =>
+              api.discover('movie', {
+                page,
+                with_genres: '12,14',
+                sort_by: 'popularity.desc',
+              })
+            }
+            onMovieSelect={goToDetail}
+          />
+        </motion.div>
+      );
+    }
+
     return (
       <motion.div
         key="default-rows"
@@ -301,6 +378,31 @@ function AppContent() {
           fetchFn={(page) => api.getTrending('all', 'week', page)}
           onMovieSelect={goToDetail}
         />
+
+        <Top10Row
+          onMovieSelect={goToDetail}
+          region={homeFilters.country}
+        />
+
+        {/* Dynamic 'Because you watched' personalized rows */}
+        {continueWatching.slice(0, 2).map((item) => (
+          <MovieRow
+            key={`because-watched-${item.media_type}-${item.id}`}
+            title={`Because you watched ${item.title}`}
+            fetchFn={async (page) => {
+              if (item.media_type === 'anime') {
+                const res = await kitsuApi.getTrending(page);
+                return {
+                  results: (res.data ?? []).map((kitsuItem) =>
+                    kitsuApi.mapKitsuToInternal(kitsuItem, res.included ?? [])
+                  ),
+                };
+              }
+              return api.getRecommendations(item.media_type, item.id, page);
+            }}
+            onMovieSelect={goToDetail}
+          />
+        ))}
 
         {/* `userPreferences` used to be an array of JSON *strings* that this map
             called `JSON.parse` on during render: one malformed entry threw and
@@ -350,7 +452,7 @@ function AppContent() {
         />
       </motion.div>
     );
-  }, [homeFilters, userPreferences]);
+  }, [homeFilters, userPreferences, isKidsMode, continueWatching]);
 
   const renderRouteContent = (route: string) => {
     switch (route) {
@@ -477,6 +579,18 @@ function AppContent() {
             exit={{ opacity: 0 }}
           >
             <BirthdayPage />
+          </motion.div>
+        );
+
+      case 'profiles':
+        return (
+          <motion.div
+            key="profiles"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ProfileSwitcher onClose={() => { window.location.hash = '#home'; }} />
           </motion.div>
         );
 

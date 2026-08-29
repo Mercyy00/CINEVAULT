@@ -177,8 +177,14 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                       {Array.from({ length: 8 }, (_, i) => (
                         <div
                           key={`skeleton-${i}`}
-                          className="aspect-[2/3] rounded-xl skeleton-shimmer"
-                        />
+                          className="aspect-[2/3] rounded-xl skeleton-shimmer bg-[#14151f] border border-white/5 relative overflow-hidden"
+                        >
+                          <div className="absolute top-2 left-2 w-12 h-4 rounded bg-white/10" />
+                          <div className="absolute bottom-3 inset-x-3 space-y-1">
+                            <div className="w-3/4 h-3 rounded bg-white/10" />
+                            <div className="w-1/2 h-2 rounded bg-white/5" />
+                          </div>
+                        </div>
                       ))}
                     </div>
                   ) : results.length > 0 ? (

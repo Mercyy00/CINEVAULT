@@ -36,6 +36,8 @@ data/
 .trae/
 .windsurf/
 .agent/
+.agents/
+skills-lock.json
 .gemini/
 
 # Ignore local AI prompt scratch inside .github, but keep CI workflows tracked.
