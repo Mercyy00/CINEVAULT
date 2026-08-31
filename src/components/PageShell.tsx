@@ -6,6 +6,7 @@ import { api, kitsuApi } from '../api';
 import type { Movie } from '../types';
 import { MovieCard } from './MovieCard';
 import { HeroSpotlight } from './HeroSpotlight';
+import { Breadcrumbs } from './Breadcrumbs';
 
 interface PageShellProps {
   title: string;
@@ -251,6 +252,8 @@ export function PageShell({
       {!isSearch && <HeroSpotlight type={defaultType} onMovieSelect={onMovieSelect} />}
 
       <div className={`max-w-[1600px] mx-auto px-4 md:px-10 ${isSearch ? 'pt-24' : 'pt-8'}`}>
+        <Breadcrumbs items={[{ label: title }]} />
+
         <div className="mb-8 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
           <h1 className="text-3xl font-display font-bold text-foreground">
             {isSearch ? title : `Explore ${title}`}

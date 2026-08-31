@@ -1,23 +1,32 @@
 {
-  "name": "CineVault",
+  "name": "CineVault — Films, TV & Anime",
   "short_name": "CineVault",
-  "description": "Browse films, TV and anime, keep a watchlist, and pick up where you left off.",
+  "description": "Browse films, television and anime, build a personalized watchlist, and stream anywhere.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#0a0a0a",
   "theme_color": "#e8852a",
+  "categories": ["entertainment", "movies", "multimedia"],
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
-      "type": "image/svg+xml"
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.png",
+      "sizes": "64x64",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/logo-vault.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any"
+      "purpose": "any maskable"
     }
   ]
 }

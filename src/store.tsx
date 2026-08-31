@@ -941,6 +941,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resetAllLocalData,
       continueWatching,
       updateContinueWatching,
+      clearContinueWatching,
+      removeContinueWatchingItem,
       profiles,
       activeProfileId,
       activeProfile,
@@ -950,11 +952,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deleteProfile,
       isKidsMode,
       deferredInstallPrompt,
+      setDeferredInstallPrompt,
       onboardingComplete,
       setOnboardingComplete,
       userPreferences,
       setUserPreferences,
       ambientColor,
+      setAmbientColor,
       authStatus,
       isAdmin,
       login,
@@ -964,7 +968,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       resetPassword,
       syncNow,
       authModalOpen,
+      setAuthModalOpen,
       authModalMode,
+      setAuthModalMode,
     ]
   );
 

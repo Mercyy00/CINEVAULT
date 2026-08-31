@@ -18,6 +18,8 @@ import { BirthdayMusicProvider } from './context/BirthdayMusicContext';
 import { goToDetail } from './lib/navigation';
 import { isBirthdayVisible, rememberBirthdayUnlock } from './config/birthdayAccess';
 
+import { ROUTE_SEO, updateSeoMetadata } from './lib/seo';
+
 const MovieDetail = lazy(() =>
   import('./components/MovieDetail').then((m) => ({ default: m.MovieDetail }))
 );
@@ -49,6 +51,9 @@ const BirthdayPage = lazy(() =>
 const AdminDashboard = lazy(() =>
   import('./components/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
 );
+const NotFoundPage = lazy(() =>
+  import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
+);
 
 interface HomeFilters {
   type: string;
@@ -59,26 +64,6 @@ interface HomeFilters {
 }
 
 const INTRO_KEY = 'cv:introPlayed';
-
-const ROUTE_TITLES: Record<string, string> = {
-  home: 'CineVault — Stream movies, TV and anime',
-  movies: 'Movies — CineVault',
-  tvshows: 'TV Shows — CineVault',
-  anime: 'Anime — CineVault',
-  mylist: 'My Watchlist — CineVault',
-  birthday: 'Birthday — CineVault',
-  admin: 'Watch activity — CineVault',
-  profile: 'Profile — CineVault',
-  profiles: "Who's watching? — CineVault",
-};
-
-function documentTitleFor(route: string, searchQuery: string): string {
-  if (ROUTE_TITLES[route]) return ROUTE_TITLES[route];
-  if (route === 'search') return `Search: ${searchQuery} — CineVault`;
-  if (route.startsWith('watch/')) return 'Now playing — CineVault';
-  if (/^(movie|tv|ani|detail)\//.test(route)) return 'CineVault';
-  return 'Not found — CineVault';
-}
 
 function RouteLoading() {
   return (
@@ -162,7 +147,29 @@ function AppContent() {
   }, []);
 
   useEffect(() => {
-    document.title = documentTitleFor(currentRoute, searchQuery);
+    if (ROUTE_SEO[currentRoute]) {
+      updateSeoMetadata(ROUTE_SEO[currentRoute]);
+    } else if (currentRoute === 'search') {
+      updateSeoMetadata({
+        title: searchQuery ? `Search: ${searchQuery}` : 'Search Movies, TV & Anime',
+        description: searchQuery
+          ? `Discover search results for "${searchQuery}" in the CineVault streaming catalogue.`
+          : 'Search across thousands of movies, television series, and anime on CineVault.',
+        ogType: 'website',
+      });
+    } else if (currentRoute.startsWith('watch/')) {
+      updateSeoMetadata({
+        title: 'Now Playing',
+        description: 'Streaming in high definition on CineVault.',
+        ogType: 'video.other',
+      });
+    } else if (!/^(movie|tv|ani|detail)\//.test(currentRoute)) {
+      updateSeoMetadata({
+        title: '404 Page Not Found',
+        description: 'That page is not in the vault.',
+        ogType: 'website',
+      });
+    }
   }, [currentRoute, searchQuery]);
 
   const [introDone, setIntroDone] = useState(
@@ -655,25 +662,7 @@ function AppContent() {
       }
     }
 
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background pt-20 px-4">
-        <div className="text-center">
-          <h1 className="text-8xl md:text-9xl font-display font-bold text-foreground mb-4">404</h1>
-          <p className="text-xl md:text-2xl text-muted-foreground mb-8 font-medium">
-            That page is not in the vault.
-          </p>
-          <button
-            type="button"
-            onClick={() => {
-              window.location.hash = '#home';
-            }}
-            className="px-8 py-3 bg-brand text-background font-bold rounded-full hover:opacity-90 transition-opacity shadow-card cursor-pointer"
-          >
-            Return home
-          </button>
-        </div>
-      </div>
-    );
+    return <NotFoundPage />;
   };
 
   const renderView = () => {

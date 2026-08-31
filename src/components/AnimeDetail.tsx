@@ -9,6 +9,8 @@ import { Movie } from '../types';
 import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
+import { Breadcrumbs } from './Breadcrumbs';
+import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 
 export function AnimeDetail({ id }: { id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
@@ -27,13 +29,32 @@ export function AnimeDetail({ id }: { id: string }) {
 
   useEffect(() => {
     if (movie) {
-      document.title = `CineVault | ${movie.title}`;
+      updateSeoMetadata({
+        title: `${movie.title} (Anime)`,
+        description: movie.description || `Watch ${movie.title} anime on CineVault. Comprehensive episode guides and character information.`,
+        ogImage: movie.backdropUrl || movie.posterUrl || undefined,
+        ogType: 'video.tv_show',
+        structuredData: generateMediaStructuredData({
+          title: movie.title,
+          overview: movie.description,
+          posterUrl: movie.posterUrl,
+          backdropUrl: movie.backdropUrl,
+          releaseDate: movie.year ? String(movie.year) : undefined,
+          rating: movie.rating,
+          voteCount: movie.voteCount,
+          genres: movie.genres,
+          mediaType: 'anime',
+        }),
+      });
+
       if (movie.backdropUrl || movie.posterUrl) {
         const imageUrl = movie.backdropUrl || movie.posterUrl;
         if (imageUrl) {
-          getDominantColor(imageUrl).then(color => {
-            setAmbientColor(color);
-          }).catch(() => setAmbientColor(null));
+          getDominantColor(imageUrl)
+            .then((color) => {
+              setAmbientColor(color);
+            })
+            .catch(() => setAmbientColor(null));
         }
       }
     }
@@ -266,6 +287,14 @@ export function AnimeDetail({ id }: { id: string }) {
       </div>
 
       <div className="relative z-10 w-full px-4 sm:px-8 lg:px-12 pt-[15vh]">
+        {/* Breadcrumbs navigation */}
+        <Breadcrumbs
+          items={[
+            { label: 'Anime', href: '#anime' },
+            { label: movie.title },
+          ]}
+        />
+
         {/* Back Button */}
         <motion.button 
           initial={{ opacity: 0, x: -20 }}

@@ -1,7 +1,24 @@
+# CineVault Robots.txt
+# Standard directives for search crawlers & LLM agents
+
 User-agent: *
 Allow: /
 
-# Private microsite -- not for indexing.
-Disallow: /#birthday
+# LLM & AI Agents
+User-agent: GPTBot
+Allow: /
 
-Sitemap: https://cinevault.example.com/sitemap.xml
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+# Sitemap Location
+Sitemap: https://cinevault.app/sitemap.xml

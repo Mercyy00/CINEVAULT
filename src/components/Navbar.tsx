@@ -570,7 +570,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 className="w-full h-full object-contain rounded-full"
               />
               {isKidsMode && (
-                <span className="absolute -bottom-0.5 -right-0.5 px-1 py-0.2 bg-pink-500 text-[8px] font-black text-white rounded-full leading-none shadow">
+                <span className="absolute -bottom-0.5 -right-0.5 px-1 py-px bg-pink-500 text-[8px] font-black text-white rounded-full leading-none shadow">
                   K
                 </span>
               )}
@@ -594,7 +594,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         className="w-full h-full object-contain"
                       />
                       {isKidsMode && (
-                        <div className="absolute top-0.5 left-0.5 px-1 py-0.2 rounded bg-pink-500 text-[7px] font-black text-white uppercase">
+                        <div className="absolute top-0.5 left-0.5 px-1 py-px rounded bg-pink-500 text-[7px] font-black text-white uppercase">
                           KIDS
                         </div>
                       )}
@@ -603,7 +603,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                       <div className="flex items-center gap-1.5">
                         <p className="text-sm font-bold text-foreground truncate">{activeProfile.name || 'Guest'}</p>
                         {isKidsMode && (
-                          <span className="px-1.5 py-0.2 rounded text-[9px] font-black bg-pink-500/20 text-pink-400 border border-pink-500/30">
+                          <span className="px-1.5 py-px rounded text-[9px] font-black bg-pink-500/20 text-pink-400 border border-pink-500/30">
                             KIDS
                           </span>
                         )}

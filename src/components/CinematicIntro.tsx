@@ -131,7 +131,7 @@ export function CinematicIntro({ onComplete }: { onComplete: () => void }) {
     }, 300);
 
     // 2. Typewriter for Title "CINEVAULT"
-    const titleTimeouts: NodeJS.Timeout[] = [];
+    const titleTimeouts: ReturnType<typeof setTimeout>[] = [];
     const titleStartDelay = 700;
     const titleSpeed = 90; // ms per char
 
@@ -144,7 +144,7 @@ export function CinematicIntro({ onComplete }: { onComplete: () => void }) {
     }
 
     // 3. Typewriter for Tagline "THE MULTIVERSE OF CINEMA"
-    const taglineTimeouts: NodeJS.Timeout[] = [];
+    const taglineTimeouts: ReturnType<typeof setTimeout>[] = [];
     const taglineStartDelay = titleStartDelay + FULL_TITLE.length * titleSpeed + 250;
     const taglineSpeed = 45; // ms per char
 

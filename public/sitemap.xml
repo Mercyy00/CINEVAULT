@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- CineVault is a hash-routed SPA. Search engine crawlers strip fragment
+       identifiers before indexing, so only the canonical base URL is listed.
+       Individual content pages are dynamically rendered client-side. -->
+  <url>
+    <loc>https://cinevault.app/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

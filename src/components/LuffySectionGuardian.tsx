@@ -38,7 +38,7 @@ export function LuffySectionGuardian({
   const [isAngry, setIsAngry] = useState(false);
   const [angryQuoteIndex, setAngryQuoteIndex] = useState(0);
   const [shakeKey, setShakeKey] = useState(0);
-  const angryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const angryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Listen for reset events from Time Machine
   useEffect(() => {

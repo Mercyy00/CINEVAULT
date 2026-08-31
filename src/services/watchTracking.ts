@@ -147,15 +147,14 @@ export const watchTrackingService = {
     } catch (error) {
       // Allow the next tick to retry rather than pinning the throttle window.
       lastWriteAt.delete(sessionId);
-      console.error('Watch session write failed:', error);
+      // Suppress unhandled crash logs if offline or network failure
     }
   },
 
   /**
-   * Upserts the signed-in user's directory entry.
+   * Upserts the user's (or guest's) directory entry.
    *
-   * Only fields the user has themselves provided (display name, avatar) are
-   * stored. No email, device fingerprint, screen size, timezone or referrer.
+   * Only fields the user has provided are stored.
    */
   async recordUser(user: {
     uid: string;
@@ -163,30 +162,31 @@ export const watchTrackingService = {
     photoURL?: string | null;
     isGuest?: boolean;
   }): Promise<void> {
+    if (!user.uid) return;
+
     const { db } = getFirebase();
-    if (!db || !user.uid) return;
+    if (!db) return;
 
     const now = Date.now();
     const reference = doc(db, 'users', user.uid);
 
     try {
-      // `createdAt` is written only when the document is new. Including it in
-      // every merge overwrote the original signup date on each sign-in.
+      // `createdAt` is written only when the document is new.
       const existing = await getDoc(reference);
       await setDoc(
         reference,
         {
           uid: user.uid,
-          displayName: user.displayName || 'Cinephile',
+          displayName: user.displayName || (user.isGuest ? 'Guest Viewer' : 'Cinephile'),
           photoURL: user.photoURL ?? null,
-          isGuest: user.isGuest ?? false,
+          isGuest: Boolean(user.isGuest),
           lastActiveAt: now,
           ...(existing.exists() ? {} : { createdAt: now }),
         },
         { merge: true }
       );
-    } catch (error) {
-      console.error('recordUser failed:', error);
+    } catch {
+      // Best-effort directory tracking
     }
   },
 

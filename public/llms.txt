@@ -1,0 +1,36 @@
+# CineVault
+
+> CineVault is a cinematic, modern streaming and discovery platform for films, television series, and anime.
+
+## Overview
+CineVault allows users to discover trending media, explore genre collections, read comprehensive synopses and cast information, build personalized watchlists, track viewing history, and stream high-definition content seamlessly.
+
+## Key Features
+- **Movie & TV Discovery**: Real-time trending, top-rated, and regional popularity feeds powered by TMDB.
+- **Anime Hub**: Extensive anime catalog, episode listings, and Japanese animation trends powered by Kitsu.
+- **Personalized Watchlists**: Synchronized watchlist and watch-progress tracking with Firebase Firestore integration and local offline persistence.
+- **Dynamic Theming & Aesthetics**: Multiple custom color schemes (Crimson Premiere, Cyberpunk Neon, Golden Hour, Emerald Velvet, Midnight Slate) with instant dark/light mode toggle.
+- **Mood Finder & Surprise Me**: Curated film discovery based on user mood, genre combinations, and stochastic recommendations.
+- **Accessibility & Performance**: Full keyboard navigation, screen reader ARIA landmarks, lazy-loaded components, responsive fluid design, and optimized chunk delivery.
+
+## Core Navigation Routes
+- `/`: Home discover portal featuring trending highlights, continuing watch items, and personalized rows.
+- `/#movies`: Curated catalogue of full-length films with filter bars and genre browsing.
+- `/#tvshows`: Television series explorer with season and episode breakdowns.
+- `/#anime`: Dedicated anime index with episode guides and character info.
+- `/#mylist`: User's personalized saved collection and watch queue.
+- `/#search/{query}`: Real-time search across movies, shows, and anime.
+- `/#movie/{id}`: Detailed page for movies with trailers, cast modal, and related recommendations.
+- `/#tv/{id}`: Detailed page for TV shows with season selectors.
+- `/#ani/{id}`: Detailed page for anime titles.
+
+## APIs & Data Sources
+- **TMDB (The Movie Database)**: Movie, television series, cast, backdrop artwork, and ratings metadata.
+- **Kitsu API**: Anime synopses, episode counts, categories, and Japanese animation metadata.
+- **Firebase Auth & Firestore**: Profile synchronization, authentication, and cloud watchlist storage.
+
+## Technical Architecture
+- **Framework**: React 19 + TypeScript + Vite
+- **Styling**: Tailwind CSS v4 + Motion
+- **SEO & Microdata**: OpenGraph, Twitter Cards, Schema.org (WebSite, Movie, TVSeries, BreadcrumbList)
+- **Deployment**: Static Single-Page Application (SPA) compatible with Netlify, Vercel, Firebase Hosting, and Cloudflare Pages.

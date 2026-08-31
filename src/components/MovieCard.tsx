@@ -27,7 +27,7 @@ export function MovieCard({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isHovered, setIsHovered] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -226,7 +226,7 @@ export function MovieCard({
                 {movie.title}
               </p>
               <div className="flex items-center gap-2 text-[10px] font-mono text-white/70 mt-0.5">
-                <span>{movie.year || '2024'}</span>
+                <span>{movie.year || '—'}</span>
                 <span>•</span>
                 <span className="capitalize">{movie.type}</span>
               </div>
@@ -387,9 +387,9 @@ export function MovieCard({
                 </h3>
 
                 <div className="flex items-center gap-2 text-[10.5px] font-mono text-white/80">
-                  <span className="font-semibold text-white">{movie.year || '2024'}</span>
+                  <span className="font-semibold text-white">{movie.year || '—'}</span>
                   <span>•</span>
-                  <span className="px-1.5 py-0.2 rounded text-[9px] bg-white/10 text-white/90 uppercase font-semibold border border-white/10">
+                  <span className="px-1.5 py-px rounded text-[9px] bg-white/10 text-white/90 uppercase font-semibold border border-white/10">
                     {movie.ageRating || (movie.type === 'anime' ? '16+' : 'PG-13')}
                   </span>
                   {movie.duration && (

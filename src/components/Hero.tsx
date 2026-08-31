@@ -184,7 +184,7 @@ export function Hero({ onMovieSelect }: { onMovieSelect: (id: string, type: stri
             </div>
 
             <span className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-foreground/90 text-xs sm:text-sm font-semibold">
-              {currentMovie.year || '2024'}
+              {currentMovie.year || '—'}
             </span>
 
             {currentMovie.genres && currentMovie.genres.length > 0 && (

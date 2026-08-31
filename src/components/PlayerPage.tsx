@@ -13,6 +13,7 @@ import {
   type StreamSource,
 } from '../config/servers';
 import type { Movie } from '../types';
+import { updateSeoMetadata } from '../lib/seo';
 
 /**
  * Embed player page.
@@ -188,11 +189,12 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
   useEffect(() => {
     if (!movie) return;
-    const previous = document.title;
-    document.title = `Watching ${movie.title} · CineVault`;
-    return () => {
-      document.title = previous;
-    };
+    updateSeoMetadata({
+      title: `Watching ${movie.title}`,
+      description: `Streaming ${movie.title} in high definition on CineVault.`,
+      ogImage: movie.backdropUrl || movie.posterUrl || undefined,
+      ogType: 'video.other',
+    });
   }, [movie]);
 
   /* ---------------------------------------------------------------------- */
@@ -276,7 +278,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         duration_seconds: progress.durationSeconds,
       });
 
-      const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
+      const effectiveUid = userProfile.uid || 'guest_viewer';
       const effectiveName = userProfile.name || (userProfile.isLoggedIn ? 'User' : 'Guest Viewer');
 
       void watchTrackingService.logWatchProgress(

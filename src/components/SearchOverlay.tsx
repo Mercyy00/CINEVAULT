@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import FocusLock from 'react-focus-lock';
-import { ArrowRight, Clock, Search, Star, TrendingUp, X } from 'lucide-react';
+import { ArrowRight, Clock, Search, Star, Trash2, TrendingUp, X } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { api, kitsuApi } from '../api';
 import { formatRating, type Movie } from '../types';
@@ -15,7 +15,7 @@ interface SearchOverlayProps {
 }
 
 const HISTORY_KEY = 'cv:searchHistory';
-const MAX_HISTORY = 5;
+const MAX_HISTORY = 8;
 const MIN_QUERY_LENGTH = 2;
 const POPULAR_SEARCHES = ['Marvel', 'Stranger Things', 'Anime', 'Action', 'Avatar'];
 
@@ -32,10 +32,22 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
   const saveToHistory = useCallback((term: string) => {
     const clean = term.trim();
     if (!clean) return;
-    // Updater form: the previous version closed over `history`, so two quick
-    // searches could drop one of them.
     setHistory((previous) => {
       const next = [clean, ...previous.filter((entry) => entry !== clean)].slice(0, MAX_HISTORY);
+      writeJSON(HISTORY_KEY, next);
+      return next;
+    });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    setHistory([]);
+    writeJSON(HISTORY_KEY, []);
+  }, []);
+
+  const removeHistoryItem = useCallback((termToRemove: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setHistory((previous) => {
+      const next = previous.filter((entry) => entry !== termToRemove);
       writeJSON(HISTORY_KEY, next);
       return next;
     });
@@ -255,19 +267,43 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   <div className="space-y-10">
                     {history.length > 0 && (
                       <div>
-                        <h2 className="text-lg text-muted-foreground mb-4 font-display flex items-center gap-2">
-                          <Clock className="w-5 h-5" aria-hidden="true" /> Recent searches
-                        </h2>
-                        <div className="flex flex-wrap gap-3">
+                        <div className="flex items-center justify-between mb-4">
+                          <h2 className="text-lg text-muted-foreground font-display flex items-center gap-2">
+                            <Clock className="w-5 h-5" aria-hidden="true" /> Recent searches
+                          </h2>
+                          <button
+                            type="button"
+                            onClick={clearHistory}
+                            className="text-xs text-muted-foreground hover:text-red-400 flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-lg hover:bg-white/5 cursor-pointer font-medium"
+                            aria-label="Clear all search history"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                            <span>Clear all</span>
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-2.5">
                           {history.map((term) => (
-                            <button
+                            <div
                               key={term}
-                              type="button"
-                              onClick={() => submit(term)}
-                              className="px-4 py-2 rounded-full border border-white/10 text-foreground hover:border-brand hover:text-brand transition-colors bg-white/5"
+                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/10 text-foreground hover:border-brand/50 bg-white/5 transition-all text-sm group"
                             >
-                              {term}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => submit(term)}
+                                className="hover:text-brand transition-colors cursor-pointer"
+                              >
+                                {term}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => removeHistoryItem(term, e)}
+                                className="text-muted-foreground/50 hover:text-red-400 transition-colors p-0.5 rounded-full hover:bg-white/10 cursor-pointer"
+                                aria-label={`Remove ${term} from history`}
+                                title={`Remove "${term}"`}
+                              >
+                                <X className="w-3 h-3" aria-hidden="true" />
+                              </button>
+                            </div>
                           ))}
                         </div>
                       </div>

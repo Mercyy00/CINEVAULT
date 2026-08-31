@@ -84,6 +84,7 @@ export function AdminDashboard() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>('all');
+  const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'registered' | 'guest'>('all');
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
   const [birthdayEnabled, setBirthdayEnabled] = useState(isBirthdayLocallyEnabled);
 
@@ -181,15 +182,19 @@ export function AdminDashboard() {
   );
 
   const filteredUsers = useMemo(() => {
+    let result = users;
+    if (userTypeFilter === 'registered') {
+      result = result.filter((u) => !u.isGuest);
+    } else if (userTypeFilter === 'guest') {
+      result = result.filter((u) => u.isGuest);
+    }
     const term = userSearch.trim().toLowerCase();
-    if (!term) return users;
-    // Email is no longer stored, so it is no longer searchable. Display name
-    // and uid are what the directory actually holds.
-    return users.filter(
+    if (!term) return result;
+    return result.filter(
       (user) =>
         user.displayName.toLowerCase().includes(term) || user.uid.toLowerCase().includes(term)
     );
-  }, [users, userSearch]);
+  }, [users, userSearch, userTypeFilter]);
 
   /* ---------------------------------------------------------------------- */
   /* Gate                                                                   */
@@ -534,10 +539,58 @@ export function AdminDashboard() {
       {/* Directory */}
       <section className="space-y-4 pt-4" aria-label="User directory">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-lg sm:text-xl font-display font-black flex items-center gap-2.5">
-            <Users className="w-5 h-5 text-brand" aria-hidden="true" />
-            Users ({filteredUsers.length})
-          </h2>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h2 className="text-lg sm:text-xl font-display font-black flex items-center gap-2.5">
+              <Users className="w-5 h-5 text-brand" aria-hidden="true" />
+              Users ({filteredUsers.length})
+            </h2>
+
+            <div
+              className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-semibold"
+              role="group"
+              aria-label="Filter by user type"
+            >
+              <button
+                type="button"
+                onClick={() => setUserTypeFilter('all')}
+                aria-pressed={userTypeFilter === 'all'}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-[11px]',
+                  userTypeFilter === 'all'
+                    ? 'bg-brand text-background font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                All ({users.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserTypeFilter('registered')}
+                aria-pressed={userTypeFilter === 'registered'}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-[11px]',
+                  userTypeFilter === 'registered'
+                    ? 'bg-brand text-background font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                Accounts ({users.filter((u) => !u.isGuest).length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserTypeFilter('guest')}
+                aria-pressed={userTypeFilter === 'guest'}
+                className={cn(
+                  'px-2.5 py-1 rounded-lg transition-colors cursor-pointer text-[11px]',
+                  userTypeFilter === 'guest'
+                    ? 'bg-amber-500 text-black font-bold'
+                    : 'text-amber-400/80 hover:text-amber-300'
+                )}
+              >
+                Guests ({users.filter((u) => u.isGuest).length})
+              </button>
+            </div>
+          </div>
 
           <div className="relative w-full sm:w-64">
             <Search

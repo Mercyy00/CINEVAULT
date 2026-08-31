@@ -23,9 +23,11 @@ import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
 import { ActorModal } from './ActorModal';
+import { Breadcrumbs } from './Breadcrumbs';
+import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 
 export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) {
-  const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor, showToast } = useApp();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [imdbId, setImdbId] = useState<string>('');
 
@@ -47,7 +49,25 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
 
   useEffect(() => {
     if (movie) {
-      document.title = `CineVault | ${movie.title}`;
+      updateSeoMetadata({
+        title: `${movie.title} (${movie.year || 'Film'})`,
+        description: movie.description || `Watch ${movie.title} on CineVault. Stream with full cast info, ratings, and trailers.`,
+        ogImage: movie.backdropUrl || movie.posterUrl || undefined,
+        ogType: type === 'movie' ? 'video.movie' : 'video.tv_show',
+        structuredData: generateMediaStructuredData({
+          title: movie.title,
+          overview: movie.description,
+          posterUrl: movie.posterUrl,
+          backdropUrl: movie.backdropUrl,
+          releaseDate: movie.year ? String(movie.year) : undefined,
+          rating: movie.rating,
+          voteCount: movie.voteCount,
+          genres: movie.genres,
+          actors: movie.cast?.map((c) => c.name),
+          mediaType: type,
+        }),
+      });
+
       if (movie.backdropUrl) {
         getDominantColor(movie.backdropUrl)
           .then((color) => {
@@ -57,7 +77,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
       }
     }
     return () => setAmbientColor(null);
-  }, [movie, setAmbientColor]);
+  }, [movie, setAmbientColor, type]);
 
   useEffect(() => {
     let mounted = true;
@@ -90,7 +110,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           try {
             const external = await api.getExternalIds(type, id);
             resolvedImdb = external.imdb_id ?? '';
-          } catch {}
+          } catch {
+            // Optional external IMDb lookup
+          }
         }
         if (mounted) {
           setImdbId(resolvedImdb);
@@ -221,7 +243,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         .catch(() => {});
     } else {
       navigator.clipboard.writeText(window.location.href);
-      alert('Link copied to clipboard!');
+      showToast('Link copied to clipboard!');
     }
   };
 
@@ -244,6 +266,14 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28">
+        {/* Breadcrumb navigation */}
+        <Breadcrumbs
+          items={[
+            { label: type === 'movie' ? 'Movies' : 'TV Shows', href: type === 'movie' ? '#movies' : '#tvshows' },
+            { label: movie.title },
+          ]}
+        />
+
         {/* Back Button */}
         <motion.button
           initial={{ opacity: 0, x: -20 }}

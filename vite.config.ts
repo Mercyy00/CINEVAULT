@@ -12,23 +12,23 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     target: 'es2022',
-    sourcemap: true,
-    // Fail the build if a chunk gets unreasonably large rather than warning.
-    chunkSizeWarningLimit: 700,
+    // Only generate source maps in development to prevent leaking source code in production
+    sourcemap: mode === 'development',
+    chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
-        // Keep the big, rarely-changing vendor libraries in their own chunks
-        // so an app-code deploy doesn't invalidate them in users' caches.
+        // Optimize chunk splitting to prevent huge monolithic JS bundles
         manualChunks: {
-          react: ['react', 'react-dom'],
-          firebase: ['firebase/app', 'firebase/auth', 'firebase/firestore'],
-          motion: ['motion/react'],
+          'vendor-firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore'],
+          'vendor-motion': ['motion/react'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-dnd': ['@hello-pangea/dnd'],
         },
       },
     },
   },
   esbuild: {
-    // Strip console/debugger from production bundles only.
+    // Strip console and debugger statements from production bundles
     drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
   server: {

@@ -1,0 +1,52 @@
+# CineVault — Full Technical & System Specification
+
+## Platform Summary
+CineVault is an open-source, client-centric entertainment platform offering a rich cinema discovery experience across movies, television series, and anime.
+
+## Technology Stack
+- **Frontend Core**: React 19, TypeScript 5.8, Vite 6
+- **Animation & Transitions**: Motion (Framer Motion v12)
+- **Design System**: Tailwind CSS v4, Lucide Icons, Bricolage Grotesque & Inter typefaces
+- **Cloud Services**: Google Firebase (Authentication & Cloud Firestore)
+- **Data Providers**: TMDB API v3, Kitsu Anime API v2
+
+## Content Schema & Structures
+
+### Movie Entity
+```typescript
+interface Movie {
+  id: string | number;
+  title: string;
+  posterUrl: string | null;
+  backdropUrl: string | null;
+  rating: number;
+  voteCount?: number;
+  releaseDate: string;
+  overview: string;
+  genres: string[];
+  media_type: 'movie' | 'tv' | 'anime';
+  duration?: string;
+  totalEpisodes?: number;
+}
+```
+
+### Route Table
+| Route Hash | Component | Description |
+|---|---|---|
+| `#home` | `Hero`, `MovieRow`, `FilterBar` | Discovery portal with personalized recommendations |
+| `#movies` | `PageShell` | Film catalog with genre, provider, and sort filters |
+| `#tvshows` | `PageShell` | Series catalog with episode/season metadata |
+| `#anime` | `PageShell` | Anime hub with episode guides |
+| `#mylist` | `MyList` | User's cloud-persisted watchlist |
+| `#movie/:id` | `MovieDetail` | In-depth movie metadata, trailer player, cast modal |
+| `#tv/:id` | `MovieDetail` | In-depth TV metadata with episode picker |
+| `#ani/:id` | `AnimeDetail` | Dedicated anime layout with Japanese/Romaji titles |
+| `#watch/:type/:id` | `PlayerPage` / `AnimePlayer` | Video playback interface |
+| `#profiles` | `ProfileSwitcher` | Multi-user profile management |
+| `#profile` | `ProfilePage` | User preferences, theme picker, and diagnostics |
+
+## Production & SEO Standards
+- **Page Titles**: Formatted as `<Page Name> — CineVault` dynamically updated per view.
+- **Canonical Tags**: Automatic `<link rel="canonical">` updating.
+- **Structured Data**: Schema.org JSON-LD definitions for WebSite, SearchAction, Organization, Movie, TVSeries, and BreadcrumbList.
+- **Accessibility**: Skip links, ARIA labels, semantic landmark elements (`<header>`, `<main>`, `<nav>`, `<article>`, `<footer>`).

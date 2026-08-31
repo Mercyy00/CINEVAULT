@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
 import { TRUSTED_PLAYER_ORIGINS } from '../config/servers';
+import { updateSeoMetadata } from '../lib/seo';
 
 export type AnimeServerId = 'vidlink' | 'megaplay' | 'anikoto' | 'vidsrc';
 
@@ -55,7 +56,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [currentIframeSrc, setCurrentIframeSrc] = useState<string>('');
 
   const [showControls, setShowControls] = useState(true);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const progressRef = useRef<PlaybackProgress>({
     positionSeconds: 0,
@@ -66,7 +67,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const NEXT_EPISODE_SECONDS = 35;
   const [showNextEpisode, setShowNextEpisode] = useState(false);
   const [nextCountdown, setNextCountdown] = useState(NEXT_EPISODE_SECONDS);
-  const nextEpisodeTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const nextEpisodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasDismissedNextPrompt = useRef(false);
 
   useEffect(() => {
@@ -124,8 +125,15 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
 
   
   useEffect(() => {
-    if (movie) document.title = `CineVault | Now Playing: ${movie.title}`;
-  }, [movie]);
+    if (movie) {
+      updateSeoMetadata({
+        title: `Playing ${movie.title} (Ep. ${episode})`,
+        description: `Streaming ${movie.title} episode ${episode} on CineVault.`,
+        ogImage: movie.backdropUrl || movie.posterUrl || undefined,
+        ogType: 'video.tv_show',
+      });
+    }
+  }, [movie, episode]);
 
   useEffect(() => {
     let isMounted = true;

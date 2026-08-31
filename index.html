@@ -9,7 +9,10 @@
       name="description"
       content="Browse films, television and anime, build a watchlist, and pick up where you left off. Metadata by TMDB and Kitsu."
     />
-    <link rel="canonical" href="https://cinevault.example.com/" />
+    <meta name="keywords" content="movies, tv shows, anime, streaming, watchlist, cinema, trailers, tmdb, kitsu, film tracker" />
+    <meta name="author" content="CineVault" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://cinevault.app/" />
     <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f5f0e8" media="(prefers-color-scheme: light)" />
 
@@ -19,34 +22,59 @@
     <meta property="og:title" content="CineVault — Discover films, TV and anime" />
     <meta
       property="og:description"
-      content="Browse films, television and anime, build a watchlist, and pick up where you left off."
+      content="Browse films, television and anime, build a personalized watchlist, and pick up where you left off."
     />
-    <meta property="og:url" content="https://cinevault.example.com/" />
-    <meta property="og:image" content="https://cinevault.example.com/logo-vault.png" />
+    <meta property="og:url" content="https://cinevault.app/" />
+    <meta property="og:image" content="https://cinevault.app/logo-vault.png" />
     <meta property="og:image:width" content="512" />
     <meta property="og:image:height" content="512" />
+    <meta property="og:image:alt" content="CineVault Cinema and Streaming Logo" />
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="CineVault — Discover films, TV and anime" />
     <meta
       name="twitter:description"
-      content="Browse films, television and anime, build a watchlist, and pick up where you left off."
+      content="Browse films, television and anime, build a personalized watchlist, and pick up where you left off."
     />
-    <meta name="twitter:image" content="https://cinevault.example.com/logo-vault.png" />
+    <meta name="twitter:image" content="https://cinevault.app/logo-vault.png" />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/logo-vault.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
 
+    <!-- Schema.org JSON-LD Structured Data for Search Engines & LLMs -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://cinevault.app/#website",
+            "url": "https://cinevault.app/",
+            "name": "CineVault",
+            "description": "Discover and stream films, TV series, and anime with a personalized watchlist.",
+            "potentialAction": {
+              "@type": "SearchAction",
+              "target": "https://cinevault.app/#search/{search_term_string}",
+              "query-input": "required name=search_term_string"
+            }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://cinevault.app/#organization",
+            "name": "CineVault",
+            "url": "https://cinevault.app/",
+            "logo": "https://cinevault.app/logo-vault.png",
+            "description": "A cinema discovery and streaming platform for movies, TV shows, and anime enthusiasts."
+          }
+        ]
+      }
+    </script>
+
     <script>
-      /* Applies the persisted theme before first paint to avoid a flash.
-       *
-       * The light/dark mode is read from its own key (cv:themeMode) which
-       * store.tsx writes alongside cv:theme. Deriving mode from a hardcoded
-       * list of theme ids here would duplicate that list and drift from it.
-       * Keys must match src/lib/storage.ts. */
+      /* Applies the persisted theme before first paint to avoid a flash. */
       (function () {
         try {
           var root = document.documentElement;
@@ -64,9 +92,7 @@
       })();
     </script>
 
-    <!-- Only the default UI + display face load up front. The other display
-         faces are fetched on demand by src/lib/fonts.ts when a user picks
-         them, instead of shipping 12 families to everyone. -->
+    <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preconnect" href="https://image.tmdb.org" crossorigin />
@@ -78,7 +104,7 @@
   <body
     class="bg-background text-foreground font-sans antialiased overflow-x-hidden selection:bg-brand/30 selection:text-brand"
   >
-    <a href="#main-content" class="skip-link">Skip to main content</a>
+    <a href="#app-container" class="skip-link">Skip to main content</a>
     <div class="bg-noise" aria-hidden="true"></div>
     <div id="root"></div>
     <noscript>
