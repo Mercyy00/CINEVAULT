@@ -178,6 +178,11 @@ export const ROUTE_SEO: Record<string, SeoConfig> = {
     description: 'CineVault watch analytics and administrative settings.',
     ogType: 'website',
   },
+  birthday: {
+    title: "Divyanshi's 21st Birthday Special ✨🎂",
+    description: "Welcome to Divyanshi's 21st Birthday Universe on CineVault — A magical journey crafted with endless love by Jay.",
+    ogType: 'website',
+  },
 };
 
 /**

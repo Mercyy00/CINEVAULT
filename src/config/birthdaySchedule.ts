@@ -199,6 +199,50 @@ export const BIRTHDAY_SECTIONS_SCHEDULE: ScheduleSectionConfig[] = [
     ],
     unlockedQuote: 'ALL SEALS BROKEN! 👑 21 wax letters are unlocked! Happy 21st Birthday Divyanshi! 💖🎂✨',
     accentColor: '#d946ef'
+  },
+  {
+    id: 'promises-notebook',
+    domId: 'promises-notebook-section',
+    sectionNumber: 9,
+    title: 'Our 2026–2027 Sacred Promise Diary',
+    subtitle: 'Dual-page leather-bound notebook with 10 vows from Jay, 10 vows from Divu, discussion notes, and pinky seal',
+    badge: 'Sacred Vows Vault',
+    icon: '📖',
+    targetHour: 23,
+    targetMinute: 0,
+    timeLabel: '11:00 PM',
+    periodLabel: 'Midnight Sacred Vows',
+    happyQuote: 'THE SACRED STRAW HAT COMPASS! 📖 20 eternal vows for our journey together! Opens at 11:00 PM!',
+    happySubQuote: 'Written in gold ink for Divu\'s 21st year! Opens at 11:00 PM! 💖✨',
+    angryQuotes: [
+      'GOMU GOMU NO SHIELD! 🚫📖 Do not peek into the sacred promise diary before 11:00 PM! A pirate\'s oath is sacred!',
+      'OI DIVU!! 😡 Jay sealed this notebook with a golden lock! Wait until 11:00 PM to read all 20 promises!',
+      'HMPH! 😤 The ink is still glowing! Wait until 11:00 PM for the ultimate romantic pact!'
+    ],
+    unlockedQuote: 'SACRED PROMISE JOURNAL OPEN! 📖✨ 20 vows unlocked for Jay & Divu! 💖💍',
+    accentColor: '#f59e0b'
+  },
+  {
+    id: 'couple-bucket-list',
+    domId: 'bucket-list-section',
+    sectionNumber: 10,
+    title: 'Our 21st Year Couple Bucket List',
+    subtitle: '21 magical adventures, road trips, cafe dates, and milestones to achieve together in 2026–2027',
+    badge: 'Adventure Vault',
+    icon: '🗺️',
+    targetHour: 23,
+    targetMinute: 30,
+    timeLabel: '11:30 PM',
+    periodLabel: 'Midnight Adventure Roadmap',
+    happyQuote: 'THE STRAW HAT LOG POSE TO THE FUTURE! 🗺️ 21 adventures for our 21st year! Opens at 11:30 PM!',
+    happySubQuote: 'All trips, dates, and milestones mapped out together! 💖✨',
+    angryQuotes: [
+      'GOMU GOMU NO JET PISTOL! 🚫🗺️ Do not open the secret adventure roadmap before 11:30 PM! The Grand Line awaits!',
+      'OI DIVYANSHI!! 😡 The map is locked in the Captain\'s quarters until 11:30 PM!',
+      'HMPH! 😤 The treasure compass is still calibrating! Wait until 11:30 PM!'
+    ],
+    unlockedQuote: 'ADVENTURE ROADMAP UNLOCKED! 🗺️✨ 21 couple dreams ready to conquer! 🚀💖',
+    accentColor: '#38bdf8'
   }
 ];
 

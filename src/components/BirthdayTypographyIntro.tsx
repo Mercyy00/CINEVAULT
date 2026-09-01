@@ -48,10 +48,10 @@ export function BirthdayTypographyIntro({ onComplete }: BirthdayTypographyIntroP
   const { playlist, playTrack, togglePlay, isPlaying, currentTrack } = useBirthdayMusic();
 
   const handleHeartComplete = useCallback(() => {
-    // Start background romantic music track: "I Love You So" by The Walters
+    // Start background romantic music track: "Kalank (Title Track)" by Arijit Singh
     try {
-      const waltersTrackIdx = playlist.findIndex(t => t.title.toLowerCase().includes('i love you so'));
-      playTrack(waltersTrackIdx !== -1 ? waltersTrackIdx : 8);
+      const kalankTrackIdx = playlist.findIndex(t => t.title.toLowerCase().includes('kalank'));
+      playTrack(kalankTrackIdx !== -1 ? kalankTrackIdx : 17);
     } catch (e) {
       console.warn('Audio play initiated:', e);
     }
@@ -680,7 +680,7 @@ function Stage2Typography({ onComplete, isPlayingMusic, onToggleMusic, currentTr
         >
           <span>{isPlayingMusic ? '🔊' : '🔇'}</span>
           <span className="hidden sm:inline font-mono font-bold text-[10px]">
-            {isPlayingMusic ? (currentTrackTitle || 'I Love You So') : 'Muted'}
+            {isPlayingMusic ? (currentTrackTitle || 'Kalank') : 'Muted'}
           </span>
         </button>
       </div>

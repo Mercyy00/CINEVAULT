@@ -19,8 +19,8 @@ export function HusbandVoiceNoteSection() {
   const wasBgMusicPlayingRef = useRef<boolean>(false);
   const simTimerRef = useRef<any>(null);
 
-  // Audio file path: using available voice note file
-  const VOICE_NOTE_SRC = "/music/voice1.mp3";
+  // Audio file path: using the uploaded voice note file
+  const VOICE_NOTE_SRC = "/music/vn.mp3";
 
   // Setup HTML Audio element for voice note
   useEffect(() => {
@@ -28,6 +28,12 @@ export function HusbandVoiceNoteSection() {
     audio.preload = 'metadata';
     audio.src = VOICE_NOTE_SRC;
     audioRef.current = audio;
+
+    audio.onerror = () => {
+      if (audio.src.endsWith('/music/vn.mp3')) {
+        audio.src = '/vn.mp3';
+      }
+    };
 
     const onTimeUpdate = () => {
       setVoiceProgress(audio.currentTime);

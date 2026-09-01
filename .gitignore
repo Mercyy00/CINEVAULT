@@ -22,6 +22,9 @@ data/
 
 # Large raw scratch files in root
 /movies/
+/us/
+/us in another universe/
+/vn.mp3
 
 # AI tool configs / scratch dirs
 .cursor/

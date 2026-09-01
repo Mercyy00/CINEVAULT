@@ -15,6 +15,8 @@ import { CoupleSpinWheelSection } from './CoupleSpinWheelSection';
 import { BirthdayArcadeSection } from './BirthdayArcadeSection';
 import { MovieTheaterSection } from './MovieTheaterSection';
 import { SealedLettersSection } from './SealedLettersSection';
+import { YearlyPromisesNotebookSection } from './YearlyPromisesNotebookSection';
+import { YearlyBucketListSection } from './YearlyBucketListSection';
 import { LuffySectionGuardian } from './LuffySectionGuardian';
 import { LuffyTimelineOverview } from './LuffyTimelineOverview';
 import { LuffyTimeSimulator } from './LuffyTimeSimulator';
@@ -307,6 +309,30 @@ export function BirthdayPage() {
           forceUnlockAll={forceUnlockAll}
         >
           <SealedLettersSection />
+        </LuffySectionGuardian>
+      </section>
+
+      {/* SECTION 10: Our 2026-2027 Sacred Promise Notebook (10 from Jay, 10 from Divu) (Unlocks 11:00 PM) */}
+      <section id="promises-notebook-section" className="relative pt-6 pb-28 px-3 sm:px-6 max-w-7xl mx-auto w-full">
+        <LuffySectionGuardian
+          section={BIRTHDAY_SECTIONS_SCHEDULE[8]}
+          simulatedHour={simulatedHour}
+          simulatedMinute={simulatedMinute}
+          forceUnlockAll={forceUnlockAll}
+        >
+          <YearlyPromisesNotebookSection />
+        </LuffySectionGuardian>
+      </section>
+
+      {/* SECTION 11: Our 21st Year Couple Bucket List (21 Adventures to conquer together) (Unlocks 11:30 PM) */}
+      <section id="bucket-list-section" className="relative pt-6 pb-28 px-3 sm:px-6 max-w-7xl mx-auto w-full">
+        <LuffySectionGuardian
+          section={BIRTHDAY_SECTIONS_SCHEDULE[9]}
+          simulatedHour={simulatedHour}
+          simulatedMinute={simulatedMinute}
+          forceUnlockAll={forceUnlockAll}
+        >
+          <YearlyBucketListSection />
         </LuffySectionGuardian>
       </section>
 

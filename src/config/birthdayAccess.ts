@@ -49,11 +49,6 @@ export function rememberBirthdayUnlock(hash: string = window.location.hash): voi
   if (hashCarriesBirthdayKey(hash)) writeString(UNLOCKED_KEY, 'true');
 }
 
-export function isBirthdayVisible(hash: string = window.location.hash): boolean {
-  return (
-    isBirthdayBuildEnabled ||
-    isBirthdayLocallyEnabled() ||
-    isBirthdayUnlocked() ||
-    hashCarriesBirthdayKey(hash)
-  );
+export function isBirthdayVisible(_hash: string = window.location.hash): boolean {
+  return true;
 }

@@ -185,7 +185,15 @@ function AppContent() {
 
   useEffect(() => {
     const handleHashChange = () => {
-      const hash = window.location.hash.replace('#', '') || 'home';
+      let hash = window.location.hash.replace('#', '') || '';
+      if (!hash) {
+        const path = window.location.pathname.toLowerCase();
+        if (path.includes('/birthday')) {
+          hash = 'birthday';
+        } else {
+          hash = 'home';
+        }
+      }
       if (hash.startsWith('search/')) {
         setCurrentRoute('search');
         setSearchQuery(decodeURIComponent(hash.replace('search/', '')));
