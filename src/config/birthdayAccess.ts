@@ -49,6 +49,42 @@ export function rememberBirthdayUnlock(hash: string = window.location.hash): voi
   if (hashCarriesBirthdayKey(hash)) writeString(UNLOCKED_KEY, 'true');
 }
 
-export function isBirthdayVisible(_hash: string = window.location.hash): boolean {
+/**
+ * Target Birthday is 2nd September 2026 00:00:00 (Local Time).
+ * Returns true if the current date is on or after September 2nd, 2026.
+ */
+export function isBirthdayDateReached(): boolean {
+  const now = new Date();
+  const target = new Date(2026, 8, 2, 0, 0, 0); // Month 8 is September (0-indexed)
+  return now.getTime() >= target.getTime();
+}
+
+/**
+ * Determines whether the birthday page can be opened.
+ * Before 2nd September 2026, opening the birthday page is restricted unless
+ * explicitly enabled via secret key, local toggle, or build flag.
+ */
+export function isBirthdayPageAccessible(hash: string = window.location.hash): boolean {
+  return (
+    isBirthdayDateReached() ||
+    isBirthdayBuildEnabled ||
+    isBirthdayLocallyEnabled() ||
+    isBirthdayUnlocked() ||
+    hashCarriesBirthdayKey(hash)
+  );
+}
+
+/**
+ * Returns true if the birthday page is accessible (kept for backward compatibility).
+ */
+export function isBirthdayVisible(hash: string = window.location.hash): boolean {
+  return isBirthdayPageAccessible(hash);
+}
+
+/**
+ * The countdown timer widget is always visible in the navbar so users can count down
+ * until 2nd September.
+ */
+export function isBirthdayCountdownVisible(): boolean {
   return true;
 }

@@ -91,6 +91,7 @@ function AppContent() {
   const {
     ambientColor,
     toasts,
+    showToast,
     userPreferences,
     continueWatching,
     isKidsMode,
@@ -223,8 +224,9 @@ function AppContent() {
       rememberBirthdayUnlock();
     } else {
       window.location.replace('#home');
+      showToast('🔒 The Birthday Special unlocks on 2nd September! Counting down the seconds ✨🎂');
     }
-  }, [currentRoute]);
+  }, [currentRoute, showToast]);
 
   useEffect(() => {
     let cancelled = false;

@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Heart, Gift, PartyPopper } from 'lucide-react';
+import { Sparkles, Heart, Gift, PartyPopper, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { isBirthdayPageAccessible } from '../config/birthdayAccess';
 
 // Target Birthday: 2nd September 2026 00:00:00 Local Time
 const TARGET_BIRTHDAY = new Date(2026, 8, 2, 0, 0, 0); // Month is 0-indexed (8 = September)
@@ -80,6 +81,8 @@ export function BirthdayCountdown() {
       setParticles(prev => prev.filter(p => !newParticles.some(np => np.id === p.id)));
     }, 1200);
   };
+
+  const isPageAccessible = isBirthdayPageAccessible();
 
   const handleMouseEnter = () => {
     setIsHovered(true);
@@ -252,7 +255,9 @@ export function BirthdayCountdown() {
                 2nd September 2026 🎂✨
               </p>
               <p className="text-[10px] sm:text-[11px] text-muted-foreground mt-1 leading-snug">
-                Counting down every magical second until your special day! Click for a birthday surprise 💖
+                {isPageAccessible 
+                  ? 'Happy Birthday! Click for the birthday surprise special page 💖' 
+                  : 'Counting down every magical second until your special day! Unlocks on 2nd September 🎂🔒'}
               </p>
             </motion.div>
           )}
@@ -290,26 +295,46 @@ export function BirthdayCountdown() {
                   <span>⏳ {timeLeft.days} Days • {timeLeft.hours} Hours • {timeLeft.minutes} Mins • {timeLeft.seconds} Secs</span>
                 </div>
 
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-6">
-                  Every single day leads up to the most special celebration of the year! Here's to love, infinite happiness, and unforgettable movie nights together on CineVault! 🎬✨🎂
+                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed mb-5">
+                  {isPageAccessible
+                    ? "Every single day leads up to the most special celebration of the year! Here's to love, infinite happiness, and unforgettable movie nights together on CineVault! 🎬✨🎂"
+                    : "Every single day leads up to the most special celebration of the year! The Birthday Special Page is strictly locked until 2nd September 2026! 🎬✨🎂"}
                 </p>
 
+                {!isPageAccessible && (
+                  <div className="flex items-center justify-center gap-2 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs sm:text-sm font-medium mb-5">
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <span>Special page unlocks on 2nd September 2026 🎂✨</span>
+                  </div>
+                )}
+
                 <div className="flex flex-col gap-2.5">
-                  <button
-                    onClick={() => {
-                      triggerSparkles(20);
-                      setShowCelebrationModal(false);
-                      sessionStorage.setItem('cv:playBirthdayIntro', 'true');
-                      if (window.location.hash === '#birthday') {
-                        window.dispatchEvent(new CustomEvent('trigger-birthday-intro'));
-                      } else {
-                        window.location.hash = '#birthday';
-                      }
-                    }}
-                    className="w-full py-3 bg-brand text-background font-bold rounded-xl text-xs sm:text-sm hover:opacity-95 active:scale-98 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4" /> Open Birthday Special Page ✨
-                  </button>
+                  {isPageAccessible ? (
+                    <button
+                      onClick={() => {
+                        triggerSparkles(20);
+                        setShowCelebrationModal(false);
+                        sessionStorage.setItem('cv:playBirthdayIntro', 'true');
+                        if (window.location.hash === '#birthday') {
+                          window.dispatchEvent(new CustomEvent('trigger-birthday-intro'));
+                        } else {
+                          window.location.hash = '#birthday';
+                        }
+                      }}
+                      className="w-full py-3 bg-brand text-background font-bold rounded-xl text-xs sm:text-sm hover:opacity-95 active:scale-98 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4" /> Open Birthday Special Page ✨
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full py-3 bg-white/5 border border-white/10 text-muted-foreground font-semibold rounded-xl text-xs sm:text-sm flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80"
+                    >
+                      <Lock className="w-4 h-4 text-amber-400" />
+                      <span>Locked until 2nd September 2026 🔒</span>
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       triggerSparkles(20);
@@ -317,7 +342,7 @@ export function BirthdayCountdown() {
                     }}
                     className="w-full py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Heart className="w-4 h-4 text-pink-500 fill-pink-500" /> Close
+                    <Heart className="w-4 h-4 text-pink-500 fill-pink-500" /> {isPageAccessible ? 'Close' : 'Counting Down with Love 💖'}
                   </button>
                 </div>
               </motion.div>

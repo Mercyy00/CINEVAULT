@@ -6,7 +6,7 @@ import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
 import { getUserAvatarUrl } from '../lib/avatars';
 import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users } from 'lucide-react';
 import { BirthdayCountdown } from './BirthdayCountdown';
-import { isBirthdayVisible } from '../config/birthdayAccess';
+import { isBirthdayCountdownVisible } from '../config/birthdayAccess';
 import { useBirthdayMusic } from '../context/BirthdayMusicContext';
 
 interface ThemeOption {
@@ -144,10 +144,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   const darkThemes = THEMES.filter(t => t.mode === 'dark');
   const lightThemes = THEMES.filter(t => t.mode === 'light');
 
-  // Shared with App.tsx and AdminDashboard via config/birthdayAccess. This used
-  // to be a third copy of the raw localStorage-key check.
-  const isBirthdayActive = isBirthdayVisible(currentHash);
-
   return (
     <>
       {/* Top Header */}
@@ -177,9 +173,9 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           </a>
         )}
 
-        {/* Center: Birthday Countdown Widget (Hidden on Birthday Page & Gated) */}
+        {/* Center: Birthday Countdown Widget (Always visible, hidden on Birthday Page) */}
         <div className="flex items-center justify-center pointer-events-auto min-w-0">
-          {isBirthdayActive && currentHash !== '#birthday' && <BirthdayCountdown />}
+          {isBirthdayCountdownVisible() && currentHash !== '#birthday' && <BirthdayCountdown />}
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
