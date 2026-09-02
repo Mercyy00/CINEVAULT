@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, Heart, ChevronDown } from 'lucide-react';
+import { Sparkles, Heart, ChevronDown, Lock } from 'lucide-react';
 import { BirthdayTypographyIntro } from './BirthdayTypographyIntro';
+import { BirthdayPinLock } from './BirthdayPinLock';
 import { LoveTreeCanvas } from './LoveTreeCanvas';
 import { SpinningVinylDisc } from './SpinningVinylDisc';
 import { HangingPolaroidsGallery } from './HangingPolaroidsGallery';
@@ -21,8 +22,20 @@ import { LuffySectionGuardian } from './LuffySectionGuardian';
 import { LuffyTimelineOverview } from './LuffyTimelineOverview';
 import { LuffyTimeSimulator } from './LuffyTimeSimulator';
 import { BIRTHDAY_SECTIONS_SCHEDULE } from '../config/birthdaySchedule';
+import { useBirthdayMusic } from '../context/BirthdayMusicContext';
 
 export function BirthdayPage() {
+  // Always starts locked on every entry/visit so passcode is required each time
+  const [isPinUnlocked, setIsPinUnlocked] = useState<boolean>(false);
+  const { pauseTrack } = useBirthdayMusic();
+
+  // Stop music on unmount when user leaves BirthdayPage
+  useEffect(() => {
+    return () => {
+      pauseTrack();
+    };
+  }, [pauseTrack]);
+
   const [showIntro, setShowIntro] = useState<boolean>(() => {
     const triggered = sessionStorage.getItem('cv:playBirthdayIntro');
     if (triggered === 'true') return true;
@@ -34,9 +47,28 @@ export function BirthdayPage() {
     const handleTriggerIntro = () => {
       setShowIntro(true);
     };
+    const handleTriggerLock = () => {
+      setIsPinUnlocked(false);
+    };
     window.addEventListener('trigger-birthday-intro', handleTriggerIntro);
-    return () => window.removeEventListener('trigger-birthday-intro', handleTriggerIntro);
+    window.addEventListener('trigger-birthday-lock', handleTriggerLock);
+    return () => {
+      window.removeEventListener('trigger-birthday-intro', handleTriggerIntro);
+      window.removeEventListener('trigger-birthday-lock', handleTriggerLock);
+    };
   }, []);
+
+  const handleUnlockPin = () => {
+    setIsPinUnlocked(true);
+    const completed = sessionStorage.getItem('cv:birthdayIntroCompleted');
+    if (completed !== 'true') {
+      setShowIntro(true);
+    }
+  };
+
+  const handleLockVault = () => {
+    setIsPinUnlocked(false);
+  };
 
   const handleIntroComplete = () => {
     setShowIntro(false);
@@ -72,6 +104,11 @@ export function BirthdayPage() {
       el.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  // If locked, present the Birthday PIN Lock screen with full theme capabilities
+  if (!isPinUnlocked) {
+    return <BirthdayPinLock onUnlock={handleUnlockPin} />;
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground transition-colors duration-500 overflow-x-hidden selection:bg-brand/30 selection:text-brand relative">
@@ -142,6 +179,20 @@ export function BirthdayPage() {
           >
             <Heart className="w-3.5 h-3.5 fill-current" />
             <span>Replay Heart Story 💖</span>
+          </motion.button>
+
+          <motion.button
+            initial={{ opacity: 0, scale: 0.9, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.15 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleLockVault}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full glass border border-amber-500/30 hover:border-amber-500 text-xs sm:text-sm font-semibold text-amber-400 hover:text-amber-300 transition-all cursor-pointer shadow-sm"
+            title="Lock the Birthday Vault and return to PIN screen"
+          >
+            <Lock className="w-3.5 h-3.5 text-amber-400" />
+            <span>Lock Vault 🔒</span>
           </motion.button>
         </div>
 

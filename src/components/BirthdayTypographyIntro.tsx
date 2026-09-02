@@ -48,10 +48,13 @@ export function BirthdayTypographyIntro({ onComplete }: BirthdayTypographyIntroP
   const { playlist, playTrack, togglePlay, isPlaying, currentTrack } = useBirthdayMusic();
 
   const handleHeartComplete = useCallback(() => {
-    // Start background romantic music track: "Kalank (Title Track)" by Arijit Singh
+    // Keep playing base romantic song: "All I Can Say" by Kali Uchis
     try {
-      const kalankTrackIdx = playlist.findIndex(t => t.title.toLowerCase().includes('kalank'));
-      playTrack(kalankTrackIdx !== -1 ? kalankTrackIdx : 17);
+      const allICanSayIdx = playlist.findIndex(t => t.title.toLowerCase().includes('all i can say'));
+      const targetIdx = allICanSayIdx !== -1 ? allICanSayIdx : 0;
+      if (!isPlaying || currentTrack?.title.toLowerCase() !== 'all i can say') {
+        playTrack(targetIdx);
+      }
     } catch (e) {
       console.warn('Audio play initiated:', e);
     }
@@ -61,7 +64,7 @@ export function BirthdayTypographyIntro({ onComplete }: BirthdayTypographyIntroP
       setStage('typography');
       setTimeout(() => setIsTransitioning(false), 200);
     }, 600);
-  }, [playTrack, playlist]);
+  }, [playTrack, playlist, isPlaying, currentTrack]);
 
   const handleTypographyComplete = useCallback(() => {
     onComplete();

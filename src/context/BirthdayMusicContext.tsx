@@ -13,6 +13,15 @@ export interface BirthdayTrack {
 export const BIRTHDAY_PLAYLIST: BirthdayTrack[] = [
   {
     id: 1,
+    title: "All I Can Say",
+    artist: "Kali Uchis",
+    tag: "Our Soul Song 💖",
+    mood: "Dreamy Romantic",
+    src: "/music/Kali Uchis - All I Can Say (Lyrics) - (320 Kbps).mp3",
+    coverAccent: "#f43f5e"
+  },
+  {
+    id: 2,
     title: "Sailor Song",
     artist: "Gigi Perez",
     tag: "Her & Your Song 🌊",

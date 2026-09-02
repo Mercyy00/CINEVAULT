@@ -14,7 +14,7 @@ import { CinematicIntro } from './components/CinematicIntro';
 import { ContinueWatchingRow } from './components/ContinueWatchingRow';
 import { OnboardingModal } from './components/OnboardingModal';
 import { AuthModal } from './components/AuthModal';
-import { BirthdayMusicProvider } from './context/BirthdayMusicContext';
+import { BirthdayMusicProvider, useBirthdayMusic } from './context/BirthdayMusicContext';
 import { goToDetail } from './lib/navigation';
 import { isBirthdayVisible, rememberBirthdayUnlock } from './config/birthdayAccess';
 
@@ -100,6 +100,15 @@ function AppContent() {
     authModalMode,
     resetAllLocalData,
   } = useApp();
+
+  const { pauseTrack } = useBirthdayMusic();
+
+  // Stop birthday music immediately whenever user leaves the birthday special route
+  useEffect(() => {
+    if (currentRoute !== 'birthday') {
+      pauseTrack();
+    }
+  }, [currentRoute, pauseTrack]);
 
   const anyOverlayOpen = isSearchOpen || isMoodOpen || showResetModal || authModalOpen;
 

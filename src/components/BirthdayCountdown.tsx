@@ -316,6 +316,7 @@ export function BirthdayCountdown() {
                         setShowCelebrationModal(false);
                         sessionStorage.setItem('cv:playBirthdayIntro', 'true');
                         if (window.location.hash === '#birthday') {
+                          window.dispatchEvent(new CustomEvent('trigger-birthday-lock'));
                           window.dispatchEvent(new CustomEvent('trigger-birthday-intro'));
                         } else {
                           window.location.hash = '#birthday';
