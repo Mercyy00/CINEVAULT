@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 
 export interface BirthdayTrack {
   id: number;
@@ -210,8 +210,6 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const currentTrack = BIRTHDAY_PLAYLIST[currentTrackIndex];
-
   useEffect(() => {
     const audio = new Audio();
     audio.preload = 'auto';
@@ -254,31 +252,44 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const handleNext = () => {
-    const nextIdx = (currentTrackIndex + 1) % BIRTHDAY_PLAYLIST.length;
-    setCurrentTrackIndex(nextIdx);
-    if (audioRef.current) {
-      audioRef.current.src = BIRTHDAY_PLAYLIST[nextIdx].src;
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-    }
-  };
+  const handleNext = useCallback(() => {
+    setCurrentTrackIndex((prev) => {
+      const nextIdx = (prev + 1) % BIRTHDAY_PLAYLIST.length;
+      if (audioRef.current) {
+        audioRef.current.src = BIRTHDAY_PLAYLIST[nextIdx].src;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+      return nextIdx;
+    });
+  }, []);
 
-  const handlePrev = () => {
-    const prevIdx = (currentTrackIndex - 1 + BIRTHDAY_PLAYLIST.length) % BIRTHDAY_PLAYLIST.length;
-    setCurrentTrackIndex(prevIdx);
-    if (audioRef.current) {
-      audioRef.current.src = BIRTHDAY_PLAYLIST[prevIdx].src;
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
-    }
-  };
+  const handlePrev = useCallback(() => {
+    setCurrentTrackIndex((prev) => {
+      const prevIdx = (prev - 1 + BIRTHDAY_PLAYLIST.length) % BIRTHDAY_PLAYLIST.length;
+      if (audioRef.current) {
+        audioRef.current.src = BIRTHDAY_PLAYLIST[prevIdx].src;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+      return prevIdx;
+    });
+  }, []);
 
-  const playTrack = (index: number) => {
+  const playTrack = useCallback((index: number) => {
     const audio = audioRef.current;
     if (!audio) return;
-    setCurrentTrackIndex(index);
     const track = BIRTHDAY_PLAYLIST[index];
+    if (!track) return;
+
     const targetSrc = encodeURI(track.src);
-    if (!audio.src.endsWith(targetSrc)) {
+    const isCurrentSrc = audio.src.endsWith(targetSrc) || audio.src.endsWith(track.src);
+
+    // If already playing this track without being paused, ignore duplicate play call!
+    if (isCurrentSrc && !audio.paused) {
+      return;
+    }
+
+    setCurrentTrackIndex(index);
+    if (!isCurrentSrc) {
       audio.src = track.src;
     }
     audio.play().then(() => {
@@ -286,17 +297,17 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
     }).catch(err => {
       console.warn("Play error:", err);
     });
-  };
+  }, []);
 
-  const pauseTrack = () => {
+  const pauseTrack = useCallback(() => {
     const audio = audioRef.current;
-    if (audio) {
+    if (audio && !audio.paused) {
       audio.pause();
       setIsPlaying(false);
     }
-  };
+  }, []);
 
-  const resumeTrack = () => {
+  const resumeTrack = useCallback(() => {
     const audio = audioRef.current;
     if (audio && audio.paused) {
       audio.play().then(() => {
@@ -305,61 +316,70 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
         console.warn("Resume error:", err);
       });
     }
-  };
+  }, []);
 
-  const togglePlay = () => {
+  const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (!audio.paused && isPlaying) {
+    if (!audio.paused) {
       audio.pause();
       setIsPlaying(false);
     } else {
-      const targetSrc = encodeURI(BIRTHDAY_PLAYLIST[currentTrackIndex].src);
-      if (!audio.src || !audio.src.endsWith(targetSrc)) {
-        audio.src = BIRTHDAY_PLAYLIST[currentTrackIndex].src;
-      }
       audio.play().then(() => {
         setIsPlaying(true);
       }).catch(err => {
         console.warn("Play error:", err);
       });
     }
-  };
+  }, []);
 
-  const seekTo = (time: number) => {
+  const seekTo = useCallback((time: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
       setProgress(time);
     }
-  };
+  }, []);
 
-  const formatTime = (secs: number) => {
+  const formatTime = useCallback((secs: number) => {
     if (isNaN(secs) || secs < 0) return '0:00';
     const m = Math.floor(secs / 60);
     const s = Math.floor(secs % 60);
     return `${m}:${s < 10 ? '0' : ''}${s}`;
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    playlist: BIRTHDAY_PLAYLIST,
+    currentTrackIndex,
+    currentTrack: BIRTHDAY_PLAYLIST[currentTrackIndex],
+    isPlaying,
+    progress,
+    duration,
+    togglePlay,
+    playTrack,
+    pauseTrack,
+    resumeTrack,
+    nextTrack: handleNext,
+    prevTrack: handlePrev,
+    seekTo,
+    formatTime
+  }), [
+    currentTrackIndex,
+    isPlaying,
+    progress,
+    duration,
+    togglePlay,
+    playTrack,
+    pauseTrack,
+    resumeTrack,
+    handleNext,
+    handlePrev,
+    seekTo,
+    formatTime
+  ]);
 
   return (
-    <BirthdayMusicContext.Provider
-      value={{
-        playlist: BIRTHDAY_PLAYLIST,
-        currentTrackIndex,
-        currentTrack,
-        isPlaying,
-        progress,
-        duration,
-        togglePlay,
-        playTrack,
-        pauseTrack,
-        resumeTrack,
-        nextTrack: handleNext,
-        prevTrack: handlePrev,
-        seekTo,
-        formatTime
-      }}
-    >
+    <BirthdayMusicContext.Provider value={contextValue}>
       {children}
     </BirthdayMusicContext.Provider>
   );

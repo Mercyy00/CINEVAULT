@@ -77,8 +77,13 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
   const [loadingMessageIdx, setLoadingMessageIdx] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Start "All I Can Say" base track automatically
+  const hasTriggeredAudio = useRef(false);
+
+  // Start "All I Can Say" base track automatically once on mount
   useEffect(() => {
+    if (hasTriggeredAudio.current) return;
+    hasTriggeredAudio.current = true;
+
     const allICanSayIdx = playlist.findIndex(t => t.title.toLowerCase().includes('all i can say'));
     const targetIdx = allICanSayIdx !== -1 ? allICanSayIdx : 0;
     
@@ -88,14 +93,11 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
     // Also trigger on first user gesture in case browser blocks un-interacted autoplay with sound
     const handleFirstGesture = () => {
       playTrack(targetIdx);
-      window.removeEventListener('click', handleFirstGesture);
-      window.removeEventListener('touchstart', handleFirstGesture);
-      window.removeEventListener('keydown', handleFirstGesture);
     };
 
-    window.addEventListener('click', handleFirstGesture, { once: true });
-    window.addEventListener('touchstart', handleFirstGesture, { once: true });
-    window.addEventListener('keydown', handleFirstGesture, { once: true });
+    window.addEventListener('click', handleFirstGesture, { once: true, passive: true });
+    window.addEventListener('touchstart', handleFirstGesture, { once: true, passive: true });
+    window.addEventListener('keydown', handleFirstGesture, { once: true, passive: true });
 
     return () => {
       window.removeEventListener('click', handleFirstGesture);
