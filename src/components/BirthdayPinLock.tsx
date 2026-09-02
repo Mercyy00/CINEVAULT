@@ -196,17 +196,17 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
   // 4-Second Cinematic Impact Loading Screen
   if (isLoadingImpact) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-foreground transition-colors duration-500 overflow-hidden relative p-6 select-none">
-        {/* Ambient background pulsing orbs */}
+      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-foreground transition-colors duration-500 overflow-hidden relative p-6 select-none transform-gpu">
+        {/* Ambient background pulsing orbs (GPU-optimized radial gradients) */}
         <div
-          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] h-[550px] sm:h-[750px] rounded-full blur-[140px] opacity-35 pointer-events-none animate-pulse"
-          style={{ background: 'var(--theme-accent, #e8852a)' }}
+          className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] h-[550px] sm:h-[750px] rounded-full opacity-25 pointer-events-none animate-pulse transform-gpu"
+          style={{
+            background: 'radial-gradient(circle, var(--theme-accent, #e8852a) 0%, transparent 70%)'
+          }}
         />
-        <div className="fixed top-12 left-12 w-64 h-64 rounded-full blur-[100px] opacity-25 pointer-events-none bg-pink-500" />
-        <div className="fixed bottom-12 right-12 w-64 h-64 rounded-full blur-[100px] opacity-25 pointer-events-none bg-purple-500" />
 
-        {/* Floating Lanterns & Sparkles during 4s loading */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden -z-5 opacity-50">
+        {/* Floating Sparkles & Lanterns */}
+        <div className="fixed inset-0 pointer-events-none overflow-hidden -z-5 opacity-40">
           <span className="absolute top-[20%] left-[15%] text-2xl animate-bounce delay-100">🏮</span>
           <span className="absolute top-[30%] right-[20%] text-2xl animate-pulse delay-300">✨</span>
           <span className="absolute bottom-[25%] left-[25%] text-2xl animate-pulse delay-500">🌸</span>
@@ -214,29 +214,29 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
         </div>
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
+          initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="max-w-md w-full flex flex-col items-center text-center relative z-10"
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="max-w-md w-full flex flex-col items-center text-center relative z-10 transform-gpu"
         >
-          {/* Centered Tangled Sun with slow glow rotation */}
+          {/* Centered Tangled Sun with smooth rotation and static radial glow */}
           <div className="relative mb-6">
             <div
-              className="absolute inset-0 rounded-full blur-2xl opacity-60 animate-pulse pointer-events-none"
-              style={{ background: 'radial-gradient(circle, #facc15 0%, #f59e0b 60%, transparent 80%)' }}
+              className="absolute -inset-4 rounded-full opacity-60 animate-pulse pointer-events-none"
+              style={{ background: 'radial-gradient(circle, #facc15 0%, #f59e0b 50%, transparent 75%)' }}
             />
             <motion.div
-              animate={{ rotate: 360, scale: [1, 1.08, 1] }}
+              animate={{ rotate: 360, scale: [1, 1.05, 1] }}
               transition={{
-                rotate: { duration: 20, repeat: Infinity, ease: 'linear' },
+                rotate: { duration: 24, repeat: Infinity, ease: 'linear' },
                 scale: { duration: 3, repeat: Infinity, ease: 'easeInOut' },
               }}
-              className="relative"
+              className="relative transform-gpu will-change-transform"
             >
               <img
                 src="/images/tangled-sun.png"
                 alt="Tangled Sun"
-                className="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-[0_0_30px_rgba(234,179,8,0.8)]"
+                className="w-28 h-28 sm:w-36 sm:h-36 object-contain drop-shadow-md"
               />
             </motion.div>
           </div>
@@ -245,7 +245,7 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
+            transition={{ delay: 0.2 }}
             className="space-y-2 mb-6"
           >
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold glass border border-amber-400/30 text-amber-300 shadow-sm">
@@ -263,7 +263,7 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
           {/* Glowing 4-Second Progress Bar */}
           <div className="w-full bg-white/10 rounded-full h-2.5 p-0.5 border border-white/10 overflow-hidden shadow-inner relative">
             <motion.div
-              className="h-full rounded-full transition-all duration-75 relative"
+              className="h-full rounded-full transition-all duration-75 relative transform-gpu"
               style={{
                 width: `${loadingProgress}%`,
                 background: 'linear-gradient(90deg, #f59e0b, #ec4899, #8b5cf6)',
@@ -277,7 +277,7 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
+            transition={{ delay: 0.4 }}
             className="mt-6 flex items-center gap-2 text-[11px] text-muted-foreground/80 glass px-3 py-1 rounded-full border border-white/10"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -289,14 +289,26 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
   }
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-background text-foreground transition-colors duration-500 overflow-x-hidden selection:bg-brand/30 selection:text-brand relative p-4 sm:p-6 lg:p-8">
-      {/* Background Ambient Glows */}
+    <div className="min-h-screen w-full flex flex-col items-center justify-between bg-background text-foreground transition-colors duration-500 overflow-x-hidden selection:bg-brand/30 selection:text-brand relative p-4 sm:p-6 lg:p-8 transform-gpu">
+      {/* Background Ambient Glows (GPU-optimized Radial Gradients) */}
       <div
-        className="fixed top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] sm:w-[700px] h-[500px] sm:h-[700px] rounded-full blur-[140px] opacity-25 pointer-events-none transition-all duration-700 -z-10"
-        style={{ background: 'var(--theme-accent, #e8852a)' }}
+        className="fixed top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] sm:w-[700px] h-[500px] sm:h-[700px] rounded-full opacity-20 pointer-events-none transition-all duration-700 -z-10 transform-gpu"
+        style={{
+          background: 'radial-gradient(circle, var(--theme-accent, #e8852a) 0%, transparent 70%)'
+        }}
       />
-      <div className="fixed bottom-10 right-10 w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full blur-[130px] opacity-15 pointer-events-none transition-all duration-700 -z-10 bg-pink-500" />
-      <div className="fixed top-10 left-10 w-[300px] h-[300px] rounded-full blur-[110px] opacity-15 pointer-events-none transition-all duration-700 -z-10 bg-purple-500" />
+      <div
+        className="fixed bottom-10 right-10 w-[350px] sm:w-[500px] h-[350px] sm:h-[500px] rounded-full opacity-15 pointer-events-none -z-10 transform-gpu"
+        style={{
+          background: 'radial-gradient(circle, #ec4899 0%, transparent 70%)'
+        }}
+      />
+      <div
+        className="fixed top-10 left-10 w-[300px] h-[300px] rounded-full opacity-15 pointer-events-none -z-10 transform-gpu"
+        style={{
+          background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)'
+        }}
+      />
 
       {/* Floating Sparkles & Hearts Background decoration */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden -z-5 opacity-40">
@@ -590,31 +602,31 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
 
       {/* Magical Tangled Golden Sun in Top-Left Sky */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.7, rotate: -20 }}
-        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        transition={{ duration: 1.2, ease: 'easeOut' }}
-        className="fixed top-12 sm:top-16 left-3 sm:left-6 md:left-10 lg:left-14 pointer-events-none z-10 select-none"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.9, ease: 'easeOut' }}
+        className="fixed top-12 sm:top-16 left-3 sm:left-6 md:left-10 lg:left-14 pointer-events-none z-10 select-none transform-gpu"
       >
-        {/* Ambient sunburst glow */}
+        {/* Static ambient radial burst (no per-frame repaint) */}
         <div
-          className="absolute inset-0 rounded-full blur-3xl opacity-50 animate-pulse pointer-events-none"
-          style={{ background: 'radial-gradient(circle, #facc15 0%, #f59e0b 50%, transparent 75%)' }}
+          className="absolute -inset-3 rounded-full opacity-45 pointer-events-none transform-gpu"
+          style={{ background: 'radial-gradient(circle, #facc15 0%, #f59e0b 45%, transparent 70%)' }}
         />
         <motion.div
           animate={{
             rotate: 360,
-            scale: [1, 1.06, 1],
+            scale: [1, 1.05, 1],
           }}
           transition={{
-            rotate: { duration: 50, repeat: Infinity, ease: 'linear' },
+            rotate: { duration: 55, repeat: Infinity, ease: 'linear' },
             scale: { duration: 4.5, repeat: Infinity, ease: 'easeInOut' },
           }}
-          className="relative"
+          className="relative transform-gpu will-change-transform"
         >
           <img
             src="/images/tangled-sun.png"
             alt="Magical Tangled Sun Emblem"
-            className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 object-contain drop-shadow-[0_0_35px_rgba(234,179,8,0.7)]"
+            className="w-20 h-20 sm:w-28 sm:h-28 md:w-36 md:h-36 lg:w-44 lg:h-44 object-contain drop-shadow-md"
             loading="eager"
           />
         </motion.div>
@@ -622,31 +634,34 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
 
       {/* Flying Sky Lanterns drifting upwards in the sky */}
       <motion.div
-        initial={{ opacity: 0, y: 50 }}
+        initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 1.4, ease: 'easeOut', delay: 0.2 }}
-        className="fixed top-16 sm:top-20 left-[16%] sm:left-[20%] md:left-[24%] pointer-events-none z-10 select-none hidden xs:block"
+        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.2 }}
+        className="fixed top-16 sm:top-20 left-[16%] sm:left-[20%] md:left-[24%] pointer-events-none z-10 select-none hidden xs:block transform-gpu"
       >
         {/* Ambient warm lantern glow */}
-        <div className="absolute inset-0 rounded-full blur-2xl bg-amber-400/25 opacity-70 animate-pulse pointer-events-none" />
+        <div
+          className="absolute inset-0 rounded-full opacity-35 pointer-events-none transform-gpu"
+          style={{ background: 'radial-gradient(circle, rgba(251, 191, 36, 0.5) 0%, transparent 70%)' }}
+        />
         
         <motion.div
           animate={{
-            y: [-14, 10, -14],
-            x: [-6, 6, -6],
-            rotate: [-2, 2, -2],
+            y: [-12, 8, -12],
+            x: [-5, 5, -5],
+            rotate: [-1.5, 1.5, -1.5],
           }}
           transition={{
             duration: 6.5,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
-          className="relative"
+          className="relative transform-gpu will-change-transform"
         >
           <img
             src="/images/tangled-lanterns.png"
             alt="Flying Tangled Sky Lanterns"
-            className="w-28 sm:w-36 md:w-48 lg:w-56 h-auto object-contain drop-shadow-[0_10px_35px_rgba(245,158,11,0.65)]"
+            className="w-28 sm:w-36 md:w-48 lg:w-56 h-auto object-contain drop-shadow-lg"
             loading="eager"
           />
         </motion.div>
@@ -654,16 +669,16 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
 
       {/* Secondary Floating Lantern Cluster (Top Right Midground) */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 0.85, y: 0 }}
-        transition={{ duration: 1.6, ease: 'easeOut', delay: 0.4 }}
-        className="fixed top-[18%] right-[22%] sm:right-[26%] md:right-[28%] lg:right-[32%] pointer-events-none z-5 select-none hidden sm:block"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 0.8, y: 0 }}
+        transition={{ duration: 1.4, ease: 'easeOut', delay: 0.3 }}
+        className="fixed top-[18%] right-[22%] sm:right-[26%] md:right-[28%] lg:right-[32%] pointer-events-none z-5 select-none hidden sm:block transform-gpu"
       >
         <motion.div
           animate={{
-            y: [8, -12, 8],
-            x: [5, -5, 5],
-            rotate: [1.5, -1.5, 1.5],
+            y: [6, -10, 6],
+            x: [4, -4, 4],
+            rotate: [1, -1, 1],
           }}
           transition={{
             duration: 8,
@@ -671,11 +686,12 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
             ease: 'easeInOut',
             delay: 1,
           }}
+          className="transform-gpu will-change-transform"
         >
           <img
             src="/images/tangled-lanterns.png"
             alt="Floating Sky Lanterns"
-            className="w-16 sm:w-24 md:w-32 h-auto opacity-75 object-contain drop-shadow-[0_0_25px_rgba(245,158,11,0.5)]"
+            className="w-16 sm:w-24 md:w-32 h-auto opacity-75 object-contain drop-shadow-md"
             loading="eager"
           />
         </motion.div>
@@ -683,36 +699,33 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
 
       {/* Romantic Tangled Boat with Lantern on the Water (Bottom Left) */}
       <motion.div
-        initial={{ opacity: 0, y: 30, scale: 0.9 }}
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 1.2, ease: 'easeOut', delay: 0.3 }}
-        className="fixed bottom-0 sm:bottom-1 left-2 sm:left-6 md:left-12 lg:left-16 pointer-events-none z-10 select-none"
+        transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }}
+        className="fixed bottom-0 sm:bottom-1 left-2 sm:left-6 md:left-12 lg:left-16 pointer-events-none z-10 select-none transform-gpu"
       >
         {/* Ambient water reflection glow */}
         <div
-          className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4/5 h-4 rounded-full blur-md opacity-40 animate-pulse pointer-events-none"
-          style={{ background: 'var(--theme-accent, #8b5cf6)' }}
+          className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-4/5 h-3 rounded-full opacity-35 pointer-events-none transform-gpu"
+          style={{ background: 'radial-gradient(ellipse, var(--theme-accent, #8b5cf6) 0%, transparent 75%)' }}
         />
-
-        {/* Bow lantern candle glow */}
-        <div className="absolute top-[28%] left-[8%] w-8 h-8 rounded-full bg-amber-400/50 blur-lg animate-pulse pointer-events-none" />
 
         <motion.div
           animate={{
-            y: [-5, 4, -5],
-            rotate: [-1.8, 1.8, -1.8],
+            y: [-4, 3, -4],
+            rotate: [-1.2, 1.2, -1.2],
           }}
           transition={{
             duration: 5.5,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
-          className="relative"
+          className="relative transform-gpu will-change-transform"
         >
           <img
             src="/images/tangled-boat.png"
             alt="Rapunzel and Eugene on Boat"
-            className="w-36 sm:w-48 md:w-60 lg:w-72 xl:w-80 h-auto object-contain drop-shadow-[0_12px_30px_rgba(0,0,0,0.8)]"
+            className="w-36 sm:w-48 md:w-60 lg:w-72 xl:w-80 h-auto object-contain drop-shadow-xl"
             loading="eager"
           />
         </motion.div>
@@ -720,25 +733,25 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
 
       {/* Fairytale Rapunzel Tower on the Right Margin (Half Visible from Right Screen Edge) */}
       <motion.div
-        initial={{ opacity: 0, x: 80, y: 10 }}
-        animate={{ opacity: 1, x: 0, y: 0 }}
-        transition={{ duration: 1.1, ease: 'easeOut', delay: 0.2 }}
-        className="fixed bottom-0 right-0 translate-x-[46%] pointer-events-none z-10 select-none flex flex-col items-center justify-end"
+        initial={{ opacity: 0, x: 50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 1.0, ease: 'easeOut', delay: 0.2 }}
+        className="fixed bottom-0 right-0 translate-x-[46%] pointer-events-none z-10 select-none flex flex-col items-center justify-end transform-gpu"
       >
         {/* Ambient backlight glow matching theme */}
         <div
-          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-48 sm:w-64 h-72 sm:h-96 rounded-full blur-3xl opacity-35 pointer-events-none transition-all duration-700 -z-10"
-          style={{ background: 'var(--theme-accent, #e8852a)' }}
+          className="absolute top-1/3 left-1/2 -translate-x-1/2 w-48 sm:w-64 h-72 sm:h-96 rounded-full opacity-25 pointer-events-none transform-gpu"
+          style={{ background: 'radial-gradient(circle, var(--theme-accent, #e8852a) 0%, transparent 70%)' }}
         />
         <motion.div
-          animate={{ y: [-3, 3, -3] }}
+          animate={{ y: [-2, 2, -2] }}
           transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-          className="relative"
+          className="relative transform-gpu will-change-transform"
         >
           <img
             src="/images/rapunzel-tower.png"
             alt="Fairytale Rapunzel Tower"
-            className="h-[60vh] sm:h-[72vh] md:h-[82vh] lg:h-[90vh] xl:h-[95vh] max-h-[950px] w-auto object-contain drop-shadow-[0_20px_50px_rgba(0,0,0,0.8)]"
+            className="h-[60vh] sm:h-[72vh] md:h-[82vh] lg:h-[90vh] xl:h-[95vh] max-h-[950px] w-auto object-contain drop-shadow-2xl"
             loading="eager"
           />
         </motion.div>
