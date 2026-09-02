@@ -27,7 +27,7 @@ const ARCADE_GAMES: ArcadeGame[] = [
     genre: "Cute Bakery & Kitty Cafe 🍕🐾",
     icon: "🐱",
     badge: "NEW GAME 🍕",
-    src: "https://f221e1d1-dcbd-496f-b713-93fb45e4ce63.gdn.poki.com/b8b86622-c2e5-4361-97a5-664ffb9c309d/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-5acd9637b25a72730bee72c735cb51b9c61c2d49&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fcat-pizza&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=4%2C64%2C91%2C145%2C277%2C388%2C839%2C1140%2C1190%2C1205&game_id=f221e1d1-dcbd-496f-b713-93fb45e4ce63&game_version_id=b8b86622-c2e5-4361-97a5-664ffb9c309d&inspector=0&csp=1",
+    src: "https://f221e1d1-dcbd-496f-b713-93fb45e4ce63.gdn.poki.com/b8b86622-c2e5-4361-97a5-664ffb9c309d/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-eb5b9e6fb73a3a274e293fe2dc1a371dfabf02de&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fcat-pizza&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=4%2C64%2C91%2C145%2C277%2C388%2C839%2C1205&ab=4cc77a0cdd5c8c2b24b987c9c7f33b9b7a9acbd3&experiment=control-56273e57&special_condition=landing&game_id=f221e1d1-dcbd-496f-b713-93fb45e4ce63&game_version_id=b8b86622-c2e5-4361-97a5-664ffb9c309d&inspector=0&csp=1",
     instructions: "Bake tasty pizzas, serve hungry feline customers, and run the cutest cat pizzeria! 🍕🐱",
     challenge: "Can you deliver the perfect piping hot pizza order for all the kitties? 😻",
     accent: "from-orange-500 to-amber-500",
@@ -35,33 +35,31 @@ const ARCADE_GAMES: ArcadeGame[] = [
     aspectClass: "w-full max-w-5xl mx-auto aspect-[16/10] sm:aspect-[16/9] min-h-[500px] max-h-[700px]"
   },
   {
-    id: "roombox-design",
-    title: "Roombox: Dream Home Design",
-    shortTitle: "Dream Home Decorator",
-    genre: "Cozy 3D Interior Decorating 🏡🎨",
+    id: "decor-life",
+    title: "Decor Life",
+    shortTitle: "Decor Life 🏡✨",
+    genre: "Cozy Room Renovation & Unpacking 🛋️📦",
     icon: "🏡",
-    badge: "COZY DECOR 🛋️",
-    src: "https://files.crazygames.com/roombox-design/14/index.html?isNewUser=false&__nextLocale=en-US&czyExpClientNexx360UserSync2_CZY_20520=ineligible&czyExpClientUnpauseVideos1_CZY_20520=ineligible&czyExpClientAdsDummyAA=ineligible&czyExpClientOptable=disabled&czyExpNewSaveProgressNotice_CZY_19240=enabled&czyExpClientSideLogging_CZY_19610=enabled&czyExpParallelPreroll_CZY_18469_3=ineligible&czyExpRenderResolution_CZY_20444=enabled",
-    instructions: "Drag & drop cute furniture, decorate walls, and design our future cozy dream home! 🛋️🪴",
-    challenge: "Can you design our dream master bedroom and cozy reading nook? 💖",
+    badge: "COZY MAKEOVER 🛋️",
+    src: "https://917d3a3c-474e-4bac-8f03-e27312b48e67.gdn.poki.com/cb86bc8e-f62b-46f7-8ebf-3943b76ea68d/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-eb5b9e6fb73a3a274e293fe2dc1a371dfabf02de&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fdecor-life&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=4%2C1014%2C1140%2C1141%2C1187%2C1190%2C20&ab=4cc77a0cdd5c8c2b24b987c9c7f33b9b7a9acbd3&experiment=control-56273e57&game_id=917d3a3c-474e-4bac-8f03-e27312b48e67&game_version_id=cb86bc8e-f62b-46f7-8ebf-3943b76ea68d&inspector=0&csp=1",
+    instructions: "Unbox packages, place furniture & accessories, and renovate dreamy aesthetic rooms! 🛋️📦✨",
+    challenge: "Can you unbox and design our dream aesthetic master bedroom and cozy nook? 💖",
     accent: "from-pink-500 to-rose-500",
     borderGlow: "shadow-[0_0_25px_rgba(236,72,153,0.5)]",
-    // Expanded wide frame for Roombox Design
-    aspectClass: "w-full max-w-5xl mx-auto h-[620px] sm:h-[720px] md:h-[780px] lg:h-[820px]"
+    aspectClass: "w-full max-w-5xl mx-auto aspect-[16/10] sm:aspect-[16/9] min-h-[500px] max-h-[720px]"
   },
   {
     id: "we-become-what-we-behold",
     title: "We Become What We Behold",
-    shortTitle: "Camera Comedy Game",
+    shortTitle: "Camera Comedy Game 📸",
     genre: "Photography & Satirical Comedy 📸",
     icon: "📸",
-    badge: "FAN FAVORITE",
-    src: "https://4041ad3f-ee25-483b-ae8b-51b16b86ac67.gdn.poki.com/c2e2e416-d187-42ef-a501-85ff9c905ad4/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-5acd9637b25a72730bee72c735cb51b9c61c2d49&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fwe-become-what-we-behold&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=6%2C7%2C37%2C91%2C1139&special_condition=landing&game_id=4041ad3f-ee25-483b-ae8b-51b16b86ac67&game_version_id=c2e2e416-d187-42ef-a501-85ff9c905ad4&inspector=0&csp=1",
+    badge: "FAN FAVORITE 📸",
+    src: "https://4041ad3f-ee25-483b-ae8b-51b16b86ac67.gdn.poki.com/c2e2e416-d187-42ef-a501-85ff9c905ad4/index.html?country=IN&ccpaApplies=0&url_referrer=https%3A%2F%2Fpoki.com%2F&tag=pg-eb5b9e6fb73a3a274e293fe2dc1a371dfabf02de&site_id=3&iso_lang=en&poki_url=https%3A%2F%2Fpoki.com%2Fen%2Fg%2Fwe-become-what-we-behold&hoist=yes&nonPersonalized=n&cloudsavegames=n&familyFriendly=n&device=desktop&categories=6%2C7%2C37%2C91%2C1139&ab=4cc77a0cdd5c8c2b24b987c9c7f33b9b7a9acbd3&experiment=control-56273e57&special_condition=landing&game_id=4041ad3f-ee25-483b-ae8b-51b16b86ac67&game_version_id=c2e2e416-d187-42ef-a501-85ff9c905ad4&inspector=0&csp=1",
     instructions: "Click & drag your camera viewfinder to snap photos of quirky characters in the square! 📸",
     challenge: "Can you snap all funny moments without bursting into giggles? 🤭",
     accent: "from-amber-500 to-rose-500",
     borderGlow: "shadow-[0_0_25px_rgba(245,158,11,0.5)]",
-    // Wide 16:9 landscape aspect ratio
     aspectClass: "w-full max-w-5xl mx-auto aspect-[16/10] sm:aspect-[16/9] min-h-[500px] max-h-[700px]"
   }
 ];
@@ -262,7 +260,7 @@ export function BirthdayArcadeSection() {
           viewport={{ once: true }}
           className="text-muted-foreground text-xs sm:text-sm font-medium leading-relaxed"
         >
-          Play <strong className="text-foreground">"Cat Pizza"</strong>, design in <strong className="text-foreground">"Dream Home Decorator"</strong>, or snap laughs in <strong className="text-foreground">"Camera Comedy"</strong>!
+          Play <strong className="text-foreground">"Cat Pizza"</strong>, renovate & design in <strong className="text-foreground">"Decor Life"</strong>, or snap laughs in <strong className="text-foreground">"Camera Comedy"</strong>!
         </motion.p>
       </div>
 
@@ -532,7 +530,7 @@ export function BirthdayArcadeSection() {
             {/* Dynamic Control Instructions */}
             <div className="flex items-center gap-2.5 p-3 rounded-xl bg-card/60 border border-border">
               <div className="w-8 h-8 rounded-lg bg-brand/15 text-brand flex items-center justify-center shrink-0">
-                {selectedGameId === 'roombox-design' ? <Palette className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+                {selectedGameId === 'decor-life' ? <Palette className="w-4 h-4" /> : selectedGameId === 'cat-pizza' ? <Gamepad2 className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
               </div>
               <div>
                 <span className="font-bold text-foreground block">How to Play:</span>
@@ -558,7 +556,7 @@ export function BirthdayArcadeSection() {
               </div>
               <div>
                 <span className="font-bold text-purple-400 block">Birthday Queen Perk:</span>
-                <span className="text-[11px] text-foreground/80 leading-snug">Unlimited rooms & free furniture unlocked! 👑</span>
+                <span className="text-[11px] text-foreground/80 leading-snug">Unlimited rooms, aesthetic items & arcade tokens unlocked! 👑</span>
               </div>
             </div>
 
