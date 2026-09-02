@@ -210,48 +210,6 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
   const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    const audio = new Audio();
-    audio.preload = 'auto';
-    audio.src = BIRTHDAY_PLAYLIST[0].src;
-    audioRef.current = audio;
-
-    const onTimeUpdate = () => {
-      setProgress(audio.currentTime);
-      if (audio.duration && !isNaN(audio.duration)) {
-        setDuration(audio.duration);
-      }
-    };
-
-    const onLoadedMetadata = () => {
-      if (audio.duration && !isNaN(audio.duration)) {
-        setDuration(audio.duration);
-      }
-    };
-
-    const onEnded = () => {
-      handleNext();
-    };
-
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('loadedmetadata', onLoadedMetadata);
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-      audio.removeEventListener('ended', onEnded);
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-    };
-  }, []);
-
   const handleNext = useCallback(() => {
     setCurrentTrackIndex((prev) => {
       const nextIdx = (prev + 1) % BIRTHDAY_PLAYLIST.length;
@@ -274,8 +232,57 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Synchronous audio instance creator ensuring audioRef is ready before any playTrack call
+  const getAudio = useCallback(() => {
+    if (!audioRef.current && typeof Audio !== 'undefined') {
+      const audio = new Audio();
+      audio.preload = 'auto';
+      audio.src = BIRTHDAY_PLAYLIST[0].src;
+      audioRef.current = audio;
+
+      const onTimeUpdate = () => {
+        setProgress(audio.currentTime);
+        if (audio.duration && !isNaN(audio.duration)) {
+          setDuration(audio.duration);
+        }
+      };
+
+      const onLoadedMetadata = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          setDuration(audio.duration);
+        }
+      };
+
+      const onEnded = () => {
+        handleNext();
+      };
+
+      const onPlay = () => setIsPlaying(true);
+      const onPause = () => setIsPlaying(false);
+
+      audio.addEventListener('timeupdate', onTimeUpdate);
+      audio.addEventListener('loadedmetadata', onLoadedMetadata);
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('play', onPlay);
+      audio.addEventListener('pause', onPause);
+    }
+    return audioRef.current;
+  }, [handleNext]);
+
+  useEffect(() => {
+    // Initialize audio instance
+    getAudio();
+
+    return () => {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+      }
+    };
+  }, [getAudio]);
+
   const playTrack = useCallback((index: number) => {
-    const audio = audioRef.current;
+    const audio = getAudio();
     if (!audio) return;
     const track = BIRTHDAY_PLAYLIST[index];
     if (!track) return;
@@ -284,7 +291,8 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
     const isCurrentSrc = audio.src.endsWith(targetSrc) || audio.src.endsWith(track.src);
 
     // If already playing this track without being paused, ignore duplicate play call!
-    if (isCurrentSrc && !audio.paused) {
+    if (isCurrentSrc && !audio.paused && !audio.ended) {
+      setIsPlaying(true);
       return;
     }
 
@@ -292,12 +300,19 @@ export function BirthdayMusicProvider({ children }: { children: ReactNode }) {
     if (!isCurrentSrc) {
       audio.src = track.src;
     }
-    audio.play().then(() => {
-      setIsPlaying(true);
-    }).catch(err => {
-      console.warn("Play error:", err);
-    });
-  }, []);
+    
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise
+        .then(() => {
+          setIsPlaying(true);
+        })
+        .catch(err => {
+          console.warn("Autoplay policy blocked instant sound:", err);
+          setIsPlaying(false);
+        });
+    }
+  }, [getAudio]);
 
   const pauseTrack = useCallback(() => {
     const audio = audioRef.current;

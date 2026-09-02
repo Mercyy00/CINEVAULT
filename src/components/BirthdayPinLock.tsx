@@ -77,13 +77,8 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
   const [loadingMessageIdx, setLoadingMessageIdx] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const hasTriggeredAudio = useRef(false);
-
-  // Start "All I Can Say" base track automatically once on mount
+  // Start "All I Can Say" base track automatically on mount
   useEffect(() => {
-    if (hasTriggeredAudio.current) return;
-    hasTriggeredAudio.current = true;
-
     const allICanSayIdx = playlist.findIndex(t => t.title.toLowerCase().includes('all i can say'));
     const targetIdx = allICanSayIdx !== -1 ? allICanSayIdx : 0;
     
@@ -97,11 +92,13 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
 
     window.addEventListener('click', handleFirstGesture, { once: true, passive: true });
     window.addEventListener('touchstart', handleFirstGesture, { once: true, passive: true });
+    window.addEventListener('pointerdown', handleFirstGesture, { once: true, passive: true });
     window.addEventListener('keydown', handleFirstGesture, { once: true, passive: true });
 
     return () => {
       window.removeEventListener('click', handleFirstGesture);
       window.removeEventListener('touchstart', handleFirstGesture);
+      window.removeEventListener('pointerdown', handleFirstGesture);
       window.removeEventListener('keydown', handleFirstGesture);
     };
   }, [playlist, playTrack]);
@@ -198,7 +195,11 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
   // 4-Second Cinematic Impact Loading Screen
   if (isLoadingImpact) {
     return (
-      <div className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-foreground transition-colors duration-500 overflow-hidden relative p-6 select-none transform-gpu">
+      <div 
+        onClick={() => playTrack(0)}
+        className="min-h-screen w-full flex flex-col items-center justify-center bg-background text-foreground transition-colors duration-500 overflow-hidden relative p-6 select-none transform-gpu cursor-pointer"
+        title="Click anywhere to start music"
+      >
         {/* Ambient background pulsing orbs (GPU-optimized radial gradients) */}
         <div
           className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] sm:w-[750px] h-[550px] sm:h-[750px] rounded-full opacity-25 pointer-events-none animate-pulse transform-gpu"
@@ -280,10 +281,19 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="mt-6 flex items-center gap-2 text-[11px] text-muted-foreground/80 glass px-3 py-1 rounded-full border border-white/10"
+            className="mt-6 flex items-center gap-2 text-[11px] text-muted-foreground/80 glass px-3.5 py-1.5 rounded-full border border-white/10 shadow-sm"
           >
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-            <span>🎵 Now Playing: <strong>Kali Uchis — All I Can Say</strong></span>
+            {isPlaying ? (
+              <>
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>🎵 Playing: <strong>Kali Uchis — All I Can Say</strong></span>
+              </>
+            ) : (
+              <>
+                <span className="w-2 h-2 rounded-full bg-pink-500 animate-pulse" />
+                <span>🎵 <strong>Kali Uchis — All I Can Say</strong> (Tap to Play)</span>
+              </>
+            )}
           </motion.div>
         </motion.div>
       </div>

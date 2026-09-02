@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Sparkles, Heart, Gift, PartyPopper, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { isBirthdayPageAccessible } from '../config/birthdayAccess';
+import { useBirthdayMusic } from '../context/BirthdayMusicContext';
 
 // Target Birthday: 2nd September 2026 00:00:00 Local Time
 const TARGET_BIRTHDAY = new Date(2026, 8, 2, 0, 0, 0); // Month is 0-indexed (8 = September)
@@ -46,6 +47,7 @@ interface Particle {
 }
 
 export function BirthdayCountdown() {
+  const { playTrack } = useBirthdayMusic();
   const [timeLeft, setTimeLeft] = useState<TimeRemaining>(calculateTimeRemaining);
   const [isHovered, setIsHovered] = useState(false);
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -315,6 +317,12 @@ export function BirthdayCountdown() {
                         triggerSparkles(20);
                         setShowCelebrationModal(false);
                         sessionStorage.setItem('cv:playBirthdayIntro', 'true');
+                        // Start playing All I Can Say base track immediately on user click gesture
+                        try {
+                          playTrack(0);
+                        } catch (err) {
+                          console.warn('Audio play on button click:', err);
+                        }
                         if (window.location.hash === '#birthday') {
                           window.dispatchEvent(new CustomEvent('trigger-birthday-lock'));
                           window.dispatchEvent(new CustomEvent('trigger-birthday-intro'));
