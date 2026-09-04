@@ -124,7 +124,18 @@ interface AppContextType {
   continueWatching: ContinueWatchingItem[];
   updateContinueWatching: (item: ContinueWatchingItem) => void;
   clearContinueWatching: () => void;
-  removeContinueWatchingItem: (id: string, mediaType?: 'movie' | 'tv' | 'anime') => void;
+  removeContinueWatchingItem: (
+    id: string,
+    mediaType?: 'movie' | 'tv' | 'anime',
+    seasonNumber?: number,
+    episodeNumber?: number
+  ) => void;
+  removeFromContinueWatching: (
+    id: string,
+    mediaType?: 'movie' | 'tv' | 'anime',
+    seasonNumber?: number,
+    episodeNumber?: number
+  ) => void;
   
   /* Multi-Profile Management */
   profiles: ProfileItem[];
@@ -736,19 +747,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [showToast]);
 
   const removeContinueWatchingItem = useCallback(
-    (id: string, mediaType?: 'movie' | 'tv' | 'anime') => {
+    (
+      id: string,
+      mediaType?: 'movie' | 'tv' | 'anime',
+      seasonNumber?: number,
+      episodeNumber?: number
+    ) => {
       setContinueWatching((previous) =>
         previous.filter((item) => {
-          if (mediaType) {
-            return !(item.id === id && item.media_type === mediaType);
-          }
-          return item.id !== id;
+          if (item.id !== id) return true;
+          if (mediaType && item.media_type !== mediaType) return true;
+          if (seasonNumber !== undefined && item.season_number !== seasonNumber) return true;
+          if (episodeNumber !== undefined && item.episode_number !== episodeNumber) return true;
+          return false;
         })
       );
-      showToast('Removed from watch history');
+      showToast('Removed from Continue Watching');
     },
     [showToast]
   );
+
+  const removeFromContinueWatching = removeContinueWatchingItem;
 
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
     setUserProfile((previous) => {
@@ -892,6 +911,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateContinueWatching,
       clearContinueWatching,
       removeContinueWatchingItem,
+      removeFromContinueWatching,
       profiles,
       activeProfileId,
       activeProfile,
@@ -943,6 +963,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       updateContinueWatching,
       clearContinueWatching,
       removeContinueWatchingItem,
+      removeFromContinueWatching,
       profiles,
       activeProfileId,
       activeProfile,

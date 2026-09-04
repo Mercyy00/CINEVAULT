@@ -545,10 +545,16 @@
     --shadow-glow: 0 0 60px rgba(225, 29, 72, 0.2);
   }
 
+  html {
+    scroll-behavior: smooth;
+    text-rendering: optimizeLegibility;
+  }
+
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     transition: background-color 0.3s ease, color 0.3s ease;
   }
 
@@ -873,201 +879,6 @@
 
 /* Reduced Motion */
 .reduced-motion * {
-  animation-duration: 0.001ms !important;
-  transition-duration: 0.001ms !important;
-}
-.reduced-motion .bg-noise,
-.reduced-motion .mix-blend-screen {
-  display: none !important;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.001ms !important;
-    transition-duration: 0.001ms !important;
-  }
-  .bg-noise,
-  .mix-blend-screen,
-  .hover-tilt,
-  .gold-ripple,
-  .particle,
-  .shimmer {
-    display: none !important;
-    animation: none !important;
-    transform: none !important;
-  }
-}
-
-/* Screen reader only utility (completely hidden visually until focused) */
-.sr-only,
-.skip-link {
-  position: absolute !important;
-  width: 1px !important;
-  height: 1px !important;
-  padding: 0 !important;
-  margin: -1px !important;
-  overflow: hidden !important;
-  clip: rect(0, 0, 0, 0) !important;
-  white-space: nowrap !important;
-  border-width: 0 !important;
-}
-
-.sr-only:focus,
-.sr-only:focus-visible,
-.skip-link:focus,
-.skip-link:focus-visible {
-  position: fixed !important;
-  width: auto !important;
-  height: auto !important;
-  padding: 0.5rem 1rem !important;
-  margin: 0 !important;
-  overflow: visible !important;
-  clip: auto !important;
-  white-space: normal !important;
-  top: 1rem !important;
-  left: 1rem !important;
-  z-index: 99999 !important;
-}
-
-/* ═══════════════════════════════════════════════════════
-   KINETIC TYPOGRAPHY UTILITIES
-   ═══════════════════════════════════════════════════════ */
-@keyframes shimmerText {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
-}
-
-.gradient-text {
-  background: linear-gradient(135deg, #e8852a, #ff4d6d, #f5a623);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.gradient-text-shimmer {
-  background: linear-gradient(90deg, #e8852a, #ff4d6d, #f5a623, #e8852a, #ff4d6d);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmerText 3s linear infinite;
-}
-
-.glow-gold {
-  text-shadow: 0 0 20px rgba(232, 133, 42, 0.5), 0 0 40px rgba(232, 133, 42, 0.3);
-}
-
-.glow-rose {
-  text-shadow: 0 0 20px rgba(255, 77, 109, 0.5), 0 0 40px rgba(255, 77, 109, 0.3);
-}
-
-.glow-both {
-  text-shadow: 0 0 20px rgba(232, 133, 42, 0.4), 0 0 30px rgba(255, 77, 109, 0.4), 0 0 60px rgba(232, 133, 42, 0.2);
-}
-
-/* ═══════════════════════════════════════════════════════
-   AGENCY-TIER DOUBLE-BEZEL & GLASS HARDWARE UTILITIES
-   ═══════════════════════════════════════════════════════ */
-.double-bezel-card {
-  position: relative;
-  border-radius: 1.25rem;
-  padding: 2px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.18) 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    rgba(232, 133, 42, 0.25) 100%
-  );
-  box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.65);
-  transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-}
-
-.double-bezel-card:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.35) 0%,
-    rgba(232, 133, 42, 0.4) 50%,
-    rgba(255, 208, 102, 0.3) 100%
-  );
-  box-shadow: 0 20px 48px -12px var(--theme-accent-glow, rgba(232, 133, 42, 0.45));
-}
-
-.double-bezel-inner {
-  border-radius: calc(1.25rem - 2px);
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
-}
-
-/* Specular Sheen on Hover */
-.sheen-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.12) 45%,
-    rgba(255, 255, 255, 0.22) 50%,
-    rgba(255, 255, 255, 0.12) 55%,
-    transparent 80%
-  );
-  transform: translateX(-100%) skewX(-15deg);
-  transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 15;
-}
-
-.group:hover .sheen-layer {
-  transform: translateX(100%) skewX(-15deg);
-}
-
-/* Horizontal Row Edge Fade Masks */
-.row-edge-mask {
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 3%,
-    black 97%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    black 3%,
-    black 97%,
-    transparent 100%
-  );
-}
-
-/* Ambient Stage Glow Orbs */
-.ambient-glow-orb {
-  position: absolute;
-  border-radius: 9999px;
-  filter: blur(80px);
-  pointer-events: none;
-  opacity: 0.4;
-  animation: pulse-glow 8s ease-in-out infinite alternate;
-}
-
-@keyframes pulse-glow {
-  0% { transform: scale(1) translate(0, 0); opacity: 0.3; }
-  100% { transform: scale(1.15) translate(10px, -15px); opacity: 0.55; }
-}
-
-/* ═══════════════════════════════════════════════════════
-   NETFLIX-STYLE "TOP 10" OVERSIZED NUMERAL TYPOGRAPHY
-   ═══════════════════════════════════════════════════════ */
-.top10-numeral {
-  font-family: Impact, 'Arial Black', 'Trebuchet MS', sans-serif;
-  font-weight: 900;
-  line-height: 0.78;
-  letter-spacing: -0.06em;
-  color: #0b0c12;
-  -webkit-text-stroke: 3.5px rgba(255, 255, 255, 0.4);
-  text-shadow: 
-    0 12px 28px rgba(0, 0, 0, 0.95),
-    0 0 20px var(--theme-accent-glow, rgba(232, 133, 42, 0.25));
-  filter: drop-shadow(4px 4px 0px rgba(0, 0, 0, 0.85));
   animation-duration: 0.001ms !important;
   transition-duration: 0.001ms !important;
 }

@@ -202,6 +202,12 @@ export function getUserAvatarUrl(avatarIdOrUrl?: string, fallbackSeed: string = 
   return getDiceBearUrl('constellation', avatarIdOrUrl || fallbackSeed);
 }
 
+export function getFallbackAvatarDataUri(name: string = 'Cinephile', color: string = '#e8852a'): string {
+  const initial = (name.trim().charAt(0) || 'C').toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${color}"/><stop offset="100%" stop-color="#12131b"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g)"/><text x="50" y="62" font-size="44" font-family="system-ui,-apple-system,sans-serif" font-weight="900" fill="#ffffff" text-anchor="middle">${initial}</text></svg>`;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
 export function getAvatarPreset(id?: string): UserAvatar {
   return PRESET_AVATARS.find((a) => a.id === id) || PRESET_AVATARS[0];
 }

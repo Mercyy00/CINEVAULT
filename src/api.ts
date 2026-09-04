@@ -520,7 +520,9 @@ export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'
           trailerCache.set(cacheKey, cleanId);
           return cleanId;
         }
-      } catch {}
+      } catch {
+        // Suppress Kitsu fetch errors
+      }
 
       // 2. Fallback to TMDB tv/movie search or videos if numeric ID
       if (/^\d+$/.test(id)) {
@@ -533,7 +535,9 @@ export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'
             trailerCache.set(cacheKey, yt.key);
             return yt.key;
           }
-        } catch {}
+        } catch {
+          // Suppress fallback errors
+        }
       }
 
       trailerCache.set(cacheKey, null);
@@ -579,7 +583,9 @@ export async function prefetchMovieDetails(type: 'movie' | 'tv' | 'anime', id: s
       }
     }
     void getVideoTrailer(id, type).catch(() => {});
-  } catch {}
+  } catch {
+    // Suppress prefetch errors
+  }
 }
 
 export type { Quality };

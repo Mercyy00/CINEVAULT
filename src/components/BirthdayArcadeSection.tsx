@@ -118,7 +118,7 @@ export function BirthdayArcadeSection() {
     messages.forEach(msg => {
       try {
         iframe.contentWindow?.postMessage(msg, '*');
-      } catch (e) {
+      } catch {
         // Ignore cross-origin SOP restrictions
       }
     });
@@ -132,7 +132,7 @@ export function BirthdayArcadeSection() {
           if (muted) media.pause();
         });
       }
-    } catch (e) {
+    } catch {
       // Cross-origin expected
     }
   };

@@ -1,13 +1,13 @@
 import React, { useRef } from 'react';
 import { motion } from 'motion/react';
-import { Play } from 'lucide-react';
+import { Play, X } from 'lucide-react';
 import { useApp } from '../store';
 import { api } from '../api';
 
 import { PosterImage } from './PosterImage';
 
 export function ContinueWatchingRow() {
-  const { continueWatching } = useApp();
+  const { continueWatching, removeContinueWatchingItem } = useApp();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Touch drag variables
@@ -123,9 +123,28 @@ export function ContinueWatchingRow() {
               )}
             </div>
 
+            {/* Quick Remove Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                removeContinueWatchingItem(
+                  item.id,
+                  item.media_type,
+                  item.season_number,
+                  item.episode_number
+                );
+              }}
+              className="absolute top-2.5 right-2.5 z-30 w-7 h-7 rounded-full bg-black/75 hover:bg-rose-600 text-white/80 hover:text-white backdrop-blur-md border border-white/20 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 hover:scale-110 shadow-lg cursor-pointer"
+              title="Remove from Continue Watching"
+              aria-label={`Remove ${item.title} from Continue Watching`}
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+
             {/* Progress Percentage Badge */}
             {item.progress_percentage > 0 && (
-              <div className="absolute top-2.5 right-2.5 z-10 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-brand shadow-sm">
+              <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-brand shadow-sm">
                 {Math.round(item.progress_percentage)}%
               </div>
             )}

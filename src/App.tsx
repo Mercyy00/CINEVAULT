@@ -19,6 +19,7 @@ import { goToDetail } from './lib/navigation';
 import { isBirthdayVisible, rememberBirthdayUnlock } from './config/birthdayAccess';
 
 import { ROUTE_SEO, updateSeoMetadata } from './lib/seo';
+import { BackToTop } from './components/BackToTop';
 
 const MovieDetail = lazy(() =>
   import('./components/MovieDetail').then((m) => ({ default: m.MovieDetail }))
@@ -193,6 +194,14 @@ function AppContent() {
     sessionStorage.setItem(INTRO_KEY, 'true');
   }, []);
 
+  const safeDecode = (str: string) => {
+    try {
+      return decodeURIComponent(str);
+    } catch {
+      return str;
+    }
+  };
+
   useEffect(() => {
     const handleHashChange = () => {
       let hash = window.location.hash.replace('#', '') || '';
@@ -206,7 +215,7 @@ function AppContent() {
       }
       if (hash.startsWith('search/')) {
         setCurrentRoute('search');
-        setSearchQuery(decodeURIComponent(hash.replace('search/', '')));
+        setSearchQuery(safeDecode(hash.replace('search/', '')));
         setLastBaseRoute('search');
       } else {
         if (hash !== 'profile') setLastBaseRoute(hash);
@@ -825,6 +834,9 @@ function AppContent() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Floating Back to Top */}
+        <BackToTop />
 
         <div
           className="fixed bottom-24 right-6 z-[200] flex flex-col gap-2"

@@ -34,7 +34,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   }, [type, country]);
 
   useEffect(() => {
-    let filters: any = { type, country };
+    const filters: any = { type, country };
     if (providerId) filters.providerId = providerId;
 
     if (type === 'anime') {

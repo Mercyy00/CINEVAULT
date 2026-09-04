@@ -144,7 +144,7 @@ export const watchTrackingService = {
           ? setDoc(doc(db, 'users', session.uid, 'history', sessionId), fullSession, { merge: true })
           : Promise.resolve(),
       ]);
-    } catch (error) {
+    } catch {
       // Allow the next tick to retry rather than pinning the throttle window.
       lastWriteAt.delete(sessionId);
       // Suppress unhandled crash logs if offline or network failure

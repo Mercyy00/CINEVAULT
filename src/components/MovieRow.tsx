@@ -201,7 +201,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
   const handleDragMove = (event: React.MouseEvent | React.TouchEvent) => {
     const element = rowRef.current;
     if (!isDown.current || !element) return;
-    element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 2;
+    element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 1.15;
   };
 
   // Calculate horizontal sibling shift when an item expands in landscape mode
@@ -331,7 +331,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           onTouchStart={handleDragStart}
           onTouchEnd={handleDragEnd}
           onTouchMove={handleDragMove}
-          className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none px-4 sm:px-8 lg:px-12 pt-14 pb-20 -my-10 snap-x select-none list-none m-0"
+          className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-14 pb-20 -my-10 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
             <motion.li

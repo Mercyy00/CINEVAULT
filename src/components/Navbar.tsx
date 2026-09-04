@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
-import { getUserAvatarUrl } from '../lib/avatars';
+import { getUserAvatarUrl, getFallbackAvatarDataUri } from '../lib/avatars';
 import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users } from 'lucide-react';
 import { BirthdayCountdown } from './BirthdayCountdown';
 import { isBirthdayCountdownVisible } from '../config/birthdayAccess';
@@ -564,6 +564,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 src={getUserAvatarUrl(activeProfile.avatar, activeProfile.name || 'Cinephile')}
                 alt="Profile Avatar"
                 className="w-full h-full object-contain rounded-full"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getFallbackAvatarDataUri(activeProfile.name);
+                }}
               />
               {isKidsMode && (
                 <span className="absolute -bottom-0.5 -right-0.5 px-1 py-px bg-pink-500 text-[8px] font-black text-white rounded-full leading-none shadow">
@@ -588,6 +592,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         src={getUserAvatarUrl(activeProfile.avatar, activeProfile.name || 'Cinephile')}
                         alt="User Avatar"
                         className="w-full h-full object-contain"
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = getFallbackAvatarDataUri(activeProfile.name);
+                        }}
                       />
                       {isKidsMode && (
                         <div className="absolute top-0.5 left-0.5 px-1 py-px rounded bg-pink-500 text-[7px] font-black text-white uppercase">
@@ -647,6 +655,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                               src={getUserAvatarUrl(p.avatar, p.name)}
                               alt={p.name}
                               className="w-full h-full object-contain"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = getFallbackAvatarDataUri(p.name);
+                              }}
                             />
                             {p.isKids && (
                               <span className="absolute bottom-0 right-0 w-2 h-2 bg-pink-500 rounded-full" />

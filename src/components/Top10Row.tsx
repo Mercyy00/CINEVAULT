@@ -131,7 +131,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDown.current || !rowRef.current) return;
     const x = e.pageX - rowRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.5;
+    const walk = (x - startX.current) * 1.15;
     rowRef.current.scrollLeft = scrollLeftState.current - walk;
   };
 
@@ -227,7 +227,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
           onMouseLeave={handleMouseLeave}
           onMouseUp={handleMouseUp}
           onMouseMove={handleMouseMove}
-          className="flex gap-3 sm:gap-6 overflow-x-auto scrollbar-none px-4 sm:px-8 lg:px-12 pt-16 pb-20 -my-10 snap-x select-none list-none m-0 items-end"
+          className="flex gap-3 sm:gap-6 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-16 pb-20 -my-10 snap-x select-none list-none m-0 items-end will-change-scroll"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;

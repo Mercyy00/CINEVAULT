@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe, SkipForward } from 'lucide-react';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward, AlertTriangle } from 'lucide-react';
 import { kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -15,6 +15,16 @@ interface AnimeServerOption {
   name: string;
   quality: string;
   tag: string;
+}
+
+function formatSeconds(totalSec: number): string {
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = Math.floor(totalSec % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
 const ANIME_SERVERS: AnimeServerOption[] = [
@@ -53,10 +63,13 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   
   const [isLoading, setIsLoading] = useState(true);
   const [isServerLoading, setIsServerLoading] = useState(false);
+  const [isServerSlow, setIsServerSlow] = useState(false);
   const [currentIframeSrc, setCurrentIframeSrc] = useState<string>('');
 
   const [showControls, setShowControls] = useState(true);
   const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const serverSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const progressRef = useRef<PlaybackProgress>({
     positionSeconds: 0,
@@ -70,14 +83,23 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const nextEpisodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasDismissedNextPrompt = useRef(false);
 
+  const [restoredPosition, setRestoredPosition] = useState<number | null>(null);
+  const [restartPromptDismissed, setRestartPromptDismissed] = useState(false);
+
   useEffect(() => {
     hasDismissedNextPrompt.current = false;
     setShowNextEpisode(false);
     setNextCountdown(NEXT_EPISODE_SECONDS);
+    setRestartPromptDismissed(false);
   }, [id, episode]);
 
   const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: AnimeServerId = server, malId?: string, title?: string) => {
     setIsServerLoading(true);
+    setIsServerSlow(false);
+    if (serverSlowTimerRef.current) clearTimeout(serverSlowTimerRef.current);
+    serverSlowTimerRef.current = setTimeout(() => {
+      setIsServerSlow(true);
+    }, 12_000);
     setCurrentIframeSrc('about:blank');
     
     setTimeout(async () => {
@@ -281,8 +303,13 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         initialPosition = match.position_seconds || (match.progress_percentage ? Math.round((match.progress_percentage / 100) * defaultDuration) : 0);
         initialDuration = match.duration_seconds || defaultDuration;
         initialPercentage = match.progress_percentage || 0;
+        if (initialPosition > 30 && initialPercentage < 92) {
+          setRestoredPosition(initialPosition);
+        }
       }
-    } catch {}
+    } catch {
+      // Ignore initial position restore errors
+    }
 
     progressRef.current = {
       positionSeconds: initialPosition,
@@ -337,7 +364,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           episode_number: selectedEpisode.episode || selectedEpisode.number,
           progress_percentage: percentage,
           timestamp: Date.now(),
-          position_seconds: positionSeconds,
+          position_seconds: Math.round(positionSeconds),
           duration_seconds: durationSeconds,
           mal_id: movie.malId,
         });
@@ -367,6 +394,119 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
       flushProgress();
     };
   }, [movie?.id, selectedEpisode?.episode, updateContinueWatching, userProfile.uid]);
+
+  const handleStartOver = () => {
+    setRestoredPosition(null);
+    setRestartPromptDismissed(true);
+    progressRef.current = {
+      positionSeconds: 0,
+      durationSeconds: progressRef.current.durationSeconds,
+      percentage: 0,
+    };
+    if (movie && selectedEpisode) {
+      updateContinueWatching({
+        id: movie.id,
+        media_type: 'anime',
+        title: movie.title,
+        poster_path: movie.posterUrl || '',
+        backdrop_path: movie.backdropUrl || '',
+        episode_number: selectedEpisode.episode || selectedEpisode.number,
+        progress_percentage: 0,
+        timestamp: Date.now(),
+        position_seconds: 0,
+        duration_seconds: progressRef.current.durationSeconds,
+        mal_id: movie.malId,
+      });
+      updateIframeSrc(selectedEpisode.episode || selectedEpisode.number, language, server, movie.malId, movie.title);
+    }
+  };
+
+  useEffect(() => {
+    if (restoredPosition && restoredPosition > 30 && !restartPromptDismissed) {
+      const timer = window.setTimeout(() => {
+        setRestartPromptDismissed(true);
+      }, 9000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [restoredPosition, restartPromptDismissed]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
+      if (target?.isContentEditable) return;
+
+      if (event.key === 's' || event.key === 'S') {
+        setSidebarOpen((open) => !open);
+      } else if (event.key === 'f' || event.key === 'F') {
+        const rootEl = containerRef.current || iframeRef.current;
+        if (!rootEl) return;
+        if (document.fullscreenElement) {
+          void document.exitFullscreen();
+        } else {
+          rootEl.requestFullscreen().catch(() => {
+            iframeRef.current?.requestFullscreen().catch((cause) => console.error('Fullscreen denied:', cause));
+          });
+        }
+      } else if (event.key === 'n' || event.key === 'N') {
+        const currentIndex = episodes.findIndex((e) => e.episode === selectedEpisode?.episode);
+        if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
+          const nextEp = episodes[currentIndex + 1];
+          if (nextEp) handleEpisodeChange(nextEp);
+        }
+      } else if (event.key === 'm' || event.key === 'M') {
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ event: 'command', func: 'toggleMute' }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === 'ArrowRight' || event.key === 'l' || event.key === 'L') {
+        const nextPos = (progressRef.current.positionSeconds || 0) + 10;
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ type: 'SEEK', data: nextPos }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === 'ArrowLeft' || event.key === 'j' || event.key === 'J') {
+        const prevPos = Math.max(0, (progressRef.current.positionSeconds || 0) - 10);
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ type: 'SEEK', data: prevPos }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === ' ' || event.key === 'k' || event.key === 'K') {
+        event.preventDefault();
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ type: 'TOGGLE_PLAY' }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === 'Escape') {
+        if (sidebarOpen) {
+          setSidebarOpen(false);
+        } else if (showNextEpisode) {
+          setShowNextEpisode(false);
+          hasDismissedNextPrompt.current = true;
+        } else if (!restartPromptDismissed) {
+          setRestartPromptDismissed(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [episodes, selectedEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
 
   // PostMessage handler for live watch telemetry and auto-next prompt
   useEffect(() => {
@@ -573,6 +713,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
 
   return (
     <div 
+      ref={containerRef}
       className="fixed inset-0 w-full h-full bg-black z-50 flex"
       onMouseMove={handlePointerMove}
       onTouchStart={handlePointerMove}
@@ -653,7 +794,21 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
       </AnimatePresence>
 
       {/* Video Container */}
-      <div className="w-full h-full relative bg-black">
+      <div className="w-full h-full relative bg-black overflow-hidden">
+        {/* Dynamic Ambilight Theatre Glow */}
+        {movie && (movie.backdropUrl || movie.posterUrl) && (
+          <div
+            className="absolute inset-0 overflow-hidden pointer-events-none -z-10 opacity-30 filter blur-[95px] scale-110 select-none transition-opacity duration-1000"
+            aria-hidden="true"
+          >
+            <img
+              src={(movie.backdropUrl || movie.posterUrl) ?? undefined}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
         <iframe
           ref={iframeRef}
           key={`${server}-${language}-${selectedEpisode?.episode || episode}-${movie?.id}`}
@@ -666,8 +821,49 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
           referrerPolicy="no-referrer-when-downgrade"
-          onLoad={() => setIsServerLoading(false)}
+          onLoad={() => {
+            setIsServerLoading(false);
+            setIsServerSlow(false);
+            if (serverSlowTimerRef.current) clearTimeout(serverSlowTimerRef.current);
+          }}
         />
+
+        {/* Resumption Prompt Overlay */}
+        <AnimatePresence>
+          {restoredPosition &&
+            restoredPosition > 30 &&
+            !restartPromptDismissed && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.25 }}
+                className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3 max-w-[92vw]"
+                role="status"
+              >
+                <div className="w-2 h-2 rounded-full bg-brand animate-pulse shrink-0" />
+                <p className="text-xs sm:text-sm text-foreground font-medium">
+                  Resumed at <span className="text-brand font-mono font-bold">{formatSeconds(restoredPosition)}</span>
+                </p>
+                <div className="h-3.5 w-px bg-white/20 shrink-0" />
+                <button
+                  type="button"
+                  onClick={handleStartOver}
+                  className="text-xs font-bold text-brand hover:underline shrink-0 cursor-pointer"
+                >
+                  Start Over (0:00)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRestartPromptDismissed(true)}
+                  aria-label="Dismiss resumption alert"
+                  className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            )}
+        </AnimatePresence>
         
         {/* Loading Overlay */}
         <AnimatePresence>
@@ -686,6 +882,54 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
                 </div>
               </div>
               <p className="text-foreground/60 text-sm mt-4 tracking-widest uppercase font-medium animate-pulse">Loading Episode...</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Honest slow-server warning with 1-click fallback pills */}
+        <AnimatePresence>
+          {isServerSlow && isServerLoading && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw] sm:max-w-2xl bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4"
+              role="status"
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">
+                    {ANIME_SERVERS.find((s) => s.id === server)?.name || 'Server'}
+                  </span>{' '}
+                  is taking a while to load.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
+                {ANIME_SERVERS.filter((s) => s.id !== server).map((alt) => (
+                  <button
+                    key={alt.id}
+                    type="button"
+                    onClick={() => {
+                      setServer(alt.id);
+                      if (selectedEpisode) {
+                        updateIframeSrc(
+                          selectedEpisode.episode || selectedEpisode.number,
+                          language,
+                          alt.id,
+                          movie?.malId,
+                          movie?.title
+                        );
+                      }
+                    }}
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 transition-all cursor-pointer"
+                    title={`Switch to ${alt.name}`}
+                  >
+                    {alt.name.split(' ')[0]}
+                  </button>
+                ))}
+              </div>
             </motion.div>
           )}
         </AnimatePresence>

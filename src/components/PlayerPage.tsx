@@ -52,6 +52,16 @@ interface PlaybackProgress {
   percentage: number;
 }
 
+function formatSeconds(totalSec: number): string {
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = Math.floor(totalSec % 60);
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const { updateContinueWatching, continueWatching, userProfile } = useApp();
 
@@ -82,6 +92,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const [nextCountdown, setNextCountdown] = useState(NEXT_EPISODE_SECONDS);
   const hasDismissedNextPrompt = useRef(false);
 
+  const [restartPromptDismissed, setRestartPromptDismissed] = useState(false);
+  const [forceStartFromBeginning, setForceStartFromBeginning] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeout = useRef<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const progressRef = useRef<PlaybackProgress>({
@@ -108,6 +122,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     hasDismissedNextPrompt.current = false;
     setShowNextEpisode(false);
     setNextCountdown(NEXT_EPISODE_SECONDS);
+    setRestartPromptDismissed(false);
+    setForceStartFromBeginning(false);
   }, [selectedEpisode?.id, selectedSeason, id]);
 
   /* ---------------------------------------------------------------------- */
@@ -233,6 +249,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
   const resolvedImdbId = imdbId || movie?.imdbId || '';
   const missingImdbId = Boolean(source.requiresImdbId) && !resolvedImdbId;
+  const effectiveProgress = forceStartFromBeginning ? undefined : (restored?.position_seconds || undefined);
 
   const embedSrc = useMemo(() => {
     if (!movie || missingImdbId) return '';
@@ -242,10 +259,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       season: seasonNumber,
       episode: episodeNumber,
       imdbId: resolvedImdbId || undefined,
-      progress: restored?.position_seconds || undefined,
+      progress: effectiveProgress,
     });
     // `retryToken` intentionally participates so "Try again" remounts the frame.
-  }, [movie, missingImdbId, type, source, id, seasonNumber, episodeNumber, resolvedImdbId, restored?.position_seconds]);
+  }, [movie, missingImdbId, type, source, id, seasonNumber, episodeNumber, resolvedImdbId, effectiveProgress]);
 
   useEffect(() => {
     if (!embedSrc) {
@@ -258,6 +275,27 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     }, EMBED_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
   }, [embedSrc, retryToken]);
+
+  const handleStartOver = useCallback(() => {
+    setForceStartFromBeginning(true);
+    setRestartPromptDismissed(true);
+    progressRef.current = {
+      positionSeconds: 0,
+      durationSeconds: runtimeSeconds,
+      percentage: 0,
+    };
+    persistRef.current(progressRef.current, true);
+    setRetryToken((val) => val + 1);
+  }, [runtimeSeconds]);
+
+  useEffect(() => {
+    if (restored && restored.position_seconds > 30 && !restartPromptDismissed && !forceStartFromBeginning) {
+      const timer = window.setTimeout(() => {
+        setRestartPromptDismissed(true);
+      }, 9000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [restored, restartPromptDismissed, forceStartFromBeginning]);
 
   const persist = useCallback(
     (progress: PlaybackProgress, flush: boolean) => {
@@ -527,22 +565,70 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       if (event.key === 's' || event.key === 'S') {
         setSidebarOpen((open) => !open);
       } else if (event.key === 'f' || event.key === 'F') {
-        const frame = iframeRef.current;
-        if (!frame) return;
+        const rootEl = containerRef.current || iframeRef.current;
+        if (!rootEl) return;
         if (document.fullscreenElement) {
           void document.exitFullscreen();
         } else {
-          frame.requestFullscreen().catch((cause) => console.error('Fullscreen denied:', cause));
+          rootEl.requestFullscreen().catch(() => {
+            iframeRef.current?.requestFullscreen().catch((cause) => console.error('Fullscreen denied:', cause));
+          });
         }
       } else if ((event.key === 'n' || event.key === 'N') && nextEpisode) {
         goToEpisode(nextEpisode);
-      } else if (event.key === 'Escape' && sidebarOpen) {
-        setSidebarOpen(false);
+      } else if (event.key === 'm' || event.key === 'M') {
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ event: 'command', func: 'toggleMute' }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === 'ArrowRight' || event.key === 'l' || event.key === 'L') {
+        const nextPos = (progressRef.current.positionSeconds || 0) + 10;
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ type: 'SEEK', data: nextPos }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === 'ArrowLeft' || event.key === 'j' || event.key === 'J') {
+        const prevPos = Math.max(0, (progressRef.current.positionSeconds || 0) - 10);
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ type: 'SEEK', data: prevPos }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === ' ' || event.key === 'k' || event.key === 'K') {
+        event.preventDefault();
+        try {
+          iframeRef.current?.contentWindow?.postMessage(
+            JSON.stringify({ type: 'TOGGLE_PLAY' }),
+            '*'
+          );
+        } catch {
+          // Ignore cross-origin iframe postMessage dispatch failure
+        }
+      } else if (event.key === 'Escape') {
+        if (sidebarOpen) {
+          setSidebarOpen(false);
+        } else if (showNextEpisode) {
+          setShowNextEpisode(false);
+          hasDismissedNextPrompt.current = true;
+        } else if (!restartPromptDismissed) {
+          setRestartPromptDismissed(true);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [nextEpisode, goToEpisode, sidebarOpen]);
+  }, [nextEpisode, goToEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
 
   /* ---------------------------------------------------------------------- */
   /* Render                                                                 */
@@ -610,6 +696,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
   return (
     <div
+      ref={containerRef}
       className="fixed inset-0 w-full h-full bg-black z-50 flex"
       onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
@@ -703,7 +790,21 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       </AnimatePresence>
 
       {/* Video */}
-      <div className="w-full h-full relative bg-black">
+      <div className="w-full h-full relative bg-black overflow-hidden">
+        {/* Dynamic Ambilight Theatre Glow */}
+        {movie && (movie.backdropUrl || movie.posterUrl) && (
+          <div
+            className="absolute inset-0 overflow-hidden pointer-events-none -z-10 opacity-30 filter blur-[95px] scale-110 select-none transition-opacity duration-1000"
+            aria-hidden="true"
+          >
+            <img
+              src={(movie.backdropUrl || movie.posterUrl) ?? undefined}
+              alt=""
+              className="w-full h-full object-cover"
+            />
+          </div>
+        )}
+
         {embedSrc && (
           <iframe
             key={`${source.id}-${embedSrc}-${retryToken}`}
@@ -719,6 +820,45 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
           />
         )}
+
+        {/* Resumption Prompt Overlay */}
+        <AnimatePresence>
+          {restored &&
+            restored.position_seconds > 30 &&
+            (restored.progress_percentage || 0) < 92 &&
+            !restartPromptDismissed &&
+            !forceStartFromBeginning && (
+              <motion.div
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                transition={{ duration: 0.25 }}
+                className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3 max-w-[92vw]"
+                role="status"
+              >
+                <div className="w-2 h-2 rounded-full bg-brand animate-pulse shrink-0" />
+                <p className="text-xs sm:text-sm text-foreground font-medium">
+                  Resumed at <span className="text-brand font-mono font-bold">{formatSeconds(restored.position_seconds)}</span>
+                </p>
+                <div className="h-3.5 w-px bg-white/20 shrink-0" />
+                <button
+                  type="button"
+                  onClick={handleStartOver}
+                  className="text-xs font-bold text-brand hover:underline shrink-0 cursor-pointer"
+                >
+                  Start Over (0:00)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRestartPromptDismissed(true)}
+                  aria-label="Dismiss resumption alert"
+                  className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </motion.div>
+            )}
+        </AnimatePresence>
 
         {/* Loading / unavailable overlay */}
         <AnimatePresence>
@@ -759,34 +899,52 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           )}
         </AnimatePresence>
 
-        {/* Honest slow-source warning, replacing the fake 1s spinner. */}
+        {/* Honest slow-source warning with 1-click fallback pills */}
         <AnimatePresence>
           {embedState === 'slow' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[90vw] bg-card/95 backdrop-blur-xl border border-white/10 rounded-xl px-4 py-3 flex items-center gap-3"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw] sm:max-w-2xl bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4"
               role="status"
             >
-              <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
-              <p className="text-xs sm:text-sm text-muted-foreground">
-                {source.name} is taking a while. It may be blocked or down.
-              </p>
-              <button
-                type="button"
-                onClick={() => setRetryToken((value) => value + 1)}
-                className="text-xs font-bold text-brand hover:underline shrink-0"
-              >
-                Retry
-              </button>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="text-xs font-bold text-foreground hover:underline shrink-0"
-              >
-                Change source
-              </button>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
+                <p className="text-xs sm:text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{source.name}</span> is taking a while.
+                </p>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setRetryToken((value) => value + 1)}
+                  className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white/10 text-brand hover:bg-white/15 transition-colors cursor-pointer"
+                >
+                  Retry
+                </button>
+                {STREAM_SOURCES.filter((s) => s.id !== source.id && s.status !== 'maintenance')
+                  .slice(0, 3)
+                  .map((alt) => (
+                    <button
+                      key={alt.id}
+                      type="button"
+                      onClick={() => handleSourceChange(alt)}
+                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 transition-all cursor-pointer"
+                      title={`Switch to ${alt.name}`}
+                    >
+                      {alt.name.split(' ')[0]}
+                    </button>
+                  ))}
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="text-xs font-bold text-muted-foreground hover:text-foreground underline sm:no-underline cursor-pointer"
+                >
+                  More
+                </button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
