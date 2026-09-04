@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import FocusLock from 'react-focus-lock';
-import { ArrowRight, Clock, Search, Star, Trash2, TrendingUp, X } from 'lucide-react';
+import { ArrowRight, Clock, Search, Sparkles, Star, Trash2, TrendingUp, X } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
 import { api, kitsuApi } from '../api';
 import { formatRating, type Movie } from '../types';
@@ -23,6 +23,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebounce(query, 300);
   const [results, setResults] = useState<Movie[]>([]);
+  const [activeTab, setActiveTab] = useState<'all' | 'anime' | 'movie' | 'tv'>('all');
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState<string[]>(() =>
     readJSON<string[]>(HISTORY_KEY, [], (value) => Array.isArray(value))
@@ -57,6 +58,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     if (isOpen) return;
     setQuery('');
     setResults([]);
+    setActiveTab('all');
   }, [isOpen]);
 
   useEffect(() => {
@@ -78,21 +80,47 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
 
     let active = true;
     setSearching(true);
+    setActiveTab('all');
 
     Promise.all([
-      api.searchMulti(term).catch(() => ({ results: [], total_pages: 0 })),
-      kitsuApi.search(term).catch(() => ({ data: [], included: [] })),
+      api.searchMulti(term, 1).catch(() => ({ results: [], total_pages: 0 })),
+      kitsuApi.search(term, 20).catch(() => ({ data: [], included: [] })),
     ])
       .then(([tmdb, kitsu]) => {
         if (!active) return;
-        const fromTmdb: Movie[] = tmdb.results
+        const fromTmdb: Movie[] = (tmdb.results ?? [])
           .filter((item) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path))
-          .slice(0, 6)
           .map(api.mapToInternalMovie);
         const fromKitsu: Movie[] = (kitsu.data ?? [])
-          .slice(0, 4)
           .map((item) => kitsuApi.mapKitsuToInternal(item, kitsu.included ?? []));
-        setResults([...fromTmdb, ...fromKitsu]);
+
+        // Intelligently rank: exact matches and startsWith matches first
+        const cleanTerm = term.toLowerCase();
+        const combined = [...fromKitsu, ...fromTmdb];
+        combined.sort((a, b) => {
+          const aTitle = a.title.toLowerCase();
+          const bTitle = b.title.toLowerCase();
+          const aExact = aTitle === cleanTerm;
+          const bExact = bTitle === cleanTerm;
+          if (aExact && !bExact) return -1;
+          if (!aExact && bExact) return 1;
+          const aStarts = aTitle.startsWith(cleanTerm);
+          const bStarts = bTitle.startsWith(cleanTerm);
+          if (aStarts && !bStarts) return -1;
+          if (!aStarts && bStarts) return 1;
+          return 0;
+        });
+
+        // Deduplicate
+        const seen = new Set<string>();
+        const deduped = combined.filter((item) => {
+          const key = `${item.type}-${item.id}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        setResults(deduped);
       })
       .catch((cause) => {
         console.error('Search failed:', cause);
@@ -118,11 +146,20 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
   const openMovie = (movie: Movie) => {
     saveToHistory(query);
     // Routes through the parent so anime lands on #detail/ani/<id>. This used
-    // to hardcode `#${movie.type}/${movie.id}`, i.e. `#anime/123`, which is not
-    // a route -- every anime search result was a dead end.
     onMovieSelect(movie.id, movie.type);
     onClose();
   };
+
+  const animeCount = useMemo(() => results.filter((m) => m.type === 'anime').length, [results]);
+  const movieCount = useMemo(() => results.filter((m) => m.type === 'movie').length, [results]);
+  const tvCount = useMemo(() => results.filter((m) => m.type === 'tv').length, [results]);
+
+  const displayedResults = useMemo(() => {
+    if (activeTab === 'anime') return results.filter((m) => m.type === 'anime');
+    if (activeTab === 'movie') return results.filter((m) => m.type === 'movie');
+    if (activeTab === 'tv') return results.filter((m) => m.type === 'tv');
+    return results;
+  }, [results, activeTab]);
 
   const statusMessage = useMemo(() => {
     if (query.trim().length < MIN_QUERY_LENGTH) return '';
@@ -176,8 +213,6 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                 </button>
               </div>
 
-              {/* Announced to assistive tech; the result count was previously
-                  only conveyed visually. */}
               <p aria-live="polite" className="sr-only">
                 {statusMessage}
               </p>
@@ -201,61 +236,159 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     </div>
                   ) : results.length > 0 ? (
                     <div>
-                      <h2 className="text-lg text-muted-foreground mb-6 font-display flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5" aria-hidden="true" /> Top matches
-                      </h2>
-                      <ul className="grid grid-cols-2 md:grid-cols-4 gap-6 list-none m-0 p-0">
-                        {results.map((movie, index) => (
-                          <motion.li
-                            // TMDB and Kitsu ids can collide, so the type is
-                            // part of the key.
-                            key={`${movie.type}-${movie.id}`}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: Math.min(index * 0.04, 0.24) }}
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                        <h2 className="text-lg text-muted-foreground font-display flex items-center gap-2">
+                          <TrendingUp className="w-5 h-5 text-brand" aria-hidden="true" /> Top matches
+                        </h2>
+
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2" role="tablist">
+                          <button
+                            type="button"
+                            role="tab"
+                            aria-selected={activeTab === 'all'}
+                            onClick={() => setActiveTab('all')}
+                            className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                              activeTab === 'all'
+                                ? 'bg-brand text-background border-brand shadow-card'
+                                : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground'
+                            }`}
                           >
+                            All ({results.length})
+                          </button>
+                          {animeCount > 0 && (
                             <button
                               type="button"
-                              onClick={() => openMovie(movie)}
-                              className="group w-full text-left flex flex-col cursor-pointer"
+                              role="tab"
+                              aria-selected={activeTab === 'anime'}
+                              onClick={() => setActiveTab('anime')}
+                              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 cursor-pointer ${
+                                activeTab === 'anime'
+                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-500 shadow-card'
+                                  : 'bg-purple-950/30 text-purple-300 border-purple-500/30 hover:bg-purple-900/40 hover:text-white'
+                              }`}
                             >
-                              <div className="aspect-[2/3] rounded-xl overflow-hidden mb-3 relative border border-white/10 group-hover:border-brand/50 transition-colors">
-                                <PosterImage
-                                  src={movie.posterUrl}
-                                  title={movie.title}
-                                  decorative
-                                  className="w-full h-full object-cover"
-                                />
-                                <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                  <span className="bg-brand text-background px-4 py-2 rounded font-bold flex items-center gap-2 text-sm">
-                                    View <ArrowRight className="w-4 h-4" aria-hidden="true" />
-                                  </span>
-                                </span>
-                                <span className="absolute top-2 left-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded text-xs font-bold text-white uppercase tracking-wider">
-                                  {movie.type}
-                                </span>
-                              </div>
-                              <span className="font-display font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1">
-                                {movie.title}
-                              </span>
-                              <span className="flex items-center gap-2 mt-1">
-                                {movie.year > 0 && (
-                                  <span className="text-xs text-muted-foreground">{movie.year}</span>
-                                )}
-                                {/* Guarded: `movie.rating.toFixed(1)` threw for
-                                    every unrated title. */}
-                                {movie.rating !== null && (
-                                  <span className="text-brand flex items-center gap-1 text-xs">
-                                    <Star className="w-3 h-3 fill-current" aria-hidden="true" />
-                                    {formatRating(movie.rating)}
-                                    <span className="text-muted-foreground text-[10px]">/ 10</span>
-                                  </span>
-                                )}
-                              </span>
+                              <Sparkles className="w-3 h-3 text-purple-400" />
+                              Anime ({animeCount})
                             </button>
-                          </motion.li>
-                        ))}
-                      </ul>
+                          )}
+                          {movieCount > 0 && (
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={activeTab === 'movie'}
+                              onClick={() => setActiveTab('movie')}
+                              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                                activeTab === 'movie'
+                                  ? 'bg-amber-600 text-white border-amber-500 shadow-card'
+                                  : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground'
+                              }`}
+                            >
+                              Movies ({movieCount})
+                            </button>
+                          )}
+                          {tvCount > 0 && (
+                            <button
+                              type="button"
+                              role="tab"
+                              aria-selected={activeTab === 'tv'}
+                              onClick={() => setActiveTab('tv')}
+                              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                                activeTab === 'tv'
+                                  ? 'bg-blue-600 text-white border-blue-500 shadow-card'
+                                  : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground'
+                              }`}
+                            >
+                              TV Shows ({tvCount})
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {displayedResults.length === 0 ? (
+                        <div className="py-12 text-center text-muted-foreground">
+                          <p className="text-lg font-display">No {activeTab} matches for “{query}”</p>
+                          <button
+                            type="button"
+                            onClick={() => setActiveTab('all')}
+                            className="mt-3 text-sm text-brand hover:underline cursor-pointer"
+                          >
+                            View all {results.length} matches
+                          </button>
+                        </div>
+                      ) : (
+                        <ul className="grid grid-cols-2 md:grid-cols-4 gap-6 list-none m-0 p-0">
+                          {displayedResults.map((movie, index) => (
+                            <motion.li
+                              key={`${movie.type}-${movie.id}`}
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: Math.min(index * 0.04, 0.24) }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => openMovie(movie)}
+                                className="group w-full text-left flex flex-col cursor-pointer"
+                              >
+                                <div className="aspect-[2/3] rounded-xl overflow-hidden mb-3 relative border border-white/10 group-hover:border-brand/50 transition-colors">
+                                  <PosterImage
+                                    src={movie.posterUrl}
+                                    title={movie.title}
+                                    decorative
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <span className="bg-brand text-background px-4 py-2 rounded font-bold flex items-center gap-2 text-sm">
+                                      View <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                                    </span>
+                                  </span>
+                                  {movie.type === 'anime' ? (
+                                    <span className="absolute top-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-950/60 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                                      <Sparkles className="w-2.5 h-2.5" /> ANIME
+                                    </span>
+                                  ) : movie.type === 'tv' ? (
+                                    <span className="absolute top-2 left-2 bg-blue-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
+                                      TV SHOW
+                                    </span>
+                                  ) : (
+                                    <span className="absolute top-2 left-2 bg-amber-500/90 backdrop-blur-md text-black px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
+                                      MOVIE
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="font-display font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1">
+                                  {movie.title}
+                                </span>
+                                <span className="flex items-center gap-2 mt-1">
+                                  {movie.year > 0 && (
+                                    <span className="text-xs text-muted-foreground">{movie.year}</span>
+                                  )}
+                                  {movie.rating !== null && (
+                                    <span className="text-brand flex items-center gap-1 text-xs">
+                                      <Star className="w-3 h-3 fill-current" aria-hidden="true" />
+                                      {formatRating(movie.rating)}
+                                      <span className="text-muted-foreground text-[10px]">/ 10</span>
+                                    </span>
+                                  )}
+                                </span>
+                              </button>
+                            </motion.li>
+                          ))}
+                        </ul>
+                      )}
+
+                      <div className="mt-8 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <p className="text-sm text-muted-foreground text-center sm:text-left">
+                          Found <span className="text-foreground font-semibold">{results.length} matches</span> across anime series, movies, and TV shows.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => submit(query)}
+                          className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-brand text-background hover:bg-brand-light font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-card"
+                        >
+                          <span>Explore all titles on search page</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-20 text-muted-foreground">

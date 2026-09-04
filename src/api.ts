@@ -243,10 +243,10 @@ export const api = {
   getWatchProviders: (mediaType = 'movie', region = 'US') =>
     request<unknown>(tmdbUrl(`/watch/providers/${mediaType}`, { watch_region: region })),
 
-  searchMulti: async (query: string) => {
+  searchMulti: async (query: string, page = 1) => {
     if (!query.trim()) return { results: [] as TmdbItem[], total_pages: 0 };
     return request<{ results: TmdbItem[]; total_pages: number }>(
-      tmdbUrl('/search/multi', { query: query.trim() })
+      tmdbUrl('/search/multi', { query: query.trim(), page })
     );
   },
 
@@ -398,9 +398,9 @@ export const kitsuApi = {
       { headers: KITSU_HEADERS }
     ),
 
-  search: (query: string) =>
+  search: (query: string, limit = 20, offset = 0) =>
     request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=10&include=categories,mappings`,
+      `${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}&page[offset]=${offset}&include=categories,mappings`,
       { headers: KITSU_HEADERS }
     ),
 
@@ -476,9 +476,9 @@ export const kitsuApi = {
 
     return {
       id: item.id,
-      title: attributes.canonicalTitle || titles.en || titles.en_jp || 'Untitled',
+      title: titles.en || attributes.canonicalTitle || titles.en_jp || 'Untitled',
       type: 'anime',
-      tagline: titles.en_jp || titles.ja_jp || '',
+      tagline: titles.en_jp || titles.ja_jp || attributes.canonicalTitle || '',
       description: attributes.synopsis || '',
       year: Number.isFinite(parsedYear) ? parsedYear : 0,
       duration: attributes.episodeCount ? `${attributes.episodeCount} episodes` : null,

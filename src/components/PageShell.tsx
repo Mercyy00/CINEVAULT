@@ -78,6 +78,13 @@ const ANIME_PILLS = [
 
 const PILLS_BY_TYPE = { movie: MOVIE_PILLS, tv: TV_PILLS, anime: ANIME_PILLS } as const;
 
+const SEARCH_PILLS = [
+  { id: 'all', label: 'All Results' },
+  { id: 'anime', label: 'Anime Series & Movies' },
+  { id: 'tv', label: 'TV Shows' },
+  { id: 'movie', label: 'Movies' },
+];
+
 const SORT_OPTIONS = [
   { value: 'popularity.desc', label: 'Most popular' },
   { value: 'vote_average.desc', label: 'Highest rated' },
@@ -121,7 +128,10 @@ export function PageShell({
   /* `defaultType` is a prop, so it was never going to change through the
    * `filters` state object it was copied into -- `setFilters` was never called
    * anywhere. Using the prop directly removes a whole layer of dead state. */
-  const pills = useMemo(() => PILLS_BY_TYPE[defaultType] ?? [], [defaultType]);
+  const pills = useMemo(() => {
+    if (isSearch) return SEARCH_PILLS;
+    return PILLS_BY_TYPE[defaultType] ?? [];
+  }, [isSearch, defaultType]);
 
   // Deep-link support: #movies?genre=Action
   useEffect(() => {
@@ -159,11 +169,55 @@ export function PageShell({
         let more = true;
 
         if (isSearch && searchQuery) {
-          const response = await api.searchMulti(searchQuery);
-          results = response.results
-            .filter((item) => item.poster_path || item.backdrop_path)
+          const [tmdbResponse, kitsuResponse] = await Promise.all([
+            api.searchMulti(searchQuery, page).catch(() => ({ results: [], total_pages: 0 })),
+            kitsuApi.search(searchQuery, 24, (page - 1) * 24).catch(() => ({ data: [], included: [] })),
+          ]);
+
+          const fromTmdb: Movie[] = (tmdbResponse.results || [])
+            .filter((item) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path))
             .map(api.mapToInternalMovie);
-          more = false;
+
+          const fromKitsu: Movie[] = (kitsuResponse.data || [])
+            .map((item) => kitsuApi.mapKitsuToInternal(item, kitsuResponse.included || []));
+
+          // Combine both catalogues
+          const combined = [...fromKitsu, ...fromTmdb];
+
+          // Intelligently sort so titles closely matching search term come first
+          const cleanTerm = searchQuery.toLowerCase().trim();
+          combined.sort((a, b) => {
+            const aTitle = a.title.toLowerCase();
+            const bTitle = b.title.toLowerCase();
+            const aExact = aTitle === cleanTerm;
+            const bExact = bTitle === cleanTerm;
+            if (aExact && !bExact) return -1;
+            if (!aExact && bExact) return 1;
+            const aStarts = aTitle.startsWith(cleanTerm);
+            const bStarts = bTitle.startsWith(cleanTerm);
+            if (aStarts && !bStarts) return -1;
+            if (!aStarts && bStarts) return 1;
+            return 0;
+          });
+
+          if (activePill === 'anime') {
+            results = combined.filter((item) => item.type === 'anime');
+          } else if (activePill === 'tv') {
+            results = combined.filter((item) => item.type === 'tv');
+          } else if (activePill === 'movie') {
+            results = combined.filter((item) => item.type === 'movie');
+          } else {
+            // Deduplicate exact duplicate items by type-id
+            const seen = new Set<string>();
+            results = combined.filter((item) => {
+              const key = `${item.type}-${item.id}`;
+              if (seen.has(key)) return false;
+              seen.add(key);
+              return true;
+            });
+          }
+
+          more = page < (tmdbResponse.total_pages ?? 1) || (kitsuResponse.data?.length ?? 0) >= 24;
         } else if (defaultType === 'anime') {
           // Goes through kitsuApi so anime requests get the same caching,
           // de-duplication, timeout and retry as everything else. This used to
@@ -201,8 +255,8 @@ export function PageShell({
         if (!active) return;
         setMovies((previous) => {
           if (page === 1) return results;
-          const seen = new Set(previous.map((item) => item.id));
-          return [...previous, ...results.filter((item) => !seen.has(item.id))];
+          const seen = new Set(previous.map((item) => `${item.type}-${item.id}`));
+          return [...previous, ...results.filter((item) => !seen.has(`${item.type}-${item.id}`))];
         });
         setHasMore(more);
         setError(null);
@@ -260,7 +314,7 @@ export function PageShell({
           </h1>
         </div>
 
-        {!isSearch && pills.length > 0 && (
+        {pills.length > 0 && (
           <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4 mb-8" role="tablist">
             {pills.map((pill) => (
               <button
@@ -278,7 +332,7 @@ export function PageShell({
                 {pill.label}
               </button>
             ))}
-            {defaultType !== 'anime' && (
+            {!isSearch && defaultType !== 'anime' && (
               <button
                 ref={filterButtonRef}
                 type="button"
