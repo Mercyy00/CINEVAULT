@@ -5,6 +5,7 @@ import { Sparkles, Heart, Gift, PartyPopper, Lock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { isBirthdayPageAccessible } from '../config/birthdayAccess';
 import { useBirthdayMusic } from '../context/BirthdayMusicContext';
+import { navigate } from '../lib/navigation';
 
 // Target Birthday: 2nd September 2026 00:00:00 Local Time
 const TARGET_BIRTHDAY = new Date(2026, 8, 2, 0, 0, 0); // Month is 0-indexed (8 = September)
@@ -323,11 +324,11 @@ export function BirthdayCountdown() {
                         } catch (err) {
                           console.warn('Audio play on button click:', err);
                         }
-                        if (window.location.hash === '#birthday') {
+                        if (window.location.pathname === '/birthday') {
                           window.dispatchEvent(new CustomEvent('trigger-birthday-lock'));
                           window.dispatchEvent(new CustomEvent('trigger-birthday-intro'));
                         } else {
-                          window.location.hash = '#birthday';
+                          navigate('/birthday');
                         }
                       }}
                       className="w-full py-3 bg-brand text-background font-bold rounded-xl text-xs sm:text-sm hover:opacity-95 active:scale-98 transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"

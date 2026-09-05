@@ -335,7 +335,7 @@ export function BirthdayPinLock({ onUnlock }: BirthdayPinLockProps) {
       {/* Header Bar */}
       <header className="w-full max-w-5xl flex items-center justify-between gap-3 pt-2 pb-4 z-20">
         <a
-          href="#home"
+          href="/"
           className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full glass border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-semibold text-foreground hover:text-brand transition-all shadow-sm group cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />

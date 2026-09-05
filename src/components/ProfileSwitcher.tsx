@@ -15,6 +15,7 @@ import {
   getUserAvatarUrl, 
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
+import { navigate } from '../lib/navigation';
 
 interface ProfileSwitcherProps {
   onClose?: () => void;
@@ -97,7 +98,7 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
     } else {
       switchProfile(prof.id);
       if (onClose) onClose();
-      else window.location.hash = '#home';
+      else navigate('/');
     }
   };
 

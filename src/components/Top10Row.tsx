@@ -44,11 +44,10 @@ const VELOCITY_TAGS: Record<number, { text: string; icon?: React.ReactNode; colo
 export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-
-  const rowRef = useRef<HTMLUListElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const rowRef = useRef<HTMLUListElement>(null);
 
   // Drag variables
   const isDown = useRef(false);
@@ -133,21 +132,6 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
     const x = e.pageX - rowRef.current.offsetLeft;
     const walk = (x - startX.current) * 1.15;
     rowRef.current.scrollLeft = scrollLeftState.current - walk;
-  };
-
-  const getShiftX = (idx: number) => {
-    if (expandedIdx === null) return 0;
-    if (idx === expandedIdx) return 0;
-    const baseShift = 65;
-    if (expandedIdx === 0) {
-      return idx > expandedIdx ? baseShift * 1.8 : 0;
-    }
-    if (expandedIdx === movies.length - 1) {
-      return idx < expandedIdx ? -baseShift * 1.8 : 0;
-    }
-    if (idx < expandedIdx) return -baseShift;
-    if (idx > expandedIdx) return baseShift;
-    return 0;
   };
 
   const heading = (
@@ -251,22 +235,9 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                 : '';
 
             return (
-              <motion.li
+              <li
                 key={`top10-showcase-${movie.type}-${movie.id}`}
-                initial={{ opacity: 0, y: 35, scale: 0.94 }}
-                whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                viewport={{ once: true, amount: 0.1 }}
-                animate={{
-                  x: getShiftX(idx),
-                  zIndex: expandedIdx === idx ? 80 : 1,
-                }}
-                transition={{
-                  x: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-                  zIndex: { duration: 0 },
-                  opacity: { duration: 0.5, delay: Math.min(idx * 0.05, 0.35), ease: [0.16, 1, 0.3, 1] },
-                  scale: { duration: 0.5, delay: Math.min(idx * 0.05, 0.35), ease: [0.16, 1, 0.3, 1] },
-                }}
-                className="snap-start flex-shrink-0 flex items-end relative group/top10-item"
+                className="snap-start flex-shrink-0 flex items-end relative group/top10-item transition-transform duration-200 hover:-translate-y-1"
               >
                 {/* 1. 3D Sculpted Metallic Numeral (1-10) */}
                 <div
@@ -298,20 +269,17 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                     </div>
                   )}
 
-                  {/* Poster Card with Landscape Hover-To-Preview */}
+                  {/* Poster Card */}
                   <div className={cn("w-full rounded-[1.25rem]", podiumClass)}>
                     <MovieCard
                       movie={movie}
                       onClick={() => onMovieSelect(movie.id, movie.type)}
                       cardIndex={idx}
                       totalCards={movies.length}
-                      onExpandChange={(expanded) => {
-                        setExpandedIdx(expanded ? idx : null);
-                      }}
                     />
                   </div>
                 </div>
-              </motion.li>
+              </li>
             );
           })}
         </ul>

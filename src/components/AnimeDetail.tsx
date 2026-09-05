@@ -11,6 +11,7 @@ import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
 import { Breadcrumbs } from './Breadcrumbs';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
+import { navigate, goToWatch, goToDetail } from '../lib/navigation';
 
 export function AnimeDetail({ id }: { id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
@@ -258,7 +259,7 @@ export function AnimeDetail({ id }: { id: string }) {
           <h3 className="text-2xl font-display font-bold text-foreground mb-4">Error</h3>
           <p className="text-muted-foreground">{error || 'Anime not found.'}</p>
           <button 
-            onClick={() => window.location.hash = '#anime'}
+            onClick={() => navigate('/anime')}
             className="mt-6 px-6 py-2.5 bg-brand text-background font-bold rounded-full hover:bg-brand/90 transition-colors"
           >
             Back to Anime
@@ -290,7 +291,7 @@ export function AnimeDetail({ id }: { id: string }) {
         {/* Breadcrumbs navigation */}
         <Breadcrumbs
           items={[
-            { label: 'Anime', href: '#anime' },
+            { label: 'Anime', href: '/anime' },
             { label: movie.title },
           ]}
         />
@@ -301,11 +302,11 @@ export function AnimeDetail({ id }: { id: string }) {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
           onClick={() => {
-            const current = window.location.hash;
+            const current = window.location.pathname;
             window.history.back();
             setTimeout(() => {
-              if (window.location.hash === current) {
-                window.location.hash = '#anime';
+              if (window.location.pathname === current) {
+                navigate('/anime');
               }
             }, 100);
           }}
@@ -379,7 +380,7 @@ export function AnimeDetail({ id }: { id: string }) {
                 <>
                   <button 
                     onClick={() => {
-                      window.location.hash = `#watch/ani/${id}/${movie.malId || '0'}/${progressItem?.episode_number || selectedEpisode}`;
+                      goToWatch(id, 'anime', undefined, progressItem?.episode_number || selectedEpisode, movie.malId || '0');
                     }}
                     className="px-6 py-3 bg-brand hover:bg-brand/90 text-background font-bold rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
                   >
@@ -388,7 +389,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   </button>
                   <button 
                     onClick={() => {
-                      window.location.hash = `#watch/ani/${id}/${movie.malId || '0'}/1`;
+                      goToWatch(id, 'anime', undefined, 1, movie.malId || '0');
                     }}
                     className="px-6 py-3 glass hover:bg-white/15 text-foreground font-bold rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 cursor-pointer"
                   >
@@ -399,7 +400,7 @@ export function AnimeDetail({ id }: { id: string }) {
               ) : (
                 <button 
                   onClick={() => {
-                    window.location.hash = `#watch/ani/${id}/${movie.malId || '0'}/${selectedEpisode}`;
+                    goToWatch(id, 'anime', undefined, selectedEpisode, movie.malId || '0');
                   }}
                   className="px-6 py-3 bg-brand hover:bg-brand/90 text-background font-bold rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
                 >
@@ -488,7 +489,7 @@ export function AnimeDetail({ id }: { id: string }) {
                 key={ep.id}
                 onClick={() => {
                   setSelectedEpisode(ep.number);
-                  window.location.hash = `#watch/ani/${id}/${movie.malId || '0'}/${ep.number}`;
+                  goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
                 }}
                 className={cn(
                   "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer",
@@ -537,7 +538,7 @@ export function AnimeDetail({ id }: { id: string }) {
               return { results: res.data ? res.data.map((item: any) => kitsuApi.mapKitsuToInternal(item, res.included)) : [] };
             }} 
             onMovieSelect={(similarId, similarType) => {
-              window.location.hash = similarType === 'anime' ? `#detail/ani/${similarId}` : `#${similarType}/${similarId}`;
+              goToDetail(similarId, similarType);
             }} 
           />
         </div>

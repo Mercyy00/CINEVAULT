@@ -7,6 +7,7 @@ import { WatchStatus } from '../types';
 import { cn } from '../lib/utils';
 import { PosterImage } from './PosterImage';
 import { api } from '../api';
+import { goToWatch, goToHome } from '../lib/navigation';
 
 type Tab = 'watchlist' | 'history';
 
@@ -52,13 +53,13 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
   };
 
   const handleResumeWatch = (item: typeof continueWatching[number]) => {
-    if (item.media_type === 'anime') {
-      window.location.hash = `#watch/ani/${item.id}/${item.mal_id || '0'}/${item.episode_number || 1}`;
-    } else if (item.media_type === 'tv') {
-      window.location.hash = `#watch/tv/${item.id}/${item.season_number || 1}/${item.episode_number || 1}`;
-    } else {
-      window.location.hash = `#watch/movie/${item.id}`;
-    }
+    goToWatch(
+      item.id,
+      item.media_type,
+      item.season_number || 1,
+      item.episode_number || 1,
+      item.mal_id
+    );
   };
 
   const renderEmptyWatchlist = () => (
@@ -69,7 +70,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
       <h2 className="text-3xl font-display font-bold text-foreground mb-4">Your Watchlist is Empty</h2>
       <p className="text-muted-foreground mb-8 max-w-md">Keep track of movies and TV shows you want to watch. Add items to your list by clicking the plus icon on any title.</p>
       <button
-        onClick={() => window.location.hash = '#home'}
+        onClick={() => goToHome()}
         className="px-8 py-3 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors"
       >
         Start Exploring
@@ -85,7 +86,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
       <h2 className="text-3xl font-display font-bold text-foreground mb-4">No Watch History Yet</h2>
       <p className="text-muted-foreground mb-8 max-w-md">Start watching movies, TV shows, or anime — your progress will appear here automatically, even without an account.</p>
       <button
-        onClick={() => window.location.hash = '#home'}
+        onClick={() => goToHome()}
         className="px-8 py-3 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors"
       >
         Browse Catalogue

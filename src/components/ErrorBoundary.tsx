@@ -56,8 +56,7 @@ export class ErrorBoundary extends Component<Props, State> {
             <button 
               onClick={() => {
                 this.setState({ hasError: false });
-                window.location.hash = '#home';
-                window.location.reload();
+                window.location.href = '/';
               }}
               className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all cursor-pointer text-sm border border-white/10"
             >

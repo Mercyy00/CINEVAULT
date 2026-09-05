@@ -35,18 +35,18 @@ export function isBirthdayUnlocked(): boolean {
   return readString(UNLOCKED_KEY, 'false') === 'true';
 }
 
-/** True when the current hash carries the configured unlock key. */
-export function hashCarriesBirthdayKey(hash: string = window.location.hash): boolean {
-  return SECRET_KEY.length > 0 && hash.includes(`key=${SECRET_KEY}`);
+/** True when the current URL search or hash carries the configured unlock key. */
+export function hashCarriesBirthdayKey(urlContext: string = typeof window !== 'undefined' ? `${window.location.search} ${window.location.hash}` : ''): boolean {
+  return SECRET_KEY.length > 0 && urlContext.includes(`key=${SECRET_KEY}`);
 }
 
 /**
- * Persists the unlock when the hash carries the key, so the section stays
+ * Persists the unlock when the URL carries the key, so the section stays
  * reachable after the query string is dropped. Call this from an effect: the
  * previous code wrote to localStorage during render.
  */
-export function rememberBirthdayUnlock(hash: string = window.location.hash): void {
-  if (hashCarriesBirthdayKey(hash)) writeString(UNLOCKED_KEY, 'true');
+export function rememberBirthdayUnlock(urlContext: string = typeof window !== 'undefined' ? `${window.location.search} ${window.location.hash}` : ''): void {
+  if (hashCarriesBirthdayKey(urlContext)) writeString(UNLOCKED_KEY, 'true');
 }
 
 /**
@@ -64,27 +64,27 @@ export function isBirthdayDateReached(): boolean {
  * Before 2nd September 2026, opening the birthday page is restricted unless
  * explicitly enabled via secret key, local toggle, or build flag.
  */
-export function isBirthdayPageAccessible(hash: string = window.location.hash): boolean {
+export function isBirthdayPageAccessible(urlContext: string = typeof window !== 'undefined' ? `${window.location.search} ${window.location.hash}` : ''): boolean {
   return (
     isBirthdayDateReached() ||
     isBirthdayBuildEnabled ||
     isBirthdayLocallyEnabled() ||
     isBirthdayUnlocked() ||
-    hashCarriesBirthdayKey(hash)
+    hashCarriesBirthdayKey(urlContext)
   );
 }
 
 /**
  * Returns true if the birthday page is accessible (kept for backward compatibility).
  */
-export function isBirthdayVisible(hash: string = window.location.hash): boolean {
-  return isBirthdayPageAccessible(hash);
+export function isBirthdayVisible(urlContext: string = typeof window !== 'undefined' ? `${window.location.search} ${window.location.hash}` : ''): boolean {
+  return isBirthdayPageAccessible(urlContext);
 }
 
 /**
- * The countdown timer widget is always visible in the navbar so users can count down
- * until 2nd September.
+ * The countdown timer widget is hidden from the navbar.
  */
 export function isBirthdayCountdownVisible(): boolean {
-  return true;
+  return false;
 }
+

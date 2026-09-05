@@ -7,6 +7,7 @@ import { api, kitsuApi } from '../api';
 import { formatRating, type Movie } from '../types';
 import { PosterImage } from './PosterImage';
 import { readJSON, writeJSON } from '../lib/storage';
+import { navigate } from '../lib/navigation';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -139,7 +140,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     const clean = term.trim();
     if (!clean) return;
     saveToHistory(clean);
-    window.location.hash = `#search/${encodeURIComponent(clean)}`;
+    navigate(`/search/${encodeURIComponent(clean)}`);
     onClose();
   };
 

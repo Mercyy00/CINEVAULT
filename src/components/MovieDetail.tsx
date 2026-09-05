@@ -25,6 +25,7 @@ import { PosterImage } from './PosterImage';
 import { ActorModal } from './ActorModal';
 import { Breadcrumbs } from './Breadcrumbs';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
+import { navigate, goToWatch, goToDetail } from '../lib/navigation';
 
 export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor, showToast } = useApp();
@@ -95,7 +96,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             const query = details.title || details.name || details.original_name || '';
             const searchRes = await kitsuApi.search(query);
             if (searchRes.data && searchRes.data.length > 0) {
-              window.location.hash = `#detail/ani/${searchRes.data[0].id}`;
+              goToDetail(searchRes.data[0].id, 'anime');
               return;
             }
           } catch (err) {
@@ -279,11 +280,11 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           onClick={() => {
-            const current = window.location.hash;
+            const current = window.location.pathname;
             window.history.back();
             setTimeout(() => {
-              if (window.location.hash === current) {
-                window.location.hash = '#home';
+              if (window.location.pathname === current) {
+                navigate('/');
               }
             }, 100);
           }}
@@ -374,11 +375,12 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                 <>
                   <button
                     onClick={() => {
-                      if (type === 'tv') {
-                        window.location.hash = `#watch/tv/${id}/${progressItem?.season_number || selectedSeason}/${progressItem?.episode_number || selectedEpisode}`;
-                      } else {
-                        window.location.hash = `#watch/movie/${id}`;
-                      }
+                      goToWatch(
+                        id,
+                        type as any,
+                        progressItem?.season_number || selectedSeason,
+                        progressItem?.episode_number || selectedEpisode
+                      );
                     }}
                     className="px-5 sm:px-7 py-3 sm:py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
                   >
@@ -387,11 +389,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   </button>
                   <button
                     onClick={() => {
-                      if (type === 'tv') {
-                        window.location.hash = `#watch/tv/${id}/1/1`;
-                      } else {
-                        window.location.hash = `#watch/movie/${id}`;
-                      }
+                      goToWatch(id, type as any, 1, 1);
                     }}
                     className="px-4 sm:px-6 py-2.5 sm:py-3 glass hover:bg-white/15 text-foreground font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 cursor-pointer"
                   >
@@ -402,11 +400,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               ) : (
                 <button
                   onClick={() => {
-                    if (type === 'tv') {
-                      window.location.hash = `#watch/tv/${id}/${selectedSeason}/${selectedEpisode}`;
-                    } else {
-                      window.location.hash = `#watch/movie/${id}`;
-                    }
+                    goToWatch(id, type as any, selectedSeason, selectedEpisode);
                   }}
                   className="px-5 sm:px-7 py-3 sm:py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
                 >
@@ -487,7 +481,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     key={ep.id}
                     onClick={() => {
                       setSelectedEpisode(ep.episode_number);
-                      window.location.hash = `#watch/tv/${id}/${selectedSeason}/${ep.episode_number}`;
+                      goToWatch(id, 'tv', selectedSeason, ep.episode_number);
                     }}
                     className={cn(
                       'w-full text-left flex flex-col md:flex-row items-start md:items-center gap-4 p-4 rounded-2xl transition-all group cursor-pointer',
@@ -650,8 +644,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             title="More Like This"
             fetchFn={(page) => api.getSimilar(type, id, page)}
             onMovieSelect={(similarId, similarType) => {
-              window.location.hash =
-                similarType === 'anime' ? `#detail/ani/${similarId}` : `#${similarType}/${similarId}`;
+              goToDetail(similarId, similarType);
             }}
           />
 
@@ -659,8 +652,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             title="Recommended For You"
             fetchFn={(page) => api.getRecommendations(type, id, page)}
             onMovieSelect={(recId, recType) => {
-              window.location.hash =
-                recType === 'anime' ? `#detail/ani/${recId}` : `#${recType}/${recId}`;
+              goToDetail(recId, recType);
             }}
           />
         </div>
@@ -674,7 +666,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         actorPhoto={selectedActor?.photo}
         onClose={() => setSelectedActor(null)}
         onMovieSelect={(movId, movType) => {
-          window.location.hash = `#${movType}/${movId}`;
+          goToDetail(movId, movType);
         }}
       />
 

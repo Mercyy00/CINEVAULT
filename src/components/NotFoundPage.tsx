@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Home, Film, Tv, Sparkles, Bookmark, Search, ArrowRight } from 'lucide-react';
 import { updateSeoMetadata } from '../lib/seo';
+import { navigate } from '../lib/navigation';
 
 export function NotFoundPage() {
   const [query, setQuery] = useState('');
@@ -17,7 +18,7 @@ export function NotFoundPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      window.location.hash = `#search/${encodeURIComponent(query.trim())}`;
+      navigate(`/search/${encodeURIComponent(query.trim())}`);
     }
   };
 
@@ -79,31 +80,31 @@ export function NotFoundPage() {
         {/* Quick Navigation Links */}
         <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 mb-10">
           <a
-            href="#home"
+            href="/"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-medium transition-all hover:scale-105"
           >
             <Home className="w-3.5 h-3.5 text-brand" /> Home
           </a>
           <a
-            href="#movies"
+            href="/movies"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-medium transition-all hover:scale-105"
           >
             <Film className="w-3.5 h-3.5 text-blue-400" /> Movies
           </a>
           <a
-            href="#tvshows"
+            href="/tvshows"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-medium transition-all hover:scale-105"
           >
             <Tv className="w-3.5 h-3.5 text-emerald-400" /> TV Shows
           </a>
           <a
-            href="#anime"
+            href="/anime"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-medium transition-all hover:scale-105"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Anime
           </a>
           <a
-            href="#mylist"
+            href="/mylist"
             className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-medium transition-all hover:scale-105"
           >
             <Bookmark className="w-3.5 h-3.5 text-amber-400" /> My List
@@ -112,7 +113,7 @@ export function NotFoundPage() {
 
         {/* Primary CTA */}
         <a
-          href="#home"
+          href="/"
           className="inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-brand text-background font-bold rounded-full hover:opacity-90 shadow-card transition-all hover:scale-105 cursor-pointer"
         >
           <Home className="w-4 h-4" />

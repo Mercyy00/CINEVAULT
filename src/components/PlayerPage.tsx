@@ -14,6 +14,7 @@ import {
 } from '../config/servers';
 import type { Movie } from '../types';
 import { updateSeoMetadata } from '../lib/seo';
+import { goToWatch, goToDetail } from '../lib/navigation';
 
 /**
  * Embed player page.
@@ -511,7 +512,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const goToEpisode = useCallback(
     (target: TmdbEpisode) => {
       setShowNextEpisode(false);
-      window.location.hash = `#watch/tv/${id}/${selectedSeason}/${target.episode_number}`;
+      goToWatch(id, 'tv', selectedSeason, target.episode_number);
     },
     [id, selectedSeason]
   );
@@ -715,15 +716,15 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               <button
                 type="button"
                 onClick={() => {
-                  const current = window.location.hash;
+                  const current = window.location.pathname;
                   window.history.back();
                   setTimeout(() => {
                     if (
-                      window.location.hash === current ||
-                      window.location.hash.startsWith('#watch/') ||
-                      window.location.hash.startsWith('#player/')
+                      window.location.pathname === current ||
+                      window.location.pathname.startsWith('/watch/') ||
+                      window.location.pathname.startsWith('/player/')
                     ) {
-                      window.location.hash = `#${type}/${id}`;
+                      goToDetail(id, type);
                     }
                   }, 100);
                 }}
@@ -1080,7 +1081,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                       id="player-season"
                       value={selectedSeason}
                       onChange={(event) => {
-                        window.location.hash = `#watch/tv/${id}/${event.target.value}/1`;
+                        goToWatch(id, 'tv', Number(event.target.value), 1);
                       }}
                       className="w-full appearance-none bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-brand text-lg font-display cursor-pointer"
                     >

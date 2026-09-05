@@ -5,6 +5,7 @@ import { useApp } from '../store';
 import { api } from '../api';
 
 import { PosterImage } from './PosterImage';
+import { goToWatch } from '../lib/navigation';
 
 export function ContinueWatchingRow() {
   const { continueWatching, removeContinueWatchingItem } = useApp();
@@ -79,13 +80,13 @@ export function ContinueWatchingRow() {
             }}
             className="flex-shrink-0 w-[260px] sm:w-[320px] aspect-video rounded-2xl bg-white/5 relative border border-white/10 group cursor-pointer snap-start overflow-hidden transition-all hover:scale-[1.03] hover:border-brand/50 shadow-card"
             onClick={() => {
-              if (item.media_type === 'anime') {
-                window.location.hash = `#watch/ani/${item.id}/${item.mal_id || '0'}/${item.episode_number || 1}`;
-              } else if (item.media_type === 'tv') {
-                window.location.hash = `#watch/tv/${item.id}/${item.season_number || 1}/${item.episode_number || 1}`;
-              } else {
-                window.location.hash = `#watch/movie/${item.id}`;
-              }
+              goToWatch(
+                item.id,
+                item.media_type,
+                item.season_number || 1,
+                item.episode_number || 1,
+                item.mal_id
+              );
             }}
           >
             <PosterImage

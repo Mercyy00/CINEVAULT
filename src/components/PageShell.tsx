@@ -92,8 +92,6 @@ const SORT_OPTIONS = [
   { value: 'original_title.asc', label: 'Title A–Z' },
 ];
 
-/** Longest total stagger for the grid, in seconds. */
-const MAX_STAGGER_S = 0.3;
 
 function filtersAreDefault(filters: AdvancedFilters): boolean {
   return (
@@ -133,13 +131,20 @@ export function PageShell({
     return PILLS_BY_TYPE[defaultType] ?? [];
   }, [isSearch, defaultType]);
 
-  // Deep-link support: #movies?genre=Action
+  // Deep-link support: /movies?genre=Action or #movies?genre=Action
   useEffect(() => {
-    const hash = window.location.hash;
-    if (!hash.includes('?genre=')) return;
-    const genreName = decodeURIComponent(hash.split('?genre=')[1] ?? '');
-    const match = pills.find((pill) => pill.label.toLowerCase() === genreName.toLowerCase());
-    if (match) setActivePill(match.id);
+    let genreName: string | null = null;
+    if (typeof window !== 'undefined') {
+      const searchParams = new URLSearchParams(window.location.search);
+      genreName = searchParams.get('genre');
+      if (!genreName && window.location.hash.includes('?genre=')) {
+        genreName = decodeURIComponent(window.location.hash.split('?genre=')[1] ?? '');
+      }
+    }
+    if (genreName) {
+      const match = pills.find((pill) => pill.label.toLowerCase() === genreName?.toLowerCase());
+      if (match) setActivePill(match.id);
+    }
   }, [pills]);
 
   const appliedSignature = useMemo(
@@ -400,30 +405,19 @@ export function PageShell({
               role="tabpanel"
               aria-busy={loadingMore}
             >
-              <AnimatePresence mode="popLayout">
-                {movies.map((movie, index) => (
-                  <motion.div
-                    key={`${activePill}-${movie.type}-${movie.id}`}
-                    initial={{ opacity: 0, scale: 0.93, y: 32 }}
-                    whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                    viewport={{ once: true, amount: 0.1 }}
-                    exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }}
-                    transition={{
-                      duration: 0.5,
-                      delay: Math.min((index % 6) * 0.06, MAX_STAGGER_S),
-                      ease: [0.16, 1, 0.3, 1],
-                    }}
-                    className="relative hover:z-30"
-                  >
-                    <MovieCard
-                      movie={movie}
-                      onClick={() => onMovieSelect(movie.id, movie.type)}
-                      cardIndex={index}
-                      totalCards={movies.length}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              {movies.map((movie, index) => (
+                <div
+                  key={`${activePill}-${movie.type}-${movie.id}`}
+                  className="relative hover:z-30 transition-transform duration-200 hover:-translate-y-1"
+                >
+                  <MovieCard
+                    movie={movie}
+                    onClick={() => onMovieSelect(movie.id, movie.type)}
+                    cardIndex={index}
+                    totalCards={movies.length}
+                  />
+                </div>
+              ))}
             </div>
 
             {hasMore && !isSearch && (

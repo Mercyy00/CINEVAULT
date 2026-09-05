@@ -27,6 +27,7 @@ import { cn } from '../lib/utils';
 import { formatDuration } from '../types';
 import { PosterImage } from './PosterImage';
 import { isBirthdayLocallyEnabled, setBirthdayLocallyEnabled, isBirthdayBuildEnabled } from '../config/birthdayAccess';
+import { goToWatch, goToHome } from '../lib/navigation';
 
 /**
  * Admin dashboard.
@@ -249,7 +250,7 @@ export function AdminDashboard() {
             <button
               type="button"
               onClick={() => {
-                window.location.hash = '#home';
+                goToHome();
               }}
               className="text-brand hover:underline font-semibold"
             >
@@ -507,12 +508,12 @@ export function AdminDashboard() {
                     <button
                       type="button"
                       onClick={() => {
-                        window.location.hash =
-                          session.mediaType === 'anime'
-                            ? `#watch/ani/${session.mediaId}/${session.episodeNumber || 1}`
-                            : session.mediaType === 'tv'
-                              ? `#watch/tv/${session.mediaId}/${session.seasonNumber || 1}/${session.episodeNumber || 1}`
-                              : `#watch/movie/${session.mediaId}`;
+                        goToWatch(
+                          session.mediaId,
+                          session.mediaType as any,
+                          session.seasonNumber || 1,
+                          session.episodeNumber || 1
+                        );
                       }}
                       className="text-brand hover:underline font-bold flex items-center gap-1 cursor-pointer"
                     >

@@ -7,6 +7,7 @@ import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
 import { TRUSTED_PLAYER_ORIGINS } from '../config/servers';
 import { updateSeoMetadata } from '../lib/seo';
+import { goToWatch, goToDetail } from '../lib/navigation';
 
 export type AnimeServerId = 'vidlink' | 'megaplay' | 'anikoto' | 'vidsrc';
 
@@ -238,16 +239,16 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     };
     loadData();
     return () => { isMounted = false; };
-  }, [id, episode]); // We depend on episode to reload when hash changes
+  }, [id, episode]); // We depend on episode to reload when route changes
 
   const handleEpisodeChange = (ep: any) => {
-    window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${ep.episode}`;
+    goToWatch(id, 'anime', undefined, ep.episode, movie?.malId || '0');
   };
   
   const handleJumpEpisode = (epNumStr: string) => {
     const num = parseInt(epNumStr);
     if (num > 0 && (!movie.episodeCount || num <= movie.episodeCount)) {
-      window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${num}`;
+      goToWatch(id, 'anime', undefined, num, movie?.malId || '0');
     } else {
       setJumpError(`Please enter a valid episode number (1 - ${movie.episodeCount || '?'})`);
     }
@@ -661,7 +662,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
       if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
         setShowNextEpisode(false);
         const nextEpNum = episodes[currentIndex + 1]?.episode || selectedEpisode.episode + 1;
-window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
+        goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
       }
     }
     return () => {
@@ -732,15 +733,15 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
             <div className="flex items-center gap-4">
               <button 
                 onClick={() => {
-                  const current = window.location.hash;
+                  const current = window.location.pathname;
                   window.history.back();
                   setTimeout(() => {
                     if (
-                      window.location.hash === current ||
-                      window.location.hash.startsWith('#watch/') ||
-                      window.location.hash.startsWith('#player/')
+                      window.location.pathname === current ||
+                      window.location.pathname.startsWith('/watch/') ||
+                      window.location.pathname.startsWith('/player/')
                     ) {
-                      window.location.hash = `#detail/ani/${id}`;
+                      goToDetail(id, 'anime');
                     }
                   }, 100);
                 }}
@@ -775,7 +776,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
                     <button
                       type="button"
                       onClick={() => {
-                        window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
+                        goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
                       }}
                       className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10"
                       title={`Next: Episode ${nextEpNum}`}
@@ -986,7 +987,7 @@ window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
                     type="button"
                     onClick={() => {
                       setShowNextEpisode(false);
-                      window.location.hash = `#watch/ani/${id}/${movie?.malId || '0'}/${nextEpNum}`;
+                      goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
                     }}
                     className="flex-1 bg-brand hover:bg-brand/90 text-background font-bold py-2.5 px-4 rounded-xl transition-all shadow-lg shadow-brand/25 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
                   >

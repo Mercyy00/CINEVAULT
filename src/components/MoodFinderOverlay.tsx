@@ -4,6 +4,7 @@ import { X, Play, RefreshCcw, Star } from 'lucide-react';
 import { api } from '../api';
 import { Movie, formatRating } from '../types';
 import { cn } from '../lib/utils';
+import { goToDetail } from '../lib/navigation';
 
 interface MoodFinderOverlayProps {
   isOpen: boolean;
@@ -144,7 +145,7 @@ export function MoodFinderOverlay({ isOpen, onClose }: MoodFinderOverlayProps) {
                               animate={{ opacity: 1, y: 0 }}
                               transition={{ delay: idx * 0.05 }}
                               onClick={() => {
-                                window.location.hash = `#${movie.type}/${movie.id}`;
+                                goToDetail(movie.id, movie.type);
                                 onClose();
                               }}
                               className="group cursor-pointer"

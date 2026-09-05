@@ -5,9 +5,8 @@ import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
 import { getUserAvatarUrl, getFallbackAvatarDataUri } from '../lib/avatars';
 import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users } from 'lucide-react';
-import { BirthdayCountdown } from './BirthdayCountdown';
-import { isBirthdayCountdownVisible } from '../config/birthdayAccess';
 import { useBirthdayMusic } from '../context/BirthdayMusicContext';
+import { navigate } from '../lib/navigation';
 
 interface ThemeOption {
   id: Theme;
@@ -74,7 +73,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     setAuthModalMode,
     logout
   } = useApp();
-  const [currentHash, setCurrentHash] = useState('#home');
+  const [currentPath, setCurrentPath] = useState('/');
 
   const {
     playlist: BIRTHDAY_PLAYLIST,
@@ -96,16 +95,24 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   };
 
   useEffect(() => {
-    const handleHash = () => {
-      const hash = window.location.hash || '#home';
-      setCurrentHash(hash.split('/')[0]);
+    const handleLocation = () => {
+      let path = window.location.pathname || '/';
+      if (window.location.hash && window.location.hash.length > 1) {
+        path = '/' + window.location.hash.replace(/^#\/?/, '');
+      }
+      if (path === '/home') path = '/';
+      setCurrentPath(path);
       setShowMusicPlayer(false);
       setShowCustomizer(false);
       setShowProfile(false);
     };
-    window.addEventListener('hashchange', handleHash);
-    handleHash();
-    return () => window.removeEventListener('hashchange', handleHash);
+    window.addEventListener('popstate', handleLocation);
+    window.addEventListener('hashchange', handleLocation);
+    handleLocation();
+    return () => {
+      window.removeEventListener('popstate', handleLocation);
+      window.removeEventListener('hashchange', handleLocation);
+    };
   }, []);
 
   useEffect(() => {
@@ -133,12 +140,12 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   }, []);
 
   const navLinks = [
-    { name: 'Home', href: '#home', icon: Home },
-    { name: 'Movies', href: '#movies', icon: Film },
-    { name: 'TV Shows', href: '#tvshows', icon: Tv },
-    { name: 'Anime', href: '#anime', icon: Sparkles },
-    { name: 'My List', href: '#mylist', icon: Bookmark },
-    { name: 'Profile', href: '#profile', icon: User }
+    { name: 'Home', href: '/', icon: Home },
+    { name: 'Movies', href: '/movies', icon: Film },
+    { name: 'TV Shows', href: '/tvshows', icon: Tv },
+    { name: 'Anime', href: '/anime', icon: Sparkles },
+    { name: 'My List', href: '/mylist', icon: Bookmark },
+    { name: 'Profile', href: '/profile', icon: User }
   ];
 
   const darkThemes = THEMES.filter(t => t.mode === 'dark');
@@ -148,9 +155,9 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     <>
       {/* Top Header */}
       <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2.5 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full">
-        {currentHash === '#birthday' ? (
+        {currentPath === '/birthday' ? (
           <a
-            href="#home"
+            href="/"
             className="pointer-events-auto flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full glass border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-semibold text-foreground hover:text-brand transition-all shadow-sm group"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
@@ -158,7 +165,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           </a>
         ) : (
           <a 
-            href="#home" 
+            href="/" 
             className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
           >
             <div 
@@ -173,10 +180,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           </a>
         )}
 
-        {/* Center: Birthday Countdown Widget (Always visible, hidden on Birthday Page) */}
-        <div className="flex items-center justify-center pointer-events-auto min-w-0">
-          {isBirthdayCountdownVisible() && currentHash !== '#birthday' && <BirthdayCountdown />}
-        </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
           {/* Customizer (Themes & Fonts) Toggle */}
@@ -379,7 +382,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           </div>
 
           {/* Music Button on Birthday Page, Search on other pages */}
-          {currentHash === '#birthday' ? (
+          {currentPath === '/birthday' ? (
             <div className="relative header-popup-container">
               <button 
                 onClick={(e) => {
@@ -618,7 +621,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
 
                   {/* Switch Profile Action */}
                   <a
-                    href="#profiles"
+                    href="/profiles"
                     onClick={() => setShowProfile(false)}
                     className="flex items-center justify-between px-4 py-2 text-xs font-semibold text-foreground hover:bg-brand/10 hover:text-brand transition-colors cursor-pointer"
                   >
@@ -699,7 +702,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     </button>
                   )}
 
-                  <a href="#profile" onClick={() => setShowProfile(false)} className="flex items-center gap-3 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
+                  <a href="/profile" onClick={() => setShowProfile(false)} className="flex items-center gap-3 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
                     <Settings className="w-4 h-4" /> Profile & Settings
                   </a>
                   
@@ -725,7 +728,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     </button>
                   ) : (
                     <button 
-                      onClick={() => { setShowProfile(false); clearProfile(); window.location.hash='#home'; }} 
+                      onClick={() => { setShowProfile(false); clearProfile(); navigate('/'); }} 
                       className="w-full flex items-center gap-3 px-4 py-2 text-xs text-muted-foreground hover:text-red-500 hover:bg-muted/50 transition-colors text-left border-t border-border mt-1 cursor-pointer"
                     >
                       <LogOut className="w-4 h-4" /> Reset App Data
@@ -739,14 +742,14 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
       </header>
 
       {/* Bottom Floating Dock (Hidden on Birthday Page) */}
-      {currentHash !== '#birthday' && (
+      {currentPath !== '/birthday' && (
         <nav
           aria-label="Main Navigation"
           className="fixed bottom-5 sm:bottom-7 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto select-none"
         >
           <div className="rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-3xl bg-[#0a0b10]/85 ring-1 ring-brand/30 transition-all duration-300">
             {navLinks.map((link) => {
-              const isActive = currentHash === link.href;
+              const isActive = link.href === '/' ? currentPath === '/' : currentPath.startsWith(link.href);
               const Icon = link.icon;
               return (
                 <a
@@ -789,6 +792,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           </div>
         </nav>
       )}
+
     </>
   );
 }

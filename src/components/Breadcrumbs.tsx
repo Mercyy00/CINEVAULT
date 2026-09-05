@@ -15,7 +15,7 @@ interface BreadcrumbsProps {
 
 export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
   const allItems = useMemo<BreadcrumbItem[]>(
-    () => [{ label: 'Home', href: '#home' }, ...items],
+    () => [{ label: 'Home', href: '/' }, ...items],
     [items]
   );
 
@@ -24,12 +24,15 @@ export function Breadcrumbs({ items, className }: BreadcrumbsProps) {
     const schema = {
       '@context': 'https://schema.org',
       '@type': 'BreadcrumbList',
-      itemListElement: allItems.map((item, index) => ({
-        '@type': 'ListItem',
-        position: index + 1,
-        name: item.label,
-        item: item.href ? `${siteUrl}/${item.href.replace(/^#/, '#')}` : undefined,
-      })),
+      itemListElement: allItems.map((item, index) => {
+        const cleanPath = item.href ? (item.href.startsWith('/') ? item.href : `/${item.href.replace(/^#\/?/, '')}`) : undefined;
+        return {
+          '@type': 'ListItem',
+          position: index + 1,
+          name: item.label,
+          item: cleanPath ? `${siteUrl}${cleanPath}` : undefined,
+        };
+      }),
     };
 
     let script = document.getElementById('cv-breadcrumb-schema') as HTMLScriptElement | null;

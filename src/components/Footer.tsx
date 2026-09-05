@@ -150,27 +150,27 @@ export function Footer() {
               </h3>
               <ul className="space-y-2.5 text-xs text-muted-foreground">
                 <li>
-                  <a href="#home" className="hover:text-brand transition-colors flex items-center gap-1.5">
+                  <a href="/" className="hover:text-brand transition-colors flex items-center gap-1.5">
                     <Film className="w-3.5 h-3.5 text-brand" /> Trending Home
                   </a>
                 </li>
                 <li>
-                  <a href="#movies" className="hover:text-brand transition-colors flex items-center gap-1.5">
+                  <a href="/movies" className="hover:text-brand transition-colors flex items-center gap-1.5">
                     <Film className="w-3.5 h-3.5 text-blue-400" /> Feature Films
                   </a>
                 </li>
                 <li>
-                  <a href="#tvshows" className="hover:text-brand transition-colors flex items-center gap-1.5">
+                  <a href="/tvshows" className="hover:text-brand transition-colors flex items-center gap-1.5">
                     <Tv className="w-3.5 h-3.5 text-emerald-400" /> Television Series
                   </a>
                 </li>
                 <li>
-                  <a href="#anime" className="hover:text-brand transition-colors flex items-center gap-1.5">
+                  <a href="/anime" className="hover:text-brand transition-colors flex items-center gap-1.5">
                     <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Anime Hub
                   </a>
                 </li>
                 <li>
-                  <a href="#mylist" className="hover:text-brand transition-colors">
+                  <a href="/mylist" className="hover:text-brand transition-colors">
                     My Watchlist
                   </a>
                 </li>

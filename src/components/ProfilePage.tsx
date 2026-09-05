@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useApp, Theme } from '../store';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
+import { navigate, goToWatch } from '../lib/navigation';
 import {
   DICEBEAR_STYLES,
   PRESET_AVATARS,
@@ -109,11 +110,11 @@ export function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
-    const current = window.location.hash;
+    const current = window.location.pathname;
     window.history.back();
     setTimeout(() => {
-      if (window.location.hash === current || window.location.hash === '#profile') {
-        window.location.hash = '#home';
+      if (window.location.pathname === current || window.location.pathname === '/profile') {
+        navigate('/');
       }
     }, 100);
   };
@@ -382,7 +383,7 @@ export function ProfilePage() {
                     </p>
                   </div>
                   <a
-                    href="#profiles"
+                    href="/profiles"
                     className="text-xs font-bold text-brand px-3.5 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
                   >
                     <Users className="w-3.5 h-3.5" /> Manage Profiles
@@ -1004,13 +1005,12 @@ export function ProfilePage() {
                             type="button"
                             onClick={() => {
                               handleClose();
-                              if (item.media_type === 'anime') {
-                                window.location.hash = `#watch/ani/${item.id}/${item.episode_number || 1}`;
-                              } else if (item.media_type === 'tv') {
-                                window.location.hash = `#watch/tv/${item.id}/${item.season_number || 1}/${item.episode_number || 1}`;
-                              } else {
-                                window.location.hash = `#watch/movie/${item.id}`;
-                              }
+                              goToWatch(
+                                item.id,
+                                item.media_type,
+                                item.season_number || 1,
+                                item.episode_number || 1
+                              );
                             }}
                             className="p-2 rounded-lg bg-brand text-brand-foreground hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
                             aria-label="Resume playing"

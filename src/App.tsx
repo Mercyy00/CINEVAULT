@@ -15,7 +15,7 @@ import { ContinueWatchingRow } from './components/ContinueWatchingRow';
 import { OnboardingModal } from './components/OnboardingModal';
 import { AuthModal } from './components/AuthModal';
 import { BirthdayMusicProvider, useBirthdayMusic } from './context/BirthdayMusicContext';
-import { goToDetail } from './lib/navigation';
+import { goToDetail, navigate } from './lib/navigation';
 import { isBirthdayVisible, rememberBirthdayUnlock } from './config/birthdayAccess';
 
 import { ROUTE_SEO, updateSeoMetadata } from './lib/seo';
@@ -134,7 +134,7 @@ function AppContent() {
 
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'a') {
         event.preventDefault();
-        window.location.hash = '#admin';
+        navigate('/admin');
         return;
       }
 
@@ -202,31 +202,153 @@ function AppContent() {
     }
   };
 
-  useEffect(() => {
-    const handleHashChange = () => {
-      let hash = window.location.hash.replace('#', '') || '';
-      if (!hash) {
-        const path = window.location.pathname.toLowerCase();
-        if (path.includes('/birthday')) {
-          hash = 'birthday';
-        } else {
-          hash = 'home';
-        }
+  const parseCurrentLocation = useCallback((): { route: string; query: string } => {
+    if (typeof window === 'undefined') return { route: 'home', query: '' };
+
+    let pathname = window.location.pathname.replace(/\/+$/, '') || '/';
+    const rawHash = window.location.hash.replace(/^#\/?/, '');
+
+    if (rawHash && rawHash !== 'app-container') {
+      // Strip legacy hashtag and normalize URL via history.replaceState
+      const cleanTarget = rawHash.startsWith('/') ? rawHash : '/' + rawHash;
+      window.history.replaceState(null, '', cleanTarget);
+      pathname = cleanTarget.replace(/\/+$/, '') || '/';
+    } else if (rawHash === 'app-container') {
+      window.history.replaceState(null, '', pathname);
+    }
+
+    const path = pathname.toLowerCase();
+
+    // Home
+    if (path === '/' || path === '/home') {
+      return { route: 'home', query: '' };
+    }
+
+    // Top-level tabs
+    if (path === '/movies') return { route: 'movies', query: '' };
+    if (path === '/tvshows') return { route: 'tvshows', query: '' };
+    if (path === '/anime') return { route: 'anime', query: '' };
+    if (path === '/mylist') return { route: 'mylist', query: '' };
+    if (path === '/admin') return { route: 'admin', query: '' };
+    if (path === '/birthday') return { route: 'birthday', query: '' };
+    if (path === '/profile') return { route: 'profile', query: '' };
+    if (path === '/profiles') return { route: 'profiles', query: '' };
+
+    // Search: /search or /search/<term> or /search?q=<term>
+    if (path === '/search' || path.startsWith('/search/')) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const qParam = searchParams.get('q');
+      let q = '';
+      if (qParam) {
+        q = qParam;
+      } else if (path.startsWith('/search/')) {
+        q = safeDecode(pathname.slice(8));
       }
-      if (hash.startsWith('search/')) {
+      return { route: 'search', query: q };
+    }
+
+    // Watch player: /watch/movie/:id, /watch/tv/:id/:season/:episode, /watch/ani/:id/:episode, etc.
+    if (path.startsWith('/watch/')) {
+      const parts = pathname.split('/').filter(Boolean);
+      if (parts.length >= 3 && ['movie', 'tv', 'ani'].includes(parts[1].toLowerCase())) {
+        return { route: parts.join('/'), query: '' };
+      }
+      return { route: '404', query: '' };
+    }
+
+    // Movie detail: /movie/:id
+    if (path.startsWith('/movie/')) {
+      const parts = pathname.split('/').filter(Boolean);
+      if (parts.length === 2 && parts[1]) {
+        return { route: `movie/${parts[1]}`, query: '' };
+      }
+      return { route: '404', query: '' };
+    }
+
+    // TV detail: /tv/:id
+    if (path.startsWith('/tv/')) {
+      const parts = pathname.split('/').filter(Boolean);
+      if (parts.length === 2 && parts[1]) {
+        return { route: `tv/${parts[1]}`, query: '' };
+      }
+      return { route: '404', query: '' };
+    }
+
+    // Anime detail: /ani/:id or /detail/ani/:id
+    if (path.startsWith('/ani/')) {
+      const parts = pathname.split('/').filter(Boolean);
+      if (parts.length === 2 && parts[1]) {
+        return { route: `ani/${parts[1]}`, query: '' };
+      }
+      return { route: '404', query: '' };
+    }
+    if (path.startsWith('/detail/ani/')) {
+      const parts = pathname.split('/').filter(Boolean);
+      if (parts.length === 3 && parts[2]) {
+        return { route: `ani/${parts[2]}`, query: '' };
+      }
+      return { route: '404', query: '' };
+    }
+
+    // Non-existent route
+    return { route: '404', query: '' };
+  }, []);
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      const { route, query } = parseCurrentLocation();
+      if (route === 'search') {
         setCurrentRoute('search');
-        setSearchQuery(safeDecode(hash.replace('search/', '')));
+        setSearchQuery(query);
         setLastBaseRoute('search');
       } else {
-        if (hash !== 'profile') setLastBaseRoute(hash);
-        setCurrentRoute(hash);
+        if (route !== 'profile') setLastBaseRoute(route);
+        setCurrentRoute(route);
       }
       window.scrollTo(0, 0);
     };
 
-    window.addEventListener('hashchange', handleHashChange);
-    handleHashChange();
-    return () => window.removeEventListener('hashchange', handleHashChange);
+    window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
+    handleLocationChange();
+    return () => {
+      window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
+    };
+  }, [parseCurrentLocation]);
+
+  // Global internal link interceptor
+  useEffect(() => {
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement).closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (!href) return;
+
+      if (
+        target.target === '_blank' ||
+        href.startsWith('http://') ||
+        href.startsWith('https://') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        target.hasAttribute('download')
+      ) {
+        return;
+      }
+
+      if (href === '#app-container' || href.startsWith('#app-')) {
+        return;
+      }
+
+      if (href.startsWith('/') || href.startsWith('#')) {
+        e.preventDefault();
+        const cleanPath = href.startsWith('#') ? '/' + href.replace(/^#\/?/, '') : href;
+        navigate(cleanPath);
+      }
+    };
+
+    document.addEventListener('click', handleLinkClick);
+    return () => document.removeEventListener('click', handleLinkClick);
   }, []);
 
   /**
@@ -241,7 +363,7 @@ function AppContent() {
     if (isBirthdayVisible()) {
       rememberBirthdayUnlock();
     } else {
-      window.location.replace('#home');
+      navigate('/', { replace: true });
       showToast('🔒 The Birthday Special unlocks on 2nd September! Counting down the seconds ✨🎂');
     }
   }, [currentRoute, showToast]);
@@ -302,7 +424,7 @@ function AppContent() {
     // back a schema-version stamp by hand.
     resetAllLocalData();
     setShowResetModal(false);
-    window.location.hash = '#home';
+    navigate('/', { replace: true });
   }, [resetAllLocalData]);
 
   const homeRows = useMemo(() => {
@@ -625,7 +747,7 @@ function AppContent() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <ProfileSwitcher onClose={() => { window.location.hash = '#home'; }} />
+            <ProfileSwitcher onClose={() => { navigate('/'); }} />
           </motion.div>
         );
 
@@ -644,6 +766,18 @@ function AppContent() {
               searchQuery={searchQuery}
               onMovieSelect={goToDetail}
             />
+          </motion.div>
+        );
+
+      case '404':
+        return (
+          <motion.div
+            key="notfound"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <NotFoundPage />
           </motion.div>
         );
 
@@ -709,12 +843,20 @@ function AppContent() {
 
   return (
     <>
-      <a
-        href="#app-container"
-        className="skip-link sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] bg-brand text-background font-bold px-4 py-2 rounded shadow-lg outline-none focus:ring-4 ring-white"
+      <button
+        type="button"
+        onClick={() => {
+          const el = document.getElementById('app-container');
+          if (el) {
+            el.tabIndex = -1;
+            el.focus();
+            el.scrollIntoView({ behavior: 'smooth' });
+          }
+        }}
+        className="skip-link sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[9999] bg-brand text-background font-bold px-4 py-2 rounded shadow-lg outline-none focus:ring-4 ring-white cursor-pointer"
       >
         Skip to main content
-      </a>
+      </button>
 
       <div
         className="fixed inset-0 pointer-events-none z-[-1] transition-colors duration-1000 ease-out"

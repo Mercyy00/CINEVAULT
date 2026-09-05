@@ -55,7 +55,6 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
   const [reloadToken, setReloadToken] = useState(0);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
 
   const rowRef = useRef<HTMLUListElement>(null);
   const isDown = useRef(false);
@@ -204,21 +203,6 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 1.15;
   };
 
-  // Calculate horizontal sibling shift when an item expands in landscape mode
-  const getShiftX = (i: number) => {
-    if (expandedIdx === null) return 0;
-    const isFirst = expandedIdx === 0;
-    const isLast = expandedIdx === movies.length - 1;
-    const shift = 60;
-    if (i < expandedIdx) {
-      return isLast ? -shift * 2 : -shift;
-    }
-    if (i > expandedIdx) {
-      return isFirst ? shift * 2 : shift;
-    }
-    return 0;
-  };
-
   const numberedPrefix = index != null ? String(index + 1).padStart(2, '0') : null;
 
   const heading = (
@@ -334,33 +318,17 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-14 pb-20 -my-10 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
-            <motion.li
+            <li
               key={`${movie.type}-${movie.id}`}
-              initial={{ opacity: 0, y: 35, scale: 0.94 }}
-              whileInView={{ opacity: 1, y: 0, scale: 1 }}
-              viewport={{ once: true, amount: 0.1 }}
-              animate={{
-                x: getShiftX(idx),
-                zIndex: expandedIdx === idx ? 80 : 1,
-              }}
-              transition={{
-                x: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
-                zIndex: { duration: 0 },
-                opacity: { duration: 0.5, delay: Math.min((idx % 6) * 0.06, 0.35), ease: [0.16, 1, 0.3, 1] },
-                scale: { duration: 0.5, delay: Math.min((idx % 6) * 0.06, 0.35), ease: [0.16, 1, 0.3, 1] },
-              }}
-              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative"
+              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative transition-transform duration-200 hover:-translate-y-1"
             >
               <MovieCard
                 movie={movie}
                 onClick={() => onMovieSelect(movie.id, movie.type)}
                 cardIndex={idx}
                 totalCards={movies.length}
-                onExpandChange={(expanded) => {
-                  setExpandedIdx(expanded ? idx : null);
-                }}
               />
-            </motion.li>
+            </li>
           ))}
           {loadingMore && (
             <li className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
