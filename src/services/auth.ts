@@ -2,7 +2,9 @@ import {
   createUserWithEmailAndPassword,
   getIdTokenResult,
   onAuthStateChanged as firebaseOnAuthStateChanged,
+  sendEmailVerification,
   sendPasswordResetEmail,
+  signInAnonymously,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -16,10 +18,12 @@ export interface AuthUser {
   email: string | null;
   displayName: string | null;
   photoURL: string | null;
-  provider: 'firebase' | 'google';
+  provider: 'firebase' | 'google' | 'anonymous';
   /** True only when the `admin` custom claim is present on the ID token. */
   isAdmin: boolean;
   emailVerified: boolean;
+  /** True for a Firebase anonymous session (a "guest" with a real uid). */
+  isAnonymous: boolean;
 }
 
 /** Minimum length enforced client-side. Firebase enforces its own policy too. */
@@ -29,31 +33,40 @@ const MIN_PASSWORD_LENGTH = 10;
 const GENERIC_CREDENTIAL_ERROR = 'That email and password combination is not recognised.';
 const NOT_CONFIGURED_ERROR =
   'Accounts are unavailable right now. You can keep browsing as a guest.';
+/** Operator misconfiguration. Deliberately vague to end users; details go to the console. */
+const SERVICE_UNAVAILABLE_ERROR =
+  'Sign-in is temporarily unavailable. Please try again later.';
 
 async function toAuthUser(user: User): Promise<AuthUser> {
   const providerIds = user.providerData.map((entry) => entry.providerId);
 
-  // The admin flag comes from a custom claim minted by the Firebase Admin SDK
-  // server-side. It replaces the previous client-side check
-  // `email === 'godlikejayesh@gmail.com'`, which any user could satisfy by
-  // editing local state, and which was then written to Firestore as
-  // `role: 'admin'`.
+  // The admin flag comes exclusively from a custom claim minted by the Firebase
+  // Admin SDK server-side. An `email === '...'` comparison used to sit here as
+  // an `||` fallback, which meant admin was decided by a string in the shipped
+  // bundle rather than by a verified token.
   let isAdmin = false;
   try {
     const token = await getIdTokenResult(user);
-    isAdmin = token.claims.admin === true || user.email === 'godlikejayesh@gmail.com';
+    isAdmin = token.claims.admin === true;
   } catch {
-    isAdmin = user.email === 'godlikejayesh@gmail.com';
+    isAdmin = false;
   }
+
+  const provider: AuthUser['provider'] = user.isAnonymous
+    ? 'anonymous'
+    : providerIds.includes('google.com')
+      ? 'google'
+      : 'firebase';
 
   return {
     uid: user.uid,
     email: user.email,
     displayName: user.displayName,
     photoURL: user.photoURL,
-    provider: providerIds.includes('google.com') ? 'google' : 'firebase',
+    provider,
     isAdmin,
     emailVerified: user.emailVerified,
+    isAnonymous: user.isAnonymous,
   };
 }
 
@@ -84,9 +97,14 @@ function toPublicError(error: unknown): Error {
     case 'auth/popup-blocked':
       return new Error('Popup was blocked by your browser. Please allow popups for this site.');
     case 'auth/unauthorized-domain':
-      return new Error('This domain is not authorized in Firebase Console. Add your Netlify URL to Firebase Authentication > Settings > Authorized Domains.');
     case 'auth/operation-not-allowed':
-      return new Error('This sign-in provider is not enabled in Firebase Console (Authentication > Sign-in method).');
+    case 'auth/invalid-api-key':
+    case 'auth/configuration-not-found':
+      // These are operator misconfigurations. The previous copy told end users
+      // to "Add your Netlify URL to Firebase Authentication > Settings >
+      // Authorized Domains", which is internal detail they cannot act on.
+      console.error('Auth configuration error:', code, error);
+      return new Error(SERVICE_UNAVAILABLE_ERROR);
     case 'auth/network-request-failed':
       return new Error('Network error. Check your connection and try again.');
     case 'auth/weak-password':
@@ -120,6 +138,10 @@ export const authService = {
       if (cleanName) {
         await updateProfile(credential.user, { displayName: cleanName });
       }
+      // Fire-and-forget: a failed verification send must not fail registration.
+      void sendEmailVerification(credential.user).catch((cause) =>
+        console.error('Verification email failed to send:', cause)
+      );
       const user = await toAuthUser(credential.user);
       return { ...user, displayName: cleanName || user.displayName };
     } catch (error) {
@@ -181,6 +203,43 @@ export const authService = {
   },
 
   /**
+   * Starts a Firebase anonymous session so a guest has a *real* uid.
+   *
+   * Guests previously got a client-minted `guest_<timestamp>_<random>` string,
+   * which forced Firestore rules to allow `uid.matches('^guest_.*')` — a clause
+   * that let any unauthenticated visitor read and overwrite every other guest's
+   * profile and history. With anonymous auth, `isOwner(uid)` covers guests too
+   * and the wildcard is gone.
+   *
+   * Returns null when Firebase is unavailable; callers must fall back to a
+   * local-only experience and write nothing to the cloud.
+   */
+  async signInAsGuest(): Promise<AuthUser | null> {
+    const { auth } = getFirebase();
+    if (!auth) return null;
+    if (auth.currentUser) return toAuthUser(auth.currentUser);
+
+    try {
+      const credential = await signInAnonymously(auth);
+      return await toAuthUser(credential.user);
+    } catch (error) {
+      console.error('Anonymous sign-in failed; continuing local-only:', error);
+      return null;
+    }
+  },
+
+  /** Re-sends the verification email for the current session. */
+  async sendVerificationEmail(): Promise<void> {
+    const { auth } = getFirebase();
+    if (!auth?.currentUser) throw new Error(NOT_CONFIGURED_ERROR);
+    try {
+      await sendEmailVerification(auth.currentUser);
+    } catch (error) {
+      throw toPublicError(error);
+    }
+  },
+
+  /**
    * Subscribes to auth state.
    *
    * This used to synchronously invoke the callback with a user object read
@@ -189,15 +248,19 @@ export const authService = {
    * enough to make the UI treat you as any account. Identity now comes only
    * from the Firebase SDK, which persists and revalidates its own session.
    *
-   * Callers receive `undefined` while the session is still resolving so they
-   * can render a loading state instead of a signed-out one.
+   * The callback receives `undefined` while the session is still resolving, so
+   * callers can render a loading state instead of flashing a signed-out UI and
+   * then swapping to signed-in. Previously this contract was documented but
+   * never implemented — only `null` or a user was ever emitted.
    */
-  onAuthStateChanged(callback: (user: AuthUser | null) => void): () => void {
+  onAuthStateChanged(callback: (user: AuthUser | null | undefined) => void): () => void {
     const { auth } = getFirebase();
     if (!auth) {
       callback(null);
       return () => {};
     }
+
+    callback(undefined);
 
     return firebaseOnAuthStateChanged(auth, (firebaseUser) => {
       if (!firebaseUser) {

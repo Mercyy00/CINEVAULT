@@ -5,7 +5,7 @@ import { Filter, X } from 'lucide-react';
 import { api, kitsuApi } from '../api';
 import type { Movie } from '../types';
 import { MovieCard } from './MovieCard';
-import { HeroSpotlight } from './HeroSpotlight';
+import { Hero } from './Hero';
 import { Breadcrumbs } from './Breadcrumbs';
 
 interface PageShellProps {
@@ -308,7 +308,7 @@ export function PageShell({
 
   return (
     <div className="pb-12 min-h-screen">
-      {!isSearch && <HeroSpotlight type={defaultType} onMovieSelect={onMovieSelect} />}
+      {!isSearch && <Hero type={defaultType} onMovieSelect={onMovieSelect} />}
 
       <div className={`max-w-[1600px] mx-auto px-4 md:px-10 ${isSearch ? 'pt-24' : 'pt-8'}`}>
         <Breadcrumbs items={[{ label: title }]} />
@@ -413,8 +413,7 @@ export function PageShell({
                   <MovieCard
                     movie={movie}
                     onClick={() => onMovieSelect(movie.id, movie.type)}
-                    cardIndex={index}
-                    totalCards={movies.length}
+                    priority={index < 6}
                   />
                 </div>
               ))}

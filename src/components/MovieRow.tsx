@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { MovieCard } from './MovieCard';
 import type { Movie } from '../types';
 import { api } from '../api';
 import { useApp } from '../store';
+import { useCarousel } from '../hooks/useCarousel';
 
 interface RowPage {
   results: unknown[];
@@ -13,14 +14,33 @@ interface RowPage {
 
 interface MovieRowProps {
   title: string;
+  /**
+   * Position of this row on the page. Rows past `EAGER_ROW_COUNT` wait for the
+   * viewport before spending a request, and the first row's posters are treated
+   * as the largest-contentful candidates.
+   */
   index?: number;
   fetchFn: (page: number) => Promise<RowPage>;
   onMovieSelect: (id: string, type: string) => void;
+  /**
+   * Target for the row-header affordance. When omitted the header shows the
+   * loaded count instead of a link that goes nowhere.
+   */
+  onExploreAll?: () => void;
 }
 
-/** Distance from the right edge, in px, at which the next page is requested. */
-const PREFETCH_THRESHOLD_PX = 400;
-const ARROW_DEAD_ZONE_PX = 15;
+/** Kids mode drops items client-side; keep paging so the row isn't a stub. */
+const MIN_ROW_ITEMS = 10;
+const MAX_BACKFILL_PAGES = 4;
+
+/** Past this length a row is DOM weight, not browsing. */
+const MAX_ROW_ITEMS = 60;
+
+/** Rows below this position wait for the viewport before spending a request. */
+const EAGER_ROW_COUNT = 2;
+
+/** Start fetching this far before the row scrolls into view. */
+const OBSERVER_MARGIN = '600px 0px';
 
 function isMovieLike(value: unknown): value is Movie {
   return typeof value === 'object' && value !== null && 'type' in value && 'title' in value;
@@ -36,15 +56,58 @@ function normalise(results: unknown[]): Movie[] {
 function filterKidsContent(items: Movie[]): Movie[] {
   const adultRatings = new Set(['R', 'NC-17', 'TV-MA', '18+', 'MATURE', 'X']);
   const adultGenres = new Set(['Horror', 'Erotica', 'Crime']);
-  return items.filter((m) => {
-    if ((m as any).adult) return false;
-    if (m.ageRating && adultRatings.has(m.ageRating.toUpperCase())) return false;
-    if (m.genres?.some((g) => adultGenres.has(g))) return false;
+  return items.filter((movie) => {
+    // `adult` is a real field on Movie now, so this no longer needs an `any` cast.
+    if (movie.adult) return false;
+    if (movie.ageRating && adultRatings.has(movie.ageRating.toUpperCase())) return false;
+    if (movie.genres?.some((genre) => adultGenres.has(genre))) return false;
     return true;
   });
 }
 
-export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps) {
+function applyKidsFilter(items: Movie[], kidsMode: boolean): Movie[] {
+  return kidsMode ? filterKidsContent(items) : items;
+}
+
+/**
+ * De-duplicates on `type + id`. Keying on `id` alone was wrong: TMDB and Kitsu
+ * number their catalogues independently, so a film and an anime can collide.
+ */
+function dedupe(items: Movie[]): Movie[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.type}-${item.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/**
+ * Horizontally scrolling poster row.
+ *
+ * Fixes carried by this version:
+ *
+ * - **Kids mode no longer leaves two-poster rows.** The filter runs after the
+ *   fetch, so a strict row could lose most of a page; it now pages forward
+ *   until it has something worth showing.
+ * - **A drag is no longer also a click.** `mousemove` set `scrollLeft` with no
+ *   movement threshold, so nudging a row opened whatever poster was under the
+ *   cursor.
+ * - **Dragging is no longer rubbery.** The container carries
+ *   `scroll-behavior: smooth`, which also animates direct `scrollLeft` writes,
+ *   so the row lagged behind the pointer. Smoothing is suspended mid-drag.
+ * - **Arrows land on card boundaries.** `clientWidth * 0.75` stopped mid-poster
+ *   and fought `snap-start`; the step is now a whole number of cards.
+ * - **`loadMore` sees the current `isKidsMode`.** It was missing from the
+ *   dependency array, so a row built before the toggle kept appending unfiltered
+ *   pages afterwards.
+ * - **Off-screen rows cost nothing.** Every row used to fire its request on
+ *   mount; rows past the fold now wait for an `IntersectionObserver`.
+ * - **The row is keyboard-navigable** via a roving tabindex, and `Explore All`
+ *   is a real control or absent -- it used to be a `<span>` styled as a link.
+ */
+export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }: MovieRowProps) {
   const { isKidsMode } = useApp();
   const [movies, setMovies] = useState<Movie[]>([]);
   const [page, setPage] = useState(1);
@@ -53,14 +116,11 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadToken, setReloadToken] = useState(0);
-  const [showLeftArrow, setShowLeftArrow] = useState(false);
-  const [showRightArrow, setShowRightArrow] = useState(false);
+  
+  // Rows near the top are wanted immediately; the rest wait for the viewport.
+  const [inView, setInView] = useState(() => index == null || index < EAGER_ROW_COUNT);
 
-  const rowRef = useRef<HTMLUListElement>(null);
-  const isDown = useRef(false);
-  const startX = useRef(0);
-  const startScroll = useRef(0);
-  const scrollFrame = useRef<number | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const loadingMoreRef = useRef(false);
 
   /* fetchFn is almost always an inline arrow at the call site, so its identity
@@ -72,58 +132,29 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     fetchRef.current = fetchFn;
   }, [fetchFn]);
 
-  const updateArrows = useCallback(() => {
-    const element = rowRef.current;
-    if (!element) return;
-    const { scrollLeft, scrollWidth, clientWidth } = element;
-    const overflows = scrollWidth > clientWidth + ARROW_DEAD_ZONE_PX;
-    setShowLeftArrow(scrollLeft > ARROW_DEAD_ZONE_PX);
-    setShowRightArrow(overflows && scrollLeft < scrollWidth - clientWidth - ARROW_DEAD_ZONE_PX);
-  }, []);
-
-  const hasMore = totalPages === null ? true : page < totalPages;
-
-  // Load (or reload) the first page.
+  // Defer the first request until the row is worth loading.
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError(false);
-
-    fetchRef
-      .current(1)
-      .then((data) => {
-        if (!active) return;
-        const results = Array.isArray(data?.results) ? data.results : [];
-        const normalised = normalise(results);
-        setMovies(isKidsMode ? filterKidsContent(normalised) : normalised);
-        setPage(1);
-        setTotalPages(
-          typeof data?.total_pages === 'number' ? data.total_pages : results.length ? null : 1
-        );
-        setLoading(false);
-      })
-      .catch((cause) => {
-        if (!active) return;
-        console.error(`Row "${title}" failed to load:`, cause);
-        setLoading(false);
-        setError(true);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [title, reloadToken, isKidsMode]);
-
-  // Arrow visibility depends on content width, which changes with the list and
-  // on resize. A ResizeObserver replaces the previous setTimeout(…, 150) guesses.
-  useEffect(() => {
-    const element = rowRef.current;
-    if (!element) return;
-    updateArrows();
-    const observer = new ResizeObserver(updateArrows);
+    if (inView) return;
+    const element = sectionRef.current;
+    if (!element || typeof IntersectionObserver === 'undefined') {
+      setInView(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: OBSERVER_MARGIN }
+    );
     observer.observe(element);
     return () => observer.disconnect();
-  }, [movies.length, updateArrows]);
+  }, [inView]);
+
+  const hasMore =
+    movies.length < MAX_ROW_ITEMS && (totalPages === null ? true : page < totalPages);
 
   const loadMore = useCallback(async () => {
     if (loadingMoreRef.current || !hasMore) return;
@@ -137,11 +168,8 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
         setTotalPages(nextPage - 1);
         return;
       }
-      const mapped = isKidsMode ? filterKidsContent(normalise(results)) : normalise(results);
-      setMovies((previous) => {
-        const seen = new Set(previous.map((item) => item.id));
-        return [...previous, ...mapped.filter((item) => !seen.has(item.id))];
-      });
+      const mapped = applyKidsFilter(normalise(results), isKidsMode);
+      setMovies((previous) => dedupe([...previous, ...mapped]).slice(0, MAX_ROW_ITEMS));
       setPage(nextPage);
       if (typeof data?.total_pages === 'number') setTotalPages(data.total_pages);
     } catch (cause) {
@@ -151,59 +179,84 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
       loadingMoreRef.current = false;
       setLoadingMore(false);
     }
-  }, [hasMore, page, title]);
+  }, [hasMore, page, title, isKidsMode]);
 
-  const handleScroll = useCallback(() => {
-    if (scrollFrame.current !== null) return;
-    scrollFrame.current = requestAnimationFrame(() => {
-      scrollFrame.current = null;
-      updateArrows();
-      const element = rowRef.current;
-      if (!element) return;
-      const remaining = element.scrollWidth - (element.scrollLeft + element.clientWidth);
-      if (remaining < PREFETCH_THRESHOLD_PX) void loadMore();
-    });
-  }, [loadMore, updateArrows]);
+  const { scrollerProps, showLeftArrow, showRightArrow, rovingIndex, resetFocus, scrollByPage } =
+    useCarousel({ itemCount: movies.length, onNearEnd: loadMore });
 
-  useEffect(
-    () => () => {
-      if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
-    },
-    []
-  );
+  // Load (or reload) the first page, backfilling when kids mode thins it out.
+  useEffect(() => {
+    if (!inView) return;
+    let active = true;
+    setLoading(true);
+    setError(false);
 
-  const scrollByPage = (direction: 'left' | 'right') => {
-    const element = rowRef.current;
-    if (!element) return;
-    const delta = element.clientWidth * 0.75;
-    element.scrollTo({
-      left: element.scrollLeft + (direction === 'left' ? -delta : delta),
-      behavior: 'smooth',
-    });
-  };
+    const load = async () => {
+      try {
+        const first = await fetchRef.current(1);
+        if (!active) return;
 
-  const pointerX = (event: React.MouseEvent | React.TouchEvent, element: HTMLElement) =>
-    ('touches' in event ? event.touches[0].pageX : event.pageX) - element.offsetLeft;
+        const results = Array.isArray(first?.results) ? first.results : [];
+        let collected = dedupe(applyKidsFilter(normalise(results), isKidsMode));
+        let lastPage = 1;
+        let total =
+          typeof first?.total_pages === 'number' ? first.total_pages : results.length ? null : 1;
 
-  const handleDragStart = (event: React.MouseEvent | React.TouchEvent) => {
-    const element = rowRef.current;
-    if (!element) return;
-    isDown.current = true;
-    startX.current = pointerX(event, element);
-    startScroll.current = element.scrollLeft;
-  };
+        while (
+          active &&
+          isKidsMode &&
+          collected.length < MIN_ROW_ITEMS &&
+          lastPage < MAX_BACKFILL_PAGES &&
+          (total === null || lastPage < total)
+        ) {
+          const nextPage = lastPage + 1;
+          const nextData = await fetchRef.current(nextPage);
+          if (!active) return;
+          const nextResults = Array.isArray(nextData?.results) ? nextData.results : [];
+          if (nextResults.length === 0) {
+            total = nextPage - 1;
+            break;
+          }
+          collected = dedupe([...collected, ...filterKidsContent(normalise(nextResults))]);
+          lastPage = nextPage;
+          if (typeof nextData?.total_pages === 'number') total = nextData.total_pages;
+        }
 
-  const handleDragEnd = () => {
-    isDown.current = false;
-  };
+        if (!active) return;
+        setMovies(collected);
+        setPage(lastPage);
+        setTotalPages(total);
+        resetFocus();
+        setLoading(false);
+      } catch (cause) {
+        if (!active) return;
+        console.error(`Row "${title}" failed to load:`, cause);
+        setLoading(false);
+        setError(true);
+      }
+    };
 
-  const handleDragMove = (event: React.MouseEvent | React.TouchEvent) => {
-    const element = rowRef.current;
-    if (!isDown.current || !element) return;
-    element.scrollLeft = startScroll.current - (pointerX(event, element) - startX.current) * 1.15;
-  };
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [title, reloadToken, isKidsMode, inView, resetFocus]);
 
-  const numberedPrefix = index != null ? String(index + 1).padStart(2, '0') : null;
+  const isLeadRow = index === 0;
+
+  /* A deferred row must not claim to be loading: it has not asked for anything
+   * yet. It reserves roughly a row's height so arriving posters don't shove the
+   * page around, and skips the eight skeleton cards -- rendering those for every
+   * row below the fold would undo the point of waiting. */
+  if (!inView) {
+    return (
+      <section
+        ref={sectionRef}
+        aria-hidden="true"
+        className="mb-10 sm:mb-14 w-full min-h-[260px] sm:min-h-[320px] lg:min-h-[400px]"
+      />
+    );
+  }
 
   const heading = (
     <div className="flex items-center justify-between mb-4 px-3 sm:px-6 lg:px-8">
@@ -211,28 +264,40 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
         {/* Category Accent Pip */}
         <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))]" />
 
-        {numberedPrefix && (
-          <span className="font-mono text-xs sm:text-sm tracking-widest text-brand/80 font-bold">
-            {numberedPrefix}
-          </span>
-        )}
-
         <h2 className="font-display text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
           {title}
         </h2>
       </div>
 
-      {movies.length > 0 && (
-        <span className="text-[11px] font-mono text-muted-foreground/70 tracking-wider uppercase hidden sm:inline-block">
-          Explore All →
-        </span>
+      {/* `Explore All →` was a <span>: it looked like a link and did nothing.
+          It is now a real button when the row has somewhere to go, and the
+          loaded count when it doesn't. */}
+      {onExploreAll ? (
+        <button
+          type="button"
+          onClick={onExploreAll}
+          className="text-[11px] font-mono tracking-wider uppercase text-muted-foreground/70 hover:text-brand focus-visible:text-brand rounded-full px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-brand transition-colors cursor-pointer hidden sm:inline-block"
+        >
+          {`Explore all ${title} →`}
+        </button>
+      ) : (
+        movies.length > 0 && (
+          <span className="text-[11px] font-mono text-muted-foreground/70 tracking-wider uppercase hidden sm:inline-block">
+            {movies.length} {movies.length === 1 ? 'title' : 'titles'}
+          </span>
+        )
       )}
     </div>
   );
 
   if (loading) {
     return (
-      <section className="mb-10 sm:mb-14 w-full" aria-busy="true" aria-label={`${title}, loading`}>
+      <section
+        ref={sectionRef}
+        className="mb-10 sm:mb-14 w-full"
+        aria-busy="true"
+        aria-label={`${title}, loading`}
+      >
         {heading}
         <div className="flex gap-4 sm:gap-5 overflow-hidden px-4 sm:px-8 lg:px-12">
           {Array.from({ length: 8 }, (_, i) => (
@@ -259,7 +324,11 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
 
   if (error) {
     return (
-      <section className="mb-10 sm:mb-14 w-full px-3 sm:px-6 lg:px-8">
+      <section
+        ref={sectionRef}
+        aria-label={title}
+        className="mb-10 sm:mb-14 w-full px-3 sm:px-6 lg:px-8"
+      >
         {heading}
         <div
           role="alert"
@@ -278,13 +347,17 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
     );
   }
 
-  if (movies.length === 0) return null;
+  // Nothing to show, but the section still has to exist: it carries the
+  // observer that decides whether this row ever loads at all.
+  if (movies.length === 0) {
+    return <section ref={sectionRef} aria-hidden="true" className="h-px w-full" />;
+  }
 
   const arrowClasses =
     'absolute top-1/2 -translate-y-1/2 z-[90] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
 
   return (
-    <section className="mb-8 sm:mb-10 relative group/row w-full" aria-label={title}>
+    <section ref={sectionRef} className="mb-8 sm:mb-10 relative group/row w-full" aria-label={title}>
       {heading}
 
       <div className="relative w-full">
@@ -305,28 +378,25 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect }: MovieRowProps
           )}
         </AnimatePresence>
 
+        {/* Touch scrolling is left to the browser: the JS drag handler fought
+            momentum scrolling and disabled the platform's own click suppression.
+            Vertical padding is only as deep as the hover lift needs -- it used to
+            be pt-14/pb-20 pulled back by -my-10, which overlapped the rows above
+            and below and swallowed clicks meant for them. */}
         <ul
-          ref={rowRef}
-          onScroll={handleScroll}
-          onMouseDown={handleDragStart}
-          onMouseLeave={handleDragEnd}
-          onMouseUp={handleDragEnd}
-          onMouseMove={handleDragMove}
-          onTouchStart={handleDragStart}
-          onTouchEnd={handleDragEnd}
-          onTouchMove={handleDragMove}
-          className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-14 pb-20 -my-10 snap-x select-none list-none m-0 will-change-scroll"
+          {...scrollerProps}
+          className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-8 pb-12 -my-8 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative transition-transform duration-200 hover:-translate-y-1"
+              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative"
             >
               <MovieCard
                 movie={movie}
                 onClick={() => onMovieSelect(movie.id, movie.type)}
-                cardIndex={idx}
-                totalCards={movies.length}
+                tabIndex={idx === rovingIndex ? 0 : -1}
+                priority={isLeadRow && idx < 5}
               />
             </li>
           ))}

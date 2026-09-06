@@ -1,12 +1,14 @@
-import type { Actor, Episode, Movie, Quality } from './types';
+import type { Actor, Episode, Movie, Quality, Review, WatchProvider } from './types';
 
 /**
  * TMDB / Kitsu access layer.
  *
  * What changed and why:
  *
- * - The API key no longer has a hardcoded fallback. The previous literal was
- *   committed to git and published in .env.example, so it must be rotated.
+ * - The API key has no hardcoded fallback. A literal used to sit in an `||`
+ *   here, which meant the key shipped in the bundle even on a correctly
+ *   configured deploy. Set `VITE_TMDB_PROXY_URL` to keep the key off the client
+ *   entirely; the proxy appends it server-side.
  * - Nothing is invented any more. The old `mapToInternalMovie` filled unknown
  *   fields with confident-looking lies: `duration: '2h 10m'`,
  *   `ageRating: 'PG-13'`, `genres: ['Action','Drama']`, a fake two-entry
@@ -16,11 +18,39 @@ import type { Actor, Episode, Movie, Quality } from './types';
  * - Missing posters no longer fall back to `picsum.photos`, which showed
  *   unrelated stock photography as though it were cover art.
  * - Requests are cached, de-duplicated, timed out and retried once on 5xx.
+ * - Images are served through `srcSet` at the size the layout actually needs,
+ *   rather than `w500` posters and `original` (up to 3840px) backdrops on every
+ *   surface including phones.
  */
 
-const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '2dca580c2a14b55200e784d157207b4d';
-const TMDB_BASE = 'https://api.themoviedb.org/3';
+/**
+ * When `VITE_TMDB_PROXY_URL` is set, all TMDB traffic goes through it and no
+ * key is attached client-side. This is the only configuration in which the key
+ * is not public.
+ */
+const TMDB_PROXY_URL = (import.meta.env.VITE_TMDB_PROXY_URL ?? '').replace(/\/+$/, '');
+const USING_PROXY = TMDB_PROXY_URL.length > 0;
+const TMDB_API_KEY: string = import.meta.env.VITE_TMDB_API_KEY ?? '';
+const TMDB_BASE = USING_PROXY ? TMDB_PROXY_URL : 'https://api.themoviedb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p';
+
+if (import.meta.env.DEV && !USING_PROXY && !TMDB_API_KEY) {
+  console.error(
+    'No TMDB credentials. Set VITE_TMDB_API_KEY (public) or VITE_TMDB_PROXY_URL (recommended).'
+  );
+}
+
+/**
+ * Region used for certifications and watch providers. Derived from the browser
+ * so a UK or Indian viewer is not shown a US-only age rating -- or nothing at
+ * all, which is what `iso_3166_1 === 'US'` produced for everyone else.
+ */
+export const TMDB_REGION: string = (() => {
+  if (typeof navigator === 'undefined') return 'US';
+  const locale = navigator.language || 'en-US';
+  const region = locale.split('-')[1];
+  return region ? region.toUpperCase() : 'US';
+})();
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -122,7 +152,8 @@ async function request<T>(url: string, init: RequestInit = {}, attempt = 0): Pro
 
 function tmdbUrl(path: string, params: Record<string, string | number | undefined> = {}): string {
   const url = new URL(`${TMDB_BASE}${path}`);
-  url.searchParams.set('api_key', TMDB_API_KEY);
+  // Behind a proxy the key is attached server-side and must not appear here.
+  if (!USING_PROXY) url.searchParams.set('api_key', TMDB_API_KEY);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== '') {
       url.searchParams.set(key, String(value));
@@ -132,12 +163,52 @@ function tmdbUrl(path: string, params: Record<string, string | number | undefine
 }
 
 /* ------------------------------------------------------------------------ */
+/* Responsive images                                                         */
+/*                                                                           */
+/* TMDB publishes fixed widths. Serving one size to every surface meant a    */
+/* 150px phone card downloading a w500 poster, and every backdrop -- hero,   */
+/* card, player placeholder -- downloading `original`, which can be 3840px   */
+/* wide. `sizes` was already a prop on PosterImage but did nothing, because  */
+/* no `srcSet` was ever emitted alongside it.                                */
+/* ------------------------------------------------------------------------ */
+
+export const POSTER_WIDTHS = [154, 185, 342, 500, 780] as const;
+export const BACKDROP_WIDTHS = [300, 780, 1280] as const;
+
+/** Default `sizes` for a poster in a horizontally scrolling row. */
+export const POSTER_SIZES = '(min-width:1280px) 260px, (min-width:1024px) 240px, (min-width:768px) 210px, (min-width:640px) 180px, 150px';
+/** Default `sizes` for a full-bleed backdrop. */
+export const BACKDROP_SIZES = '100vw';
+
+function buildSrcSet(path: string | null | undefined, widths: readonly number[]): string | undefined {
+  if (!path) return undefined;
+  return widths.map((width) => `${IMAGE_BASE}/w${width}${path} ${width}w`).join(', ');
+}
+
+
+/* ------------------------------------------------------------------------ */
 /* Mapping helpers -- these never invent a value.                            */
 /* ------------------------------------------------------------------------ */
 
 interface TmdbGenre {
   id: number;
   name: string;
+}
+
+export interface TmdbProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path?: string | null;
+  display_priority?: number;
+}
+
+export interface TmdbImage {
+  file_path: string;
+  width?: number;
+  height?: number;
+  aspect_ratio?: number;
+  iso_639_1?: string | null;
+  vote_average?: number;
 }
 
 export interface TmdbSeason {
@@ -189,6 +260,18 @@ export interface TmdbItem {
   external_ids?: { imdb_id?: string | null };
   release_dates?: { results?: Array<{ iso_3166_1: string; release_dates?: Array<{ certification?: string }> }> };
   content_ratings?: { results?: Array<{ iso_3166_1: string; rating?: string }> };
+  belongs_to_collection?: { id: number; name: string; poster_path?: string | null } | null;
+  adult?: boolean;
+  /* -- append_to_response sub-resources -------------------------------- */
+  videos?: { results?: Array<{ id: string; key: string; name: string; site: string; type: string; official?: boolean }> };
+  images?: { logos?: TmdbImage[]; backdrops?: TmdbImage[]; posters?: TmdbImage[] };
+  keywords?: { keywords?: TmdbGenre[]; results?: TmdbGenre[] };
+  credits?: { cast?: Array<{ id: number; name: string; character?: string; profile_path?: string | null }> };
+  recommendations?: { results?: TmdbItem[] };
+  similar?: { results?: TmdbItem[] };
+  'watch/providers'?: {
+    results?: Record<string, { link?: string; flatrate?: TmdbProvider[]; rent?: TmdbProvider[]; buy?: TmdbProvider[] }>;
+  };
 }
 
 /** Formats a runtime in minutes as "2h 10m". Returns null when unknown. */
@@ -201,14 +284,40 @@ function formatRuntime(minutes: number | undefined): string | null {
   return `${hours}h ${rest}m`;
 }
 
-/** Pulls the real certification from TMDB. Returns null when not published. */
-function extractCertification(item: TmdbItem): string | null {
-  const movieEntry = item.release_dates?.results?.find((entry) => entry.iso_3166_1 === 'US');
-  const movieCert = movieEntry?.release_dates?.find((entry) => entry.certification)?.certification;
-  if (movieCert) return movieCert;
+/**
+ * Pulls the real certification from TMDB, preferring the viewer's region and
+ * falling back to US then to any published rating.
+ *
+ * This only ever read `iso_3166_1 === 'US'`, so every non-US viewer saw no age
+ * rating at all on titles that do publish one locally.
+ */
+function extractCertification(item: TmdbItem, region = TMDB_REGION): string | null {
+  const movieResults = item.release_dates?.results ?? [];
+  const tvResults = item.content_ratings?.results ?? [];
 
-  const tvCert = item.content_ratings?.results?.find((entry) => entry.iso_3166_1 === 'US')?.rating;
-  return tvCert || null;
+  const movieCertFor = (iso: string) =>
+    movieResults
+      .find((entry) => entry.iso_3166_1 === iso)
+      ?.release_dates?.find((entry) => entry.certification?.trim())?.certification?.trim() || null;
+
+  const tvCertFor = (iso: string) => {
+    const rating = tvResults.find((entry) => entry.iso_3166_1 === iso)?.rating;
+    return rating?.trim() || null;
+  };
+
+  for (const iso of [region, 'US']) {
+    const cert = movieCertFor(iso) ?? tvCertFor(iso);
+    if (cert) return cert;
+  }
+
+  // Last resort: any region that actually published something, so the UI shows
+  // a real rating rather than nothing.
+  const anyMovie = movieResults
+    .flatMap((entry) => entry.release_dates ?? [])
+    .find((entry) => entry.certification?.trim())?.certification?.trim();
+  if (anyMovie) return anyMovie;
+
+  return tvResults.find((entry) => entry.rating?.trim())?.rating?.trim() || null;
 }
 
 export const api = {
@@ -218,6 +327,16 @@ export const api = {
    */
   getImageUrl(path: string | null | undefined, size = 'w500'): string | null {
     return path ? `${IMAGE_BASE}/${size}${path}` : null;
+  },
+
+  /** `srcSet` for a poster path, so the browser downloads the size it needs. */
+  getPosterSrcSet(path: string | null | undefined): string | undefined {
+    return buildSrcSet(path, POSTER_WIDTHS);
+  },
+
+  /** `srcSet` for a backdrop path. Tops out at w1280 -- `original` is wasteful. */
+  getBackdropSrcSet(path: string | null | undefined): string | undefined {
+    return buildSrcSet(path, BACKDROP_WIDTHS);
   },
 
   getTrending: (mediaType = 'all', timeWindow = 'day', page = 1) =>
@@ -240,8 +359,72 @@ export const api = {
       tmdbUrl(`/discover/${mediaType}`, params)
     ),
 
-  getWatchProviders: (mediaType = 'movie', region = 'US') =>
+  getWatchProviders: (mediaType = 'movie', region = TMDB_REGION) =>
     request<unknown>(tmdbUrl(`/watch/providers/${mediaType}`, { watch_region: region })),
+
+  /**
+   * Per-title availability ("Streaming on Netflix"). Only the *global* provider
+   * catalogue was wired before, which cannot answer where a specific title is
+   * available.
+   */
+  getTitleWatchProviders: (mediaType: string, id: string) =>
+    request<{
+      results?: Record<
+        string,
+        {
+          link?: string;
+          flatrate?: TmdbProvider[];
+          rent?: TmdbProvider[];
+          buy?: TmdbProvider[];
+          free?: TmdbProvider[];
+          ads?: TmdbProvider[];
+        }
+      >;
+    }>(tmdbUrl(`/${mediaType}/${id}/watch/providers`)),
+
+  /**
+   * Artwork, including the official title logo. Rendering the logo instead of
+   * the title in a UI font is the single most recognisable piece of premium
+   * catalogue styling, and it was not fetched anywhere.
+   */
+  getTitleImages: (mediaType: string, id: string) =>
+    request<{
+      logos?: TmdbImage[];
+      backdrops?: TmdbImage[];
+      posters?: TmdbImage[];
+    }>(tmdbUrl(`/${mediaType}/${id}/images`, { include_image_language: 'en,null' })),
+
+  /** Real user reviews. `Movie.reviews` was hardcoded to `[]` before this. */
+  getReviews: (mediaType: string, id: string, page = 1) =>
+    request<{
+      results: Array<{
+        id: string;
+        author: string;
+        content: string;
+        created_at?: string;
+        author_details?: { rating?: number | null; avatar_path?: string | null };
+      }>;
+      total_pages: number;
+      total_results: number;
+    }>(tmdbUrl(`/${mediaType}/${id}/reviews`, { page })),
+
+  /** Franchise membership, for "The Dark Knight Trilogy"-style rows. */
+  getCollection: (collectionId: string | number) =>
+    request<{ id: number; name: string; overview?: string; parts?: TmdbItem[] }>(
+      tmdbUrl(`/collection/${collectionId}`)
+    ),
+
+  /** Micro-genre keywords, used to build "more like this" rows that mean something. */
+  getKeywords: (mediaType: string, id: string) =>
+    request<{ keywords?: TmdbGenre[]; results?: TmdbGenre[] }>(
+      tmdbUrl(`/${mediaType}/${id}/keywords`)
+    ),
+
+  /** Titles sharing a keyword. Better signal than TMDB's own `similar`. */
+  discoverByKeyword: (mediaType: 'movie' | 'tv', keywordId: string | number, page = 1) =>
+    request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl(`/discover/${mediaType}`, { with_keywords: keywordId, page, sort_by: 'popularity.desc' })
+    ),
 
   searchMulti: async (query: string, page = 1) => {
     if (!query.trim()) return { results: [] as TmdbItem[], total_pages: 0 };
@@ -250,10 +433,34 @@ export const api = {
     );
   },
 
+  searchTv: async (query: string, page = 1) => {
+    if (!query.trim()) return { results: [] as TmdbItem[], total_pages: 0 };
+    return request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl('/search/tv', { query: query.trim(), page })
+    );
+  },
+
+  searchMovie: async (query: string, page = 1) => {
+    if (!query.trim()) return { results: [] as TmdbItem[], total_pages: 0 };
+    return request<{ results: TmdbItem[]; total_pages: number }>(
+      tmdbUrl('/search/movie', { query: query.trim(), page })
+    );
+  },
+
+  /**
+   * One request for everything the detail page needs.
+   *
+   * The detail route used to fire `getDetails` + `getCredits` + `getVideos` +
+   * `getSimilar` + `getRecommendations` as separate round trips. TMDB supports
+   * up to 20 `append_to_response` sub-resources, so this is one request with the
+   * same payload and a single cache entry.
+   */
   getDetails: (mediaType: string, id: string) =>
     request<TmdbItem>(
       tmdbUrl(`/${mediaType}/${id}`, {
-        append_to_response: 'external_ids,release_dates,content_ratings',
+        append_to_response:
+          'external_ids,release_dates,content_ratings,videos,images,keywords,credits,recommendations,similar,watch/providers',
+        include_image_language: 'en,null',
       })
     ),
 
@@ -342,6 +549,8 @@ export const api = {
     // defaulting it to 8, was actively misleading.
     const hasRating = typeof item.vote_average === 'number' && item.vote_average > 0;
 
+    const keywords = item.keywords?.keywords ?? item.keywords?.results ?? [];
+
     return {
       id: String(item.id),
       title: item.title || item.name || 'Untitled',
@@ -354,19 +563,120 @@ export const api = {
       voteCount: item.vote_count ?? 0,
       ageRating: extractCertification(item),
       genres: item.genres?.map((genre) => genre.name) ?? [],
-      posterUrl: api.getImageUrl(item.poster_path),
-      backdropUrl: api.getImageUrl(item.backdrop_path, 'original'),
+      posterUrl: api.getImageUrl(item.poster_path, 'w500'),
+      posterSrcSet: buildSrcSet(item.poster_path, POSTER_WIDTHS),
+      posterThumbUrl: item.poster_path ? `${IMAGE_BASE}/w92${item.poster_path}` : null,
+      // w1280 rather than `original`: the latter is up to 3840px and was being
+      // served to phones for every hero and card backdrop.
+      backdropUrl: api.getImageUrl(item.backdrop_path, 'w1280'),
+      backdropSrcSet: buildSrcSet(item.backdrop_path, BACKDROP_WIDTHS),
+      logoUrl: pickLogoUrl(item),
       runtime: runtimeMinutes,
       status: item.status,
       episodeCount: item.number_of_episodes,
+      seasonCount: item.number_of_seasons,
+      collectionId: item.belongs_to_collection ? String(item.belongs_to_collection.id) : null,
+      collectionName: item.belongs_to_collection?.name ?? null,
+      keywordIds: keywords.map((entry) => entry.id),
+      adult: item.adult === true,
+      trailerKey: pickTrailerKey(item),
+      providers: mapProviders(item),
       // Playback sources are resolved by the player, not fabricated here.
       servers: [],
-      cast: [],
+      cast: item.credits ? api.mapCast(item.credits) : [],
       reviews: [],
+      recommendations: item.recommendations?.results?.map(r => api.mapToInternalMovie({ ...r, media_type: r.media_type || item.media_type })) || [],
       imdbId: item.imdb_id || item.external_ids?.imdb_id || '',
     };
   },
+
+  /** Maps TMDB reviews. `Movie.reviews` used to be permanently `[]`. */
+  mapReviews(payload: {
+    results?: Array<{
+      id: string;
+      author: string;
+      content: string;
+      created_at?: string;
+      author_details?: { rating?: number | null; avatar_path?: string | null };
+    }>;
+  }): Review[] {
+    return (payload.results ?? []).map((entry) => {
+      // TMDB avatar_path is sometimes a full Gravatar URL prefixed with a slash.
+      const rawAvatar = entry.author_details?.avatar_path ?? null;
+      const avatarUrl = rawAvatar
+        ? rawAvatar.startsWith('/http')
+          ? rawAvatar.slice(1)
+          : api.getImageUrl(rawAvatar, 'w185')
+        : null;
+
+      return {
+        id: entry.id,
+        user: entry.author,
+        // TMDB rates out of 10; 0 and null both mean "did not score it".
+        rating: entry.author_details?.rating ?? 0,
+        content: entry.content,
+        // Nothing here is verified by us, so never claim it is.
+        verified: false,
+        createdAt: entry.created_at,
+        avatarUrl,
+      };
+    });
+  },
 };
+
+/**
+ * Picks the widest English (or textless) logo. Falls back to null so callers
+ * render the title as text rather than a broken image.
+ */
+function pickLogoUrl(item: TmdbItem): string | null {
+  const logos = item.images?.logos ?? [];
+  if (logos.length === 0) return null;
+  const preferred =
+    logos.filter((logo) => logo.iso_639_1 === 'en').sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0] ??
+    logos.sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0];
+  // PNG keeps transparency; TMDB also serves SVG, which w500 cannot resize.
+  return preferred?.file_path ? `${IMAGE_BASE}/w500${preferred.file_path}` : null;
+}
+
+/** Picks the best official YouTube trailer key from an appended videos payload. */
+function pickTrailerKey(item: TmdbItem): string | null {
+  const videos = item.videos?.results ?? [];
+  const youtube = videos.filter((video) => video.site === 'YouTube');
+  const byPreference =
+    youtube.find((video) => video.type === 'Trailer' && video.official) ??
+    youtube.find((video) => video.type === 'Trailer') ??
+    youtube.find((video) => video.type === 'Teaser') ??
+    youtube[0];
+  return byPreference?.key ?? null;
+}
+
+/** Flattens the appended watch/providers payload for the viewer's region. */
+function mapProviders(item: TmdbItem): WatchProvider[] {
+  const regional = item['watch/providers']?.results?.[TMDB_REGION];
+  if (!regional) return [];
+
+  const kinds: Array<[WatchProvider['kind'], TmdbProvider[] | undefined]> = [
+    ['flatrate', regional.flatrate],
+    ['rent', regional.rent],
+    ['buy', regional.buy],
+  ];
+
+  const seen = new Set<number>();
+  const out: WatchProvider[] = [];
+  for (const [kind, list] of kinds) {
+    for (const entry of list ?? []) {
+      if (seen.has(entry.provider_id)) continue;
+      seen.add(entry.provider_id);
+      out.push({
+        id: entry.provider_id,
+        name: entry.provider_name,
+        logoUrl: api.getImageUrl(entry.logo_path, 'w92'),
+        kind,
+      });
+    }
+  }
+  return out;
+}
 
 /* ------------------------------------------------------------------------ */
 /* Kitsu                                                                     */
@@ -392,15 +702,26 @@ export const kitsuApi = {
       { headers: KITSU_HEADERS }
     ),
 
+  /**
+   * Highest-rated anime, for the spotlight. HeroSpotlight used to build this URL
+   * inline with a raw `fetch`, bypassing the shared cache, timeout, retry and
+   * in-flight de-duplication that every other request goes through.
+   */
+  getTopRated: (limit = 5) =>
+    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
+      `${KITSU_BASE}/anime?sort=-averageRating&page[limit]=${limit}&include=categories,mappings`,
+      { headers: KITSU_HEADERS }
+    ),
+
   getByCategory: (slug: string, page = 1) =>
     request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
       `${KITSU_BASE}/anime?filter[categories]=${encodeURIComponent(slug)}&sort=-averageRating&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`,
       { headers: KITSU_HEADERS }
     ),
 
-  search: (query: string, limit = 20, offset = 0) =>
+  search: (query: string, limit = 12, offset = 0) =>
     request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}&page[offset]=${offset}&include=categories,mappings`,
+      `${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}&page[offset]=${offset}`,
       { headers: KITSU_HEADERS }
     ),
 
@@ -455,15 +776,25 @@ export const kitsuApi = {
     }
 
     const mappingIds = item.relationships?.mappings?.data?.map((entry) => entry.id) ?? [];
+    let anilistId = '';
     if (mappingIds.length && included.length) {
-      const mapping = included.find(
+      const malMapping = included.find(
         (entry) =>
           entry.type === 'mappings' &&
           mappingIds.includes(entry.id) &&
           (entry.attributes?.externalSite === 'myanimelist/anime' ||
             entry.attributes?.externalSite === 'my-anime-list/anime')
       );
-      malId = mapping?.attributes?.externalId ?? '';
+      malId = malMapping?.attributes?.externalId ?? '';
+
+      const anilistMapping = included.find(
+        (entry) =>
+          entry.type === 'mappings' &&
+          mappingIds.includes(entry.id) &&
+          (entry.attributes?.externalSite === 'anilist/anime' ||
+            entry.attributes?.externalSite === 'anilist')
+      );
+      anilistId = anilistMapping?.attributes?.externalId ?? '';
     }
 
     const attributes = item.attributes ?? {};
@@ -487,6 +818,7 @@ export const kitsuApi = {
       ageRating: attributes.ageRating || null,
       genres,
       posterUrl: attributes.posterImage?.large ?? null,
+      posterThumbUrl: attributes.posterImage?.tiny ?? null,
       backdropUrl: attributes.coverImage?.large ?? attributes.posterImage?.large ?? null,
       servers: [],
       cast: [],
@@ -497,16 +829,35 @@ export const kitsuApi = {
       // synthesised here as up to 100 fake objects with placeholder thumbnails.
       episodes: [],
       malId,
+      anilistId,
     };
   },
 };
 
+/**
+ * Trailer keys, bounded. This Map was unbounded and never evicted, so a long
+ * browsing session grew it without limit.
+ */
+const MAX_TRAILER_CACHE_ENTRIES = 300;
 const trailerCache = new Map<string, string | null>();
+
+function cacheTrailer(key: string, value: string | null): string | null {
+  trailerCache.delete(key);
+  trailerCache.set(key, value);
+  while (trailerCache.size > MAX_TRAILER_CACHE_ENTRIES) {
+    const oldest = trailerCache.keys().next().value;
+    if (oldest === undefined) break;
+    trailerCache.delete(oldest);
+  }
+  return value;
+}
 
 export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'): Promise<string | null> {
   const cacheKey = `${type}-${id}`;
   if (trailerCache.has(cacheKey)) {
-    return trailerCache.get(cacheKey) ?? null;
+    // Refresh recency so the eviction above is LRU rather than insertion-order.
+    const cached = trailerCache.get(cacheKey) ?? null;
+    return cacheTrailer(cacheKey, cached);
   }
 
   try {
@@ -516,9 +867,7 @@ export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'
         const kitsuData = await kitsuApi.getDetails(id);
         const ytId = kitsuData.data?.attributes?.youtubeVideoId;
         if (ytId && typeof ytId === 'string' && ytId.trim()) {
-          const cleanId = ytId.trim();
-          trailerCache.set(cacheKey, cleanId);
-          return cleanId;
+          return cacheTrailer(cacheKey, ytId.trim());
         }
       } catch {
         // Suppress Kitsu fetch errors
@@ -531,23 +880,18 @@ export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'
           const yt = res.results?.find(
             (v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser' || v.type === 'Clip')
           );
-          if (yt?.key) {
-            trailerCache.set(cacheKey, yt.key);
-            return yt.key;
-          }
+          if (yt?.key) return cacheTrailer(cacheKey, yt.key);
         } catch {
           // Suppress fallback errors
         }
       }
 
-      trailerCache.set(cacheKey, null);
-      return null;
+      return cacheTrailer(cacheKey, null);
     }
 
     const res = await api.getVideos(type === 'tv' ? 'tv' : 'movie', id);
     if (!res?.results || res.results.length === 0) {
-      trailerCache.set(cacheKey, null);
-      return null;
+      return cacheTrailer(cacheKey, null);
     }
 
     // Prioritize official Trailer > any Trailer > Teaser > Clip > any YouTube video
@@ -558,33 +902,54 @@ export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'
     const anyClip = youtubeVideos.find((v) => v.type === 'Clip');
     const selected = officialTrailer || anyTrailer || anyTeaser || anyClip || youtubeVideos[0];
 
-    const key = selected?.key || null;
-    trailerCache.set(cacheKey, key);
-    return key;
+    return cacheTrailer(cacheKey, selected?.key || null);
   } catch {
-    trailerCache.set(cacheKey, null);
-    return null;
+    return cacheTrailer(cacheKey, null);
   }
 }
 
+/* ------------------------------------------------------------------------ */
+/* Hover prefetch                                                            */
+/*                                                                           */
+/* This used to fire 4-5 parallel requests per poster hover with no memory   */
+/* and no concurrency limit, so sweeping the mouse across one row queued     */
+/* dozens of requests and pushed the genuinely-needed ones behind them.      */
+/* `getDetails` now appends credits, videos and external_ids, so the warm    */
+/* path is a single request.                                                 */
+/* ------------------------------------------------------------------------ */
+
+const PREFETCH_TTL_MS = 60_000;
+const MAX_CONCURRENT_PREFETCH = 2;
+const prefetchedAt = new Map<string, number>();
+let activePrefetches = 0;
+
 export async function prefetchMovieDetails(type: 'movie' | 'tv' | 'anime', id: string): Promise<void> {
+  const key = `${type}-${id}`;
+  const last = prefetchedAt.get(key);
+  const now = Date.now();
+  if (last !== undefined && now - last < PREFETCH_TTL_MS) return;
+  if (activePrefetches >= MAX_CONCURRENT_PREFETCH) return;
+
+  prefetchedAt.set(key, now);
+  if (prefetchedAt.size > 400) {
+    for (const [entry, at] of prefetchedAt) {
+      if (now - at >= PREFETCH_TTL_MS) prefetchedAt.delete(entry);
+    }
+  }
+
+  activePrefetches += 1;
   try {
     if (type === 'anime') {
-      void kitsuApi.getDetails(id).catch(() => {});
-      void kitsuApi.getEpisodes(id).catch(() => {});
-      void kitsuApi.getCharacters(id).catch(() => {});
+      await kitsuApi.getDetails(id).catch(() => {});
     } else {
-      const mediaType = type === 'tv' ? 'tv' : 'movie';
-      void api.getDetails(mediaType, id).catch(() => {});
-      void api.getCredits(mediaType, id).catch(() => {});
-      void api.getExternalIds(mediaType, id).catch(() => {});
-      if (mediaType === 'tv') {
-        void api.getSeasonDetails(id, 1).catch(() => {});
-      }
+      // One request: append_to_response already carries credits, videos,
+      // images, keywords, external_ids and recommendations.
+      await api.getDetails(type === 'tv' ? 'tv' : 'movie', id).catch(() => {});
     }
-    void getVideoTrailer(id, type).catch(() => {});
   } catch {
-    // Suppress prefetch errors
+    // A failed prefetch is not an error the user should ever see.
+  } finally {
+    activePrefetches -= 1;
   }
 }
 

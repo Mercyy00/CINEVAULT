@@ -34,11 +34,10 @@ export const STREAM_SOURCES: StreamSource[] = [
     language: 'hindi',
     latencyMs: null,
     status: 'unknown',
-    requiresImdbId: true,
-    buildUrl: ({ id, season, episode, imdbId }) =>
+    buildUrl: ({ id, season, episode }) =>
       season && episode
-        ? `https://rozgarlelo.modiplay.xyz/embed/imdb/tv?id=${imdbId || id}&s=${season}&e=${episode}`
-        : `https://rozgarlelo.modiplay.xyz/embed/imdb/movie?id=${imdbId || id}`,
+        ? `https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${id}&s=${season}&e=${episode}`
+        : `https://rozgarlelo.modiplay.xyz/embed/tmdb/movie?id=${id}`,
   },
   {
     id: 'screenscape-hi',
@@ -53,8 +52,8 @@ export const STREAM_SOURCES: StreamSource[] = [
         : `https://screenscape.me/embed?tmdb=${id}&type=movie&lan=hindi`,
   },
   {
-    id: 'opstream',
-    name: 'OpStream 4K',
+    id: 'videasy',
+    name: 'VIDEASY 4K',
     quality: '4K',
     language: 'multi',
     latencyMs: null,
@@ -63,8 +62,8 @@ export const STREAM_SOURCES: StreamSource[] = [
       const startSec = progress && progress > 5 ? Math.round(progress) : null;
       const progParam = startSec ? `&progress=${startSec}` : '';
       return season && episode
-        ? `https://opstream.fun/embed/tv/${id}/${season}/${episode}?color=e8852a&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true${progParam}`
-        : `https://opstream.fun/embed/movie/${id}?color=e8852a${progParam}`;
+        ? `https://player.videasy.to/tv/${id}/${season}/${episode}?color=e8852a&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true${progParam}`
+        : `https://player.videasy.to/movie/${id}?color=e8852a${progParam}`;
     },
   },
   {
@@ -140,18 +139,6 @@ export const STREAM_SOURCES: StreamSource[] = [
         : `https://cinesrc.st/embed/movie/${id}`,
   },
   {
-    id: 'videasy',
-    name: 'Videasy',
-    quality: 'HD',
-    language: 'english',
-    latencyMs: null,
-    status: 'unknown',
-    buildUrl: ({ id, season, episode }) =>
-      season && episode
-        ? `https://player.videasy.net/tv/${id}/${season}/${episode}?nextEpisode=true&autoplayNextEpisode=true`
-        : `https://player.videasy.net/movie/${id}`,
-  },
-  {
     id: 'vidsync',
     name: 'VidSync',
     quality: 'HD',
@@ -183,6 +170,8 @@ export const TRUSTED_PLAYER_ORIGINS = new Set([
   'https://cinesrc.st',
   'https://player.videasy.net',
   'https://videasy.net',
+  'https://player.videasy.to',
+  'https://videasy.to',
   'https://vidsync.xyz',
 ]);
 

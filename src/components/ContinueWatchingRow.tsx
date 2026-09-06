@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { motion } from 'motion/react';
 import { Play, X } from 'lucide-react';
 import { useApp } from '../store';
-import { api } from '../api';
+import { api, POSTER_SIZES, BACKDROP_SIZES } from '../api';
 
 import { PosterImage } from './PosterImage';
 import { goToWatch } from '../lib/navigation';
@@ -10,6 +10,20 @@ import { goToWatch } from '../lib/navigation';
 export function ContinueWatchingRow() {
   const { continueWatching, removeContinueWatchingItem } = useApp();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Deduplicate items by show (media_type + id), keeping the most recently updated one
+  const displayItems = React.useMemo(() => {
+    const seen = new Set<string>();
+    const result: typeof continueWatching = [];
+    for (const item of continueWatching) {
+      const key = `${item.media_type ?? 'movie'}_${item.id}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push(item);
+      }
+    }
+    return result;
+  }, [continueWatching]);
 
   // Touch drag variables
   const isDown = useRef(false);
@@ -45,7 +59,7 @@ export function ContinueWatchingRow() {
     scrollContainerRef.current.scrollLeft = scrollLeft.current - walk;
   };
 
-  if (continueWatching.length === 0) return null;
+  if (displayItems.length === 0) return null;
 
   return (
     <div className="mb-12 md:mb-16 px-3 sm:px-6 lg:px-8">
@@ -67,9 +81,9 @@ export function ContinueWatchingRow() {
         onTouchMove={handleMouseMove}
         className="flex gap-4 overflow-x-auto scrollbar-none pb-4 select-none"
       >
-        {continueWatching.map((item, idx) => (
+        {displayItems.map((item, idx) => (
           <motion.div
-            key={`${item.id}-${item.season_number}-${item.episode_number}`}
+            key={`${item.media_type ?? 'movie'}-${item.id}`}
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
             whileInView={{ opacity: 1, y: 0, scale: 1 }}
             viewport={{ once: true, amount: 0.15 }}
@@ -100,6 +114,21 @@ export function ContinueWatchingRow() {
                     ? item.poster_path
                     : api.getImageUrl(item.poster_path)
                   : undefined) ?? undefined
+              }
+              srcSet={
+                item.backdrop_path && !item.backdrop_path.startsWith('http')
+                  ? api.getBackdropSrcSet(item.backdrop_path)
+                  : item.poster_path && !item.poster_path.startsWith('http')
+                  ? api.getPosterSrcSet(item.poster_path)
+                  : undefined
+              }
+              sizes={item.backdrop_path ? BACKDROP_SIZES : POSTER_SIZES}
+              thumbSrc={
+                item.backdrop_path && !item.backdrop_path.startsWith('http')
+                  ? api.getImageUrl(item.backdrop_path, 'w300')
+                  : item.poster_path && !item.poster_path.startsWith('http')
+                  ? api.getImageUrl(item.poster_path, 'w92')
+                  : undefined
               }
               title={item.title}
               className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"

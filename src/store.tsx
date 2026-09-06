@@ -14,6 +14,14 @@ import { authService, type AuthUser } from './services/auth';
 import { continueWatchingKey, syncService } from './services/sync';
 import { watchTrackingService } from './services/watchTracking';
 import { isAppFontId, loadAppFont, type AppFontId } from './lib/fonts';
+import { COMPLETION_THRESHOLD } from './lib/playback';
+import {
+  getTelemetryConsent,
+  hasTelemetryConsent,
+  setSignedInHint,
+  setTelemetryConsent as persistTelemetryConsent,
+  type ConsentState,
+} from './lib/consent';
 import {
   LIGHT_THEME_IDS,
   StorageKeys,
@@ -26,8 +34,21 @@ import {
   writeString,
 } from './lib/storage';
 
-// Migrate legacy localStorage keys before any state initialiser reads them.
-runStorageMigrations();
+/**
+ * Legacy localStorage keys are migrated before any state initialiser reads them.
+ *
+ * This was a bare `runStorageMigrations()` at module scope, which made merely
+ * importing the store a side effect -- it ran during test collection, during any
+ * static analysis that resolved the import graph, and twice under HMR. It is now
+ * invoked from the first statement of `AppProvider`, still ahead of every
+ * `useState` initialiser in that body, and guarded so it happens exactly once.
+ */
+let migrationsHaveRun = false;
+function ensureStorageMigrations(): void {
+  if (migrationsHaveRun) return;
+  migrationsHaveRun = true;
+  runStorageMigrations();
+}
 
 export const THEMES = [
   'cinematic-dark',
@@ -58,8 +79,8 @@ const CLOUD_SYNC_DEBOUNCE_MS = 2_500;
 const MAX_CONTINUE_WATCHING = 20;
 const MAX_TOASTS = 3;
 const TOAST_DURATION_MS = 3_000;
-/** Above this, a title counts as finished and leaves the continue row. */
-const COMPLETION_THRESHOLD = 95;
+/* COMPLETION_THRESHOLD now lives in lib/playback.ts. It was 95 here and 90 in
+ * PlayerPage, so a title the player considered finished stayed in the row. */
 
 function isTheme(value: unknown): value is Theme {
   return typeof value === 'string' && (THEMES as readonly string[]).includes(value);
@@ -167,6 +188,23 @@ interface AppContextType {
   logout: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   syncNow: () => Promise<void>;
+  /**
+   * False when Firebase is not configured or anonymous sign-in is unavailable.
+   * The app then runs entirely from localStorage and writes nothing remotely.
+   */
+  cloudAvailable: boolean;
+  /**
+   * Personalised affinity score out of 100, or **null** when too little is
+   * known to say anything. Callers must render nothing for null rather than
+   * substituting a number -- `MovieCard` used to display a flat "96% Match" for
+   * every unrated title.
+   */
+  getMatchScore: (movie: Movie) => number | null;
+  /** Normalized genre affinity score map from user watchlist + preferences. */
+  genreAffinity: Record<string, number>;
+  /** 'unset' until the visitor answers the telemetry prompt. */
+  telemetryConsent: ConsentState;
+  setTelemetryConsent: (state: 'granted' | 'denied') => void;
   authModalOpen: boolean;
   setAuthModalOpen: (open: boolean) => void;
   authModalMode: 'signin' | 'signup' | 'forgot';
@@ -237,12 +275,31 @@ export interface BeforeInstallPromptEvent extends Event {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-function createGuestUid(): string {
+/**
+ * The local-only fallback identity.
+ *
+ * Guests are Firebase **anonymous** sessions now, so the normal path is a real
+ * uid issued by Firebase and covered by `isOwner()` in firestore.rules. The old
+ * client-minted `guest_<timestamp>_<random>` string forced the rules to allow
+ * `uid.matches('^guest_.*')`, which let any unauthenticated visitor read and
+ * overwrite every other guest's profile and watch history.
+ *
+ * This value is used only when Firebase is unavailable, in which case nothing is
+ * ever written to the cloud -- it exists so uid-keyed local state still works.
+ * The `local_` prefix is deliberate: it is never sent anywhere, and the store
+ * asserts on it before any remote call.
+ *
+ * Pure: it reads storage but does not write. Persisting is an effect.
+ */
+function readLocalGuestUid(): string {
   const existing = readString(StorageKeys.guestUid, '');
   if (existing) return existing;
-  const generated = `guest_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
-  writeString(StorageKeys.guestUid, generated);
-  return generated;
+  return `local_${crypto.randomUUID()}`;
+}
+
+/** True for the offline fallback identity, which must never reach Firestore. */
+function isLocalOnlyUid(uid: string | undefined): boolean {
+  return !uid || uid.startsWith('local_') || uid.startsWith('guest_');
 }
 
 function buildDefaultProfile(uid: string): UserProfile {
@@ -264,6 +321,9 @@ function buildDefaultProfile(uid: string): UserProfile {
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
+  // Must precede every state initialiser below; guarded, so it runs once.
+  ensureStorageMigrations();
+
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>(() =>
     readJSON<WatchlistItem[]>(StorageKeys.watchlist, [], Array.isArray)
   );
@@ -300,16 +360,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup' | 'forgot'>('signin');
   const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
   const [isAdmin, setIsAdmin] = useState(false);
+  /** Cleared when Firebase is absent or anonymous sign-in is refused. */
+  const [cloudAvailable, setCloudAvailable] = useState(true);
+  const [telemetryConsent, setTelemetryConsentState] = useState<ConsentState>(getTelemetryConsent);
 
-  /* The guest uid is generated once, in a ref, rather than by calling a
-   * localStorage-writing helper inside a `defaultProfile` object that was
-   * rebuilt on every render. Writing to storage during render is a side effect
-   * that React may run twice or discard under concurrent rendering. */
-  const guestUidRef = useRef<string>('');
-  if (!guestUidRef.current) guestUidRef.current = createGuestUid();
+  /* Read during render, persisted in an effect. The previous version called a
+   * storage-*writing* helper from the render body, which React may run twice or
+   * discard entirely under concurrent rendering. */
+  const [localGuestUid] = useState<string>(readLocalGuestUid);
+  useEffect(() => {
+    if (readString(StorageKeys.guestUid, '') !== localGuestUid) {
+      writeString(StorageKeys.guestUid, localGuestUid);
+    }
+  }, [localGuestUid]);
 
   const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-    const fallback = buildDefaultProfile(guestUidRef.current);
+    const fallback = buildDefaultProfile(localGuestUid);
     const stored = readJSON<Partial<UserProfile>>(
       StorageKeys.profile,
       {},
@@ -413,23 +479,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /* Local persistence                                                       */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * Persists the active profile's lists.
+   *
+   * These were two effects that each called `setProfiles` with `prev.map(...)`,
+   * which always produced a new array -- even when nothing changed. One
+   * watchlist mutation therefore wrote `cv:watchlist`, re-rendered with a fresh
+   * `profiles` identity, fired the profiles effect and wrote `cv:profiles`, and
+   * produced a new `syncSignature` that queued a cloud push. Now: one effect,
+   * and `setProfiles` returns `prev` untouched when the lists already match, so
+   * the cascade stops.
+   */
   useEffect(() => {
     writeJSON(StorageKeys.watchlist, watchlist);
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === activeProfileId ? { ...p, watchlist } : p
-      )
-    );
-  }, [watchlist, activeProfileId]);
-
-  useEffect(() => {
     writeJSON(StorageKeys.continueWatching, continueWatching);
-    setProfiles((prev) =>
-      prev.map((p) =>
-        p.id === activeProfileId ? { ...p, continueWatching } : p
-      )
-    );
-  }, [continueWatching, activeProfileId]);
+    setProfiles((prev) => {
+      const index = prev.findIndex((profile) => profile.id === activeProfileId);
+      if (index === -1) return prev;
+      const current = prev[index];
+      if (current.watchlist === watchlist && current.continueWatching === continueWatching) {
+        return prev;
+      }
+      const next = prev.slice();
+      next[index] = { ...current, watchlist, continueWatching };
+      return next;
+    });
+  }, [watchlist, continueWatching, activeProfileId]);
 
   useEffect(() => {
     const mode = LIGHT_THEME_IDS.has(theme) ? 'light' : 'dark';
@@ -541,17 +616,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     };
   }, [debouncedPush]);
 
-  // Keep all users (including guests) recorded in the directory for real-time tracking
+  /* The service layer cannot read React state, so publish the signed-in flag its
+   * consent check needs. */
   useEffect(() => {
-    const uid = userProfile.uid || guestUidRef.current;
-    if (!uid) return;
+    setSignedInHint(Boolean(userProfile.isLoggedIn));
+  }, [userProfile.isLoggedIn]);
+
+  /**
+   * Directory entry for the current identity.
+   *
+   * Gated three ways where it used to be unconditional: the uid must be a real
+   * Firebase uid (never the offline `local_` fallback), the cloud must be
+   * reachable, and telemetry must be permitted. A guest who has not opted in now
+   * gets no Firestore document at all -- previously every first paint wrote one.
+   */
+  useEffect(() => {
+    const uid = userProfile.uid;
+    if (!cloudAvailable || !uid || isLocalOnlyUid(uid)) return;
+    if (!hasTelemetryConsent(Boolean(userProfile.isLoggedIn))) return;
     void watchTrackingService.recordUser({
       uid,
       displayName: userProfile.name || (userProfile.isLoggedIn ? 'User' : 'Guest Viewer'),
       photoURL: userProfile.avatar || null,
       isGuest: !userProfile.isLoggedIn,
     });
-  }, [userProfile.uid, userProfile.name, userProfile.avatar, userProfile.isLoggedIn]);
+  }, [
+    userProfile.uid,
+    userProfile.name,
+    userProfile.avatar,
+    userProfile.isLoggedIn,
+    cloudAvailable,
+    telemetryConsent,
+  ]);
 
   const hydrateFromCloud = useCallback(async (authUser: AuthUser) => {
     const { watchlist: localList, continueWatching: localContinue } = latest.current;
@@ -590,27 +686,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isLoggedIn: true,
       }));
 
-      /* recordUser no longer sends a role. Admin is a server-minted custom
-       * claim; letting the client write `role: 'admin'` to its own document was
-       * a privilege-escalation hole. */
-      await watchTrackingService.recordUser({
-        uid: authUser.uid,
-        displayName: authUser.displayName,
-        photoURL: authUser.photoURL,
-      });
+      /* The directory entry is written by the consent-gated effect above, keyed
+       * on uid. Calling `recordUser` here as well meant every sign-in produced
+       * two identical Firestore writes, one of them bypassing the consent check. */
     } catch (error) {
       console.error('Could not load cloud data:', error);
     }
   }, []);
 
+  /* Mirrored into a ref so the auth callback can read them without the
+   * subscription being torn down and rebuilt on every change. */
+  const cloudAvailableRef = useRef(cloudAvailable);
   useEffect(() => {
+    cloudAvailableRef.current = cloudAvailable;
+  }, [cloudAvailable]);
+  const guestSignInInFlight = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const unsubscribe = authService.onAuthStateChanged((authUser) => {
-      if (!authUser) {
-        setAuthStatus('signed-out');
+      /* `undefined` means Firebase has not resolved the session yet. This
+       * contract was documented but never implemented -- only null-or-user was
+       * ever emitted, so the header flashed its signed-out state on every load
+       * and then swapped. */
+      if (authUser === undefined) {
+        setAuthStatus('loading');
+        return;
+      }
+
+      if (authUser === null) {
         setIsAdmin(false);
         setUserProfile((previous) => ({
           ...previous,
-          uid: guestUidRef.current,
+          uid: localGuestUid,
+          isLoggedIn: false,
+        }));
+
+        /* Upgrade the guest to a Firebase anonymous session so they hold a real
+         * uid. firestore.rules no longer carries the `uid.matches('^guest_.*')`
+         * wildcard that made every guest's profile and history world-readable
+         * and world-writable, so without this a guest has no cloud identity at
+         * all -- which is the correct failure mode, but the upgrade is the
+         * intended path. */
+        if (cloudAvailableRef.current && !guestSignInInFlight.current) {
+          guestSignInInFlight.current = true;
+          void authService
+            .signInAsGuest()
+            .then((guest) => {
+              if (cancelled) return;
+              // Success re-enters this callback with the anonymous user.
+              if (!guest) setCloudAvailable(false);
+            })
+            .finally(() => {
+              guestSignInInFlight.current = false;
+            });
+        }
+
+        setAuthStatus('signed-out');
+        return;
+      }
+
+      /* An anonymous session is a guest: a real uid for scoping, but not an
+       * account. `authStatus` stays 'signed-out' so the sign-in call to action
+       * still shows and cloud sync stays off. */
+      if (authUser.isAnonymous) {
+        setIsAdmin(false);
+        setAuthStatus('signed-out');
+        setUserProfile((previous) => ({
+          ...previous,
+          uid: authUser.uid,
           isLoggedIn: false,
         }));
         return;
@@ -630,8 +775,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       void hydrateFromCloud(authUser);
     });
 
-    return unsubscribe;
-  }, [hydrateFromCloud]);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [hydrateFromCloud, localGuestUid]);
 
   /* ---------------------------------------------------------------------- */
   /* Actions                                                                 */
@@ -654,10 +802,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Flush pending changes before the session goes away.
     if (debouncedPush.isPending()) await debouncedPush.flush();
     await authService.logout();
-    setUserProfile(buildDefaultProfile(guestUidRef.current));
     setIsAdmin(false);
+    /* The library is cleared on sign-out. It used to be left in localStorage, so
+     * on a shared device the next visitor inherited the previous account's
+     * watchlist and Continue Watching row. The cloud copy is authoritative and
+     * is restored on the next sign-in. */
+    setWatchlist([]);
+    setContinueWatching([]);
+    setUserProfile(buildDefaultProfile(localGuestUid));
+    remove(StorageKeys.profile);
     showToast('Signed out');
-  }, [debouncedPush, showToast]);
+  }, [debouncedPush, localGuestUid, showToast]);
 
   const resetPassword = useCallback(async (email: string) => {
     await authService.resetPassword(email);
@@ -689,17 +844,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /* All watchlist mutations use the updater form. Reading `watchlist` from the
-   * enclosing scope meant two rapid updates lost one of them. */
+   * enclosing scope meant two rapid updates lost one of them. The membership
+   * test reads the ref rather than mutating a `let` from inside the updater --
+   * React may invoke an updater twice, so that pattern was not safe to branch on. */
   const addToWatchlist = useCallback(
     (movie: Movie) => {
-      let added = false;
-      setWatchlist((previous) => {
-        if (previous.some((item) => item.movieId === movie.id)) return previous;
-        added = true;
-        return [...previous, { movieId: movie.id, movie, addedAt: Date.now(), status: 'Not Started' }];
-      });
-      // Deferred so the toast is not queued during the state update.
-      queueMicrotask(() => showToast(added ? 'Added to your list' : 'Already in your list'));
+      if (latest.current.watchlist.some((item) => item.movieId === movie.id)) {
+        showToast('Already in your list');
+        return;
+      }
+      setWatchlist((previous) =>
+        previous.some((item) => item.movieId === movie.id)
+          ? previous
+          : [
+              ...previous,
+              { movieId: movie.id, movie, addedAt: Date.now(), status: 'Not Started' as WatchStatus },
+            ]
+      );
+      showToast('Added to your list');
     },
     [showToast]
   );
@@ -769,26 +931,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const removeFromContinueWatching = removeContinueWatchingItem;
 
+  /**
+   * Merges updates into the profile.
+   *
+   * The Firestore `recordUser` call that used to sit *inside* the `setUserProfile`
+   * updater is gone: state updaters must be pure, and React may run them more
+   * than once, so that fired duplicate network writes. The consent-gated effect
+   * keyed on `userProfile.uid`/`name`/`avatar` covers it instead.
+   */
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
-    setUserProfile((previous) => {
-      const updated = { ...previous, ...updates };
-      const uid = updated.uid || guestUidRef.current;
-      if (uid) {
-        void watchTrackingService.recordUser({
-          uid,
-          displayName: updated.name || (updated.isLoggedIn ? 'User' : 'Guest Viewer'),
-          photoURL: updated.avatar || null,
-          isGuest: !updated.isLoggedIn,
-        });
-      }
-      return updated;
-    });
+    setUserProfile((previous) => ({ ...previous, ...updates }));
   }, []);
 
   const clearProfile = useCallback(() => {
-    setUserProfile(buildDefaultProfile(guestUidRef.current));
+    setUserProfile(buildDefaultProfile(localGuestUid));
     remove(StorageKeys.profile);
-  }, []);
+  }, [localGuestUid]);
 
   /** Removes only this app's keys, not every key on the origin. */
   const resetAllLocalData = useCallback(() => {
@@ -797,10 +955,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setContinueWatching([]);
     setUserPreferencesState([]);
     setOnboardingCompleteState(false);
-    setUserProfile(buildDefaultProfile(createGuestUid()));
+    setUserProfile(buildDefaultProfile(localGuestUid));
     setThemeState(DEFAULT_THEME);
     setAppFontState(DEFAULT_FONT);
-  }, []);
+    setTelemetryConsentState('unset');
+  }, [localGuestUid]);
 
   const updateContinueWatching = useCallback((item: ContinueWatchingItem) => {
     setContinueWatching((previous) => {
@@ -820,20 +979,29 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [watchlist]
   );
 
-  const switchProfile = useCallback((profileId: string) => {
-    setProfiles((currentProfiles) => {
-      const target = currentProfiles.find((p) => p.id === profileId);
-      if (!target) return currentProfiles;
+  /**
+   * Switches the active profile.
+   *
+   * The body used to run inside a `setProfiles` updater purely to *read* the
+   * profile list -- dispatching four other setState calls and a localStorage
+   * write as side effects, then returning `currentProfiles` unchanged. Updaters
+   * must be pure, and React may run them twice. The list is read from the ref
+   * instead, and `activeProfileId` is persisted by its own effect rather than
+   * being written a second time here.
+   */
+  const switchProfile = useCallback(
+    (profileId: string) => {
+      const target = latest.current.profiles.find((profile) => profile.id === profileId);
+      if (!target) return;
       setActiveProfileId(profileId);
-      writeString(StorageKeys.activeProfileId, profileId);
-      setWatchlist(target.watchlist || []);
-      setContinueWatching(target.continueWatching || []);
+      setWatchlist(target.watchlist ?? []);
+      setContinueWatching(target.continueWatching ?? []);
       if (target.theme && isTheme(target.theme)) setThemeState(target.theme);
       if (target.appFont && isAppFontId(target.appFont)) setAppFontState(target.appFont);
       showToast(`Switched to ${target.name}${target.isKids ? ' (Kids Mode)' : ''}`);
-      return currentProfiles;
-    });
-  }, [showToast]);
+    },
+    [showToast]
+  );
 
   const createProfile = useCallback(
     (newProf: { name: string; avatar: string; isKids: boolean; maxAgeRating?: string }) => {
@@ -864,26 +1032,88 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [showToast]
   );
 
+  /** Same pure-updater fix as `switchProfile`. */
   const deleteProfile = useCallback(
     (profileId: string) => {
-      setProfiles((prev) => {
-        if (prev.length <= 1) {
-          showToast('Cannot delete the only profile');
-          return prev;
-        }
-        const filtered = prev.filter((p) => p.id !== profileId);
-        if (activeProfileId === profileId) {
-          const nextActive = filtered[0].id;
-          setActiveProfileId(nextActive);
-          writeString(StorageKeys.activeProfileId, nextActive);
-          setWatchlist(filtered[0].watchlist || []);
-          setContinueWatching(filtered[0].continueWatching || []);
-        }
-        showToast('Profile deleted');
-        return filtered;
-      });
+      const current = latest.current.profiles;
+      if (current.length <= 1) {
+        showToast('Cannot delete the only profile');
+        return;
+      }
+      const remaining = current.filter((profile) => profile.id !== profileId);
+      if (remaining.length === current.length) return;
+
+      setProfiles(remaining);
+      if (latest.current.activeProfileId === profileId) {
+        const next = remaining[0];
+        setActiveProfileId(next.id);
+        setWatchlist(next.watchlist ?? []);
+        setContinueWatching(next.continueWatching ?? []);
+      }
+      showToast('Profile deleted');
     },
-    [activeProfileId, showToast]
+    [showToast]
+  );
+
+  const setTelemetryConsent = useCallback((state: 'granted' | 'denied') => {
+    persistTelemetryConsent(state);
+    setTelemetryConsentState(state);
+  }, []);
+
+  /* ---------------------------------------------------------------------- */
+  /* Personalised match score                                               */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Genre affinity, weighted by how strong a signal each source is.
+   *
+   * `MovieCard` rendered `Math.min(99, Math.max(75, rating * 10 + 8))` and fell
+   * back to a flat `96` for anything unrated -- a "% Match" with no relationship
+   * to the viewer at all. This is derived from what they actually chose during
+   * onboarding and what they put in their list.
+   */
+  const genreAffinity = useMemo<Record<string, number>>(() => {
+    const scores: Record<string, number> = {};
+    const bump = (genre: string, weight: number) => {
+      const key = genre.trim().toLowerCase();
+      if (!key) return;
+      scores[key] = (scores[key] ?? 0) + weight;
+    };
+
+    for (const preference of userPreferences) bump(preference.label, 2);
+    for (const item of watchlist) {
+      const weight = item.status === 'Watched' ? 3 : item.status === 'In Progress' ? 2 : 1;
+      for (const genre of item.movie?.genres ?? []) bump(genre, weight);
+    }
+    return scores;
+  }, [userPreferences, watchlist]);
+
+  const affinityTotal = useMemo(
+    () => Object.values(genreAffinity).reduce((sum, value) => sum + value, 0),
+    [genreAffinity]
+  );
+
+  const getMatchScore = useCallback(
+    (movie: Movie): number | null => {
+      const genres = movie.genres ?? [];
+      // Nothing learned yet, or nothing to compare against: say nothing.
+      if (affinityTotal === 0 || genres.length === 0) return null;
+
+      const matched = genres.reduce(
+        (sum, genre) => sum + (genreAffinity[genre.trim().toLowerCase()] ?? 0),
+        0
+      );
+      if (matched === 0) return null;
+
+      // Share of the viewer's total affinity this title's genres account for,
+      // saturating so a two-genre title can still reach the top of the range.
+      const affinity = Math.min(1, (matched / affinityTotal) * 2.5);
+      const quality =
+        typeof movie.rating === 'number' && movie.rating > 0 ? Math.min(1, movie.rating / 10) : 0.6;
+      const blended = affinity * 0.65 + quality * 0.35;
+      return Math.round(50 + blended * 49);
+    },
+    [affinityTotal, genreAffinity]
   );
 
   /* Memoised: this was an inline object literal, so every consumer of the
@@ -936,6 +1166,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logout,
       resetPassword,
       syncNow,
+      cloudAvailable,
+      getMatchScore,
+      genreAffinity,
+      telemetryConsent,
+      setTelemetryConsent,
       authModalOpen,
       setAuthModalOpen,
       authModalMode,
@@ -988,6 +1223,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logout,
       resetPassword,
       syncNow,
+      cloudAvailable,
+      getMatchScore,
+      genreAffinity,
+      telemetryConsent,
+      setTelemetryConsent,
       authModalOpen,
       setAuthModalOpen,
       authModalMode,

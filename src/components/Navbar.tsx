@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
 import { getUserAvatarUrl, getFallbackAvatarDataUri } from '../lib/avatars';
-import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users } from 'lucide-react';
+import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users, ShieldCheck } from 'lucide-react';
 import { useBirthdayMusic } from '../context/BirthdayMusicContext';
 import { navigate } from '../lib/navigation';
 
@@ -71,6 +71,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     setDeferredInstallPrompt,
     setAuthModalOpen,
     setAuthModalMode,
+    isAdmin,
     logout
   } = useApp();
   const [currentPath, setCurrentPath] = useState('/');
@@ -705,6 +706,20 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   <a href="/profile" onClick={() => setShowProfile(false)} className="flex items-center gap-3 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
                     <Settings className="w-4 h-4" /> Profile & Settings
                   </a>
+
+                  {/* The dashboard used to be reachable only by a hidden
+                      Ctrl+Shift+A chord, which also collided with the browser's
+                      own shortcut. Admins get a visible entry point instead; the
+                      route itself is still gated on the custom claim. */}
+                  {isAdmin && (
+                    <a
+                      href="/admin"
+                      onClick={() => setShowProfile(false)}
+                      className="flex items-center gap-3 px-4 py-2 text-xs font-medium text-brand hover:bg-brand/10 transition-colors cursor-pointer"
+                    >
+                      <ShieldCheck className="w-4 h-4" /> Admin Dashboard
+                    </a>
+                  )}
                   
                   <button 
                     onClick={() => {

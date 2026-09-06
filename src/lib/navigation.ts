@@ -8,6 +8,21 @@ import type { MediaType } from '../types';
  * to trigger reactive view updates without full page reloads.
  */
 
+/**
+ * True only while the synthetic `popstate` below is being dispatched.
+ *
+ * Scroll restoration has to tell an in-app navigation from a real Back or
+ * Forward: a new page starts at the top, a returning one has to land where the
+ * user left it. The event this module fires is otherwise indistinguishable from
+ * the browser's own, and `dispatchEvent` runs its listeners synchronously, so a
+ * flag held across that one call is enough -- and cannot go stale.
+ */
+let dispatchingSynthetic = false;
+
+export function isSyntheticNavigation(): boolean {
+  return dispatchingSynthetic;
+}
+
 export function navigate(path: string, options: { replace?: boolean } = {}): void {
   let target = path;
   if (!target.startsWith('/')) {
@@ -20,7 +35,12 @@ export function navigate(path: string, options: { replace?: boolean } = {}): voi
     window.history.pushState(null, '', target);
   }
 
-  window.dispatchEvent(new Event('popstate'));
+  dispatchingSynthetic = true;
+  try {
+    window.dispatchEvent(new Event('popstate'));
+  } finally {
+    dispatchingSynthetic = false;
+  }
 }
 
 export function detailRoute(id: string | number, type: string): string {

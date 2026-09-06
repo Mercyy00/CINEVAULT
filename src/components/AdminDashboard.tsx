@@ -24,6 +24,7 @@ import {
 import { isFirebaseConfigured } from '../services/firebase';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
+import { COMPLETION_THRESHOLD as PLAYBACK_COMPLETION_THRESHOLD } from '../lib/playback';
 import { formatDuration } from '../types';
 import { PosterImage } from './PosterImage';
 import { isBirthdayLocallyEnabled, setBirthdayLocallyEnabled, isBirthdayBuildEnabled } from '../config/birthdayAccess';
@@ -50,7 +51,7 @@ import { goToWatch, goToHome } from '../lib/navigation';
 
 const LIVE_WINDOW_MS = 5 * 60 * 1000;
 const WATCHING_NOW_MS = 3 * 60 * 1000;
-const COMPLETION_THRESHOLD = 90;
+const COMPLETION_THRESHOLD = PLAYBACK_COMPLETION_THRESHOLD;
 const TMDB_POSTER_BASE = 'https://image.tmdb.org/t/p/w200';
 
 type SessionFilter = 'all' | 'movie' | 'tv' | 'anime';

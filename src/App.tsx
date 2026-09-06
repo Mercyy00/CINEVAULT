@@ -15,8 +15,10 @@ import { ContinueWatchingRow } from './components/ContinueWatchingRow';
 import { OnboardingModal } from './components/OnboardingModal';
 import { AuthModal } from './components/AuthModal';
 import { BirthdayMusicProvider, useBirthdayMusic } from './context/BirthdayMusicContext';
-import { goToDetail, navigate } from './lib/navigation';
+import { goToDetail, isSyntheticNavigation, navigate } from './lib/navigation';
 import { isBirthdayVisible, rememberBirthdayUnlock } from './config/birthdayAccess';
+import { useScrollRestoration } from './hooks/useScrollRestoration';
+import { ConsentBanner } from './components/ConsentBanner';
 
 import { ROUTE_SEO, updateSeoMetadata } from './lib/seo';
 import { BackToTop } from './components/BackToTop';
@@ -62,6 +64,7 @@ interface HomeFilters {
   providerId?: string;
   genreId?: string;
   language?: string;
+  sortBy?: string;
 }
 
 const INTRO_KEY = 'cv:introPlayed';
@@ -78,6 +81,53 @@ function RouteLoading() {
   );
 }
 
+/**
+ * Fallback for the route-scoped boundary.
+ *
+ * The only boundary in the app wrapped the whole tree, so a render error in one
+ * page -- a malformed episode list, a detail response missing a field -- replaced
+ * the entire application with a full-screen error and lost the navbar with it.
+ * This keeps the chrome intact and offers a way out that isn't a reload.
+ */
+function RouteError({ error, onRetry }: { error: Error; onRetry: () => void }) {
+  return (
+    <div className="min-h-[70vh] flex flex-col items-center justify-center px-6 py-20 text-center">
+      <div className="text-5xl mb-5" aria-hidden="true">
+        🎬
+      </div>
+      <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3">
+        This page didn’t load.
+      </h1>
+      <p className="text-sm text-muted-foreground max-w-md mb-6">
+        Something in this view failed to render. The rest of CineVault is still working — try again,
+        or head back to the home page.
+      </p>
+
+      <p className="mb-8 max-w-lg font-mono text-xs text-red-300/80 break-words">{error.message}</p>
+
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="px-6 py-3 bg-brand text-background font-bold rounded-full text-sm hover:brightness-110 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white"
+        >
+          Try again
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onRetry();
+            navigate('/');
+          }}
+          className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold rounded-full text-sm transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          Back to home
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AppContent() {
   const [currentRoute, setCurrentRoute] = useState<string>('home');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -87,20 +137,23 @@ function AppContent() {
   const [surprisingGenre, setSurprisingGenre] = useState('');
   const [homeFilters, setHomeFilters] = useState<HomeFilters>({ type: 'movie', country: 'US' });
   const [showResetModal, setShowResetModal] = useState(false);
-  const [lastBaseRoute, setLastBaseRoute] = useState<string>('home');
 
   const {
     ambientColor,
     toasts,
     showToast,
     userPreferences,
+    genreAffinity,
     continueWatching,
     isKidsMode,
     authModalOpen,
     setAuthModalOpen,
     authModalMode,
+    authStatus,
     resetAllLocalData,
   } = useApp();
+
+  const { applyForNavigation } = useScrollRestoration();
 
   const { pauseTrack } = useBirthdayMusic();
 
@@ -112,6 +165,24 @@ function AppContent() {
   }, [currentRoute, pauseTrack]);
 
   const anyOverlayOpen = isSearchOpen || isMoodOpen || showResetModal || authModalOpen;
+
+  /* Nothing stopped the page scrolling behind an open overlay: flicking the
+   * search panel scrolled the homepage underneath it, and closing the panel left
+   * the user somewhere they never chose to be. The scrollbar's width is replaced
+   * with padding so locking doesn't shift the layout sideways. */
+  useEffect(() => {
+    if (!anyOverlayOpen) return;
+    const { body, documentElement } = document;
+    const previousOverflow = body.style.overflow;
+    const previousPadding = body.style.paddingRight;
+    const gutter = window.innerWidth - documentElement.clientWidth;
+    body.style.overflow = 'hidden';
+    if (gutter > 0) body.style.paddingRight = `${gutter}px`;
+    return () => {
+      body.style.overflow = previousOverflow;
+      body.style.paddingRight = previousPadding;
+    };
+  }, [anyOverlayOpen]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -132,24 +203,23 @@ function AppContent() {
         return;
       }
 
-      if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'a') {
-        event.preventDefault();
-        navigate('/admin');
-        return;
-      }
-
-      // Backspace used to call history.back() unconditionally, so pressing it
-      // anywhere outside a text field navigated away -- including with a modal
-      // open, and including inside contenteditable regions and selects, which
-      // the old INPUT/TEXTAREA check missed.
-      if (event.key === 'Backspace' && !anyOverlayOpen) {
-        window.history.back();
-      }
+      /* Two bindings were removed here rather than fixed.
+       *
+       * `Ctrl/Cmd+Shift+A` jumped to /admin. It was undiscoverable, it took a
+       * chord the browser already owns (Chrome selects all tabs with it), and
+       * the dashboard now has a visible entry in the profile menu for accounts
+       * that actually hold the admin claim.
+       *
+       * `Backspace` called `history.back()`. Browsers dropped that binding
+       * deliberately -- Chrome in 52 -- because it discards work when focus is
+       * anywhere but a text field, and no amount of guarding makes an unlabelled
+       * destructive shortcut a good default. Alt+Left and the back button still
+       * work, and the in-app back control is in the navbar. */
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isSearchOpen, isMoodOpen, showResetModal, anyOverlayOpen]);
+  }, [isSearchOpen, isMoodOpen, showResetModal]);
 
   useEffect(() => {
     const handleReset = () => setShowResetModal(true);
@@ -300,12 +370,13 @@ function AppContent() {
       if (route === 'search') {
         setCurrentRoute('search');
         setSearchQuery(query);
-        setLastBaseRoute('search');
       } else {
-        if (route !== 'profile') setLastBaseRoute(route);
         setCurrentRoute(route);
       }
-      window.scrollTo(0, 0);
+      /* Was an unconditional `window.scrollTo(0, 0)`, which threw away the
+       * user's place in a grid every time they came back to it. A push still
+       * starts at the top; a Back or Forward returns to the saved offset. */
+      applyForNavigation(isSyntheticNavigation());
     };
 
     window.addEventListener('popstate', handleLocationChange);
@@ -315,7 +386,7 @@ function AppContent() {
       window.removeEventListener('popstate', handleLocationChange);
       window.removeEventListener('hashchange', handleLocationChange);
     };
-  }, [parseCurrentLocation]);
+  }, [parseCurrentLocation, applyForNavigation]);
 
   // Global internal link interceptor
   useEffect(() => {
@@ -428,22 +499,31 @@ function AppContent() {
   }, [resetAllLocalData]);
 
   const homeRows = useMemo(() => {
-    if (homeFilters.providerId) {
+    if (homeFilters.providerId || (homeFilters.sortBy && homeFilters.sortBy !== 'popularity.desc')) {
+      const sortTitle =
+        homeFilters.sortBy === 'vote_average.desc'
+          ? 'Highest Rated'
+          : homeFilters.sortBy === 'primary_release_date.desc'
+          ? 'New Releases'
+          : 'Filtered titles';
+      const rowTitle = homeFilters.providerId ? 'Available on selected provider' : sortTitle;
       return (
         <motion.div
-          key={`filtered-${homeFilters.providerId}-${homeFilters.type}`}
+          key={`filtered-${homeFilters.providerId || 'none'}-${homeFilters.type}-${homeFilters.sortBy || 'pop'}`}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
           <MovieRow
-            title="Available on selected provider"
+            index={0}
+            title={rowTitle}
             fetchFn={(page) =>
               api.discover(homeFilters.type, {
                 page,
                 watch_region: homeFilters.country,
-                with_watch_providers: homeFilters.providerId ?? '',
+                with_watch_providers: homeFilters.providerId || '',
+                sort_by: homeFilters.sortBy || 'popularity.desc',
               })
             }
             onMovieSelect={goToDetail}
@@ -462,6 +542,7 @@ function AppContent() {
           transition={{ duration: 0.3 }}
         >
           <MovieRow
+            index={0}
             title="✨ Animated & Family Favorites"
             fetchFn={(page) =>
               api.discover('movie', {
@@ -473,6 +554,7 @@ function AppContent() {
             onMovieSelect={goToDetail}
           />
           <MovieRow
+            index={1}
             title="🍿 Family Movie Night"
             fetchFn={(page) =>
               api.discover('movie', {
@@ -485,6 +567,7 @@ function AppContent() {
             onMovieSelect={goToDetail}
           />
           <MovieRow
+            index={2}
             title="📺 Popular Kids & Cartoon TV"
             fetchFn={(page) =>
               api.discover('tv', {
@@ -496,6 +579,7 @@ function AppContent() {
             onMovieSelect={goToDetail}
           />
           <MovieRow
+            index={3}
             title="🎌 Kid-Friendly Anime"
             fetchFn={async (page) => {
               const res = await kitsuApi.getByCategory('kids', page);
@@ -508,6 +592,7 @@ function AppContent() {
             onMovieSelect={goToDetail}
           />
           <MovieRow
+            index={4}
             title="🚀 Fantasy & Adventure"
             fetchFn={(page) =>
               api.discover('movie', {
@@ -522,6 +607,28 @@ function AppContent() {
       );
     }
 
+    /* `index` is the row's position down the page. MovieRow uses it to decide
+     * which rows may fetch on mount and which wait for the viewport, so the
+     * count has to include the Top 10 row's slot even though it isn't one. */
+    const becauseWatched = continueWatching.slice(0, 2);
+    /* `userPreferences` used to be an array of JSON *strings* that the map below
+     * called `JSON.parse` on during render: one malformed entry threw and
+     * blanked the whole homepage. The store parses and validates them now. */
+    const likedRows = userPreferences.filter(
+      (pref) =>
+        pref &&
+        typeof pref.label === 'string' &&
+        pref.label.trim() !== '' &&
+        pref.label !== 'undefined'
+    );
+    const sortedLikedRows = [...likedRows].sort((a, b) => {
+      const affA = genreAffinity[a.label.trim().toLowerCase()] ?? 0;
+      const affB = genreAffinity[b.label.trim().toLowerCase()] ?? 0;
+      return affB - affA;
+    });
+    const likedOffset = 2 + becauseWatched.length;
+    const tailOffset = likedOffset + sortedLikedRows.length;
+
     return (
       <motion.div
         key="default-rows"
@@ -531,6 +638,7 @@ function AppContent() {
         transition={{ duration: 0.3 }}
       >
         <MovieRow
+          index={0}
           title="Trending now"
           fetchFn={(page) => api.getTrending('all', 'week', page)}
           onMovieSelect={goToDetail}
@@ -542,9 +650,10 @@ function AppContent() {
         />
 
         {/* Dynamic 'Because you watched' personalized rows */}
-        {continueWatching.slice(0, 2).map((item) => (
+        {becauseWatched.map((item, position) => (
           <MovieRow
             key={`because-watched-${item.media_type}-${item.id}`}
+            index={2 + position}
             title={`Because you watched ${item.title}`}
             fetchFn={async (page) => {
               if (item.media_type === 'anime') {
@@ -561,41 +670,40 @@ function AppContent() {
           />
         ))}
 
-        {/* `userPreferences` used to be an array of JSON *strings* that this map
-            called `JSON.parse` on during render: one malformed entry threw and
-            blanked the whole homepage. The store parses and validates them now. */}
-        {userPreferences
-          .filter((pref) => pref && typeof pref.label === 'string' && pref.label.trim() !== '' && pref.label !== 'undefined')
-          .map((pref) => (
-            <MovieRow
-              key={`${pref.label}-${pref.genres}`}
-              title={`Because you like ${pref.label}`}
-              fetchFn={async (page) => {
-                if (pref.label === 'Anime') {
-                  const res = await kitsuApi.getByCategory('anime', page);
-                  return {
-                    results: (res.data ?? []).map((item) =>
-                      kitsuApi.mapKitsuToInternal(item, res.included ?? [])
-                    ),
-                  };
-                }
-                return api.discover(pref.type ?? 'movie', { with_genres: pref.genres, page });
-              }}
-              onMovieSelect={goToDetail}
-            />
-          ))}
+        {sortedLikedRows.map((pref, position) => (
+          <MovieRow
+            key={`${pref.label}-${pref.genres}`}
+            index={likedOffset + position}
+            title={`Because you like ${pref.label}`}
+            fetchFn={async (page) => {
+              if (pref.label === 'Anime') {
+                const res = await kitsuApi.getByCategory('anime', page);
+                return {
+                  results: (res.data ?? []).map((item) =>
+                    kitsuApi.mapKitsuToInternal(item, res.included ?? [])
+                  ),
+                };
+              }
+              return api.discover(pref.type ?? 'movie', { with_genres: pref.genres, page });
+            }}
+            onMovieSelect={goToDetail}
+          />
+        ))}
 
         <MovieRow
+          index={tailOffset}
           title="Top rated movies"
           fetchFn={(page) => api.getTopRated('movie', page)}
           onMovieSelect={goToDetail}
         />
         <MovieRow
+          index={tailOffset + 1}
           title="Popular TV shows"
           fetchFn={(page) => api.getPopular('tv', page)}
           onMovieSelect={goToDetail}
         />
         <MovieRow
+          index={tailOffset + 2}
           title="Trending anime"
           fetchFn={async (page) => {
             const res = await kitsuApi.getTrending(page);
@@ -740,6 +848,7 @@ function AppContent() {
         );
 
       case 'profiles':
+        if (authStatus === 'loading') return <RouteLoading key="profiles-loading" />;
         return (
           <motion.div
             key="profiles"
@@ -829,11 +938,24 @@ function AppContent() {
 
   const renderView = () => {
     if (currentRoute === 'profile') {
+      /* Firebase resolves auth asynchronously, and `authStatus` starts at
+       * 'loading'. Rendering settings straight away meant the panel painted as
+       * "Guest / Sign in" for a beat and then swapped to the real account --
+       * with the sign-in call to action briefly clickable on an account that was
+       * already signed in. */
+      if (authStatus === 'loading') return <RouteLoading key="profile-loading" />;
+
+      /* This used to render `renderRouteContent(lastBaseRoute)` behind the
+       * settings panel purely to have something to blur: a second full route
+       * tree, mounting a second Hero and every row on it, firing the same API
+       * requests again and holding a duplicate of the whole DOM -- for a
+       * backdrop. A gradient does the same job for nothing. */
       return (
         <div key="profile-view-wrapper" className="relative">
-          <div className="filter blur-md pointer-events-none select-none" aria-hidden="true">
-            {renderRouteContent(lastBaseRoute)}
-          </div>
+          <div
+            aria-hidden="true"
+            className="fixed inset-0 -z-10 bg-background bg-[radial-gradient(circle_at_20%_0%,rgba(232,133,42,0.16),transparent_55%),radial-gradient(circle_at_85%_25%,rgba(120,80,200,0.14),transparent_50%)]"
+          />
           <ProfilePage />
         </div>
       );
@@ -879,9 +1001,18 @@ function AppContent() {
         }`}
       >
         <main id="app-container">
-          <Suspense fallback={<RouteLoading />}>
-            <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
-          </Suspense>
+          {/* One boundary per route, keyed on the route itself: a crash inside a
+              page no longer takes the navbar, the overlays and the toasts with
+              it, and navigating away clears the error instead of stranding the
+              user on a fallback until they reload. */}
+          <ErrorBoundary
+            resetKey={currentRoute}
+            fallback={(error, reset) => <RouteError error={error} onRetry={reset} />}
+          >
+            <Suspense fallback={<RouteLoading />}>
+              <AnimatePresence mode="wait">{renderView()}</AnimatePresence>
+            </Suspense>
+          </ErrorBoundary>
         </main>
 
         <SearchOverlay
@@ -979,6 +1110,10 @@ function AppContent() {
 
         {/* Floating Back to Top */}
         <BackToTop />
+
+        {/* Remote sync has been consent-gated since the services pass, but the
+            question was never actually put to anyone. */}
+        <ConsentBanner route={currentRoute} />
 
         <div
           className="fixed bottom-24 right-6 z-[200] flex flex-col gap-2"

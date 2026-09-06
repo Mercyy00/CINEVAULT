@@ -40,6 +40,17 @@ export interface Review {
   rating: number;
   content: string;
   verified: boolean;
+  createdAt?: string;
+  avatarUrl?: string | null;
+}
+
+/** A legal streaming service the title is available on, in the viewer's region. */
+export interface WatchProvider {
+  id: number;
+  name: string;
+  logoUrl: string | null;
+  /** How the title is offered: included with a subscription, rented, or bought. */
+  kind: 'flatrate' | 'rent' | 'buy' | 'free' | 'ads';
 }
 
 export interface Episode {
@@ -86,12 +97,43 @@ export interface Movie {
   episodes?: Episode[];
   /** 0-100, for continue-watching rows. */
   progress?: number;
+  recommendations?: Movie[];
   malId?: string;
+  anilistId?: string;
   imdbId?: string;
   episodeCount?: number;
   status?: string;
   /** Runtime in minutes as reported upstream. */
   runtime?: number;
+
+  /* -- Responsive artwork ------------------------------------------------- */
+  /** `srcSet` for `posterUrl`, so the browser downloads the width it needs. */
+  posterSrcSet?: string;
+  /** Tiny w92 thumbnail for blur-up placeholder loading. */
+  posterThumbUrl?: string | null;
+  /** `srcSet` for `backdropUrl`. Capped at w1280; `original` can be 3840px. */
+  backdropSrcSet?: string;
+  /**
+   * Official title logo artwork. Premium catalogues render this instead of the
+   * title in a UI font. Null when the title publishes no logo.
+   */
+  logoUrl?: string | null;
+
+  /* -- Extra metadata ----------------------------------------------------- */
+  /** TMDB collection (franchise) id, when the title belongs to one. */
+  collectionId?: string | null;
+  /** Human-readable franchise name, paired with `collectionId`. */
+  collectionName?: string | null;
+  /** TMDB keyword ids, used to build micro-genre recommendation rows. */
+  keywordIds?: number[];
+  /** True when TMDB flags the title as adult. Previously read via `as any`. */
+  adult?: boolean;
+  /** YouTube key for the primary trailer, when the payload carried one. */
+  trailerKey?: string | null;
+  /** Legal streaming availability in the viewer's region. */
+  providers?: WatchProvider[];
+  /** Number of seasons, for TV. */
+  seasonCount?: number;
 }
 
 export interface ContinueWatchingItem {

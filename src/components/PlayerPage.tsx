@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Menu, Play, Signal, SkipForward, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Menu, Play, Signal, SkipForward, SkipBack, X } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -12,9 +12,11 @@ import {
   findSource,
   type StreamSource,
 } from '../config/servers';
-import type { Movie } from '../types';
+import { formatDuration, type Movie } from '../types';
+import { COMPLETION_THRESHOLD, MIN_RESUME_PERCENT } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
 import { goToWatch, goToDetail } from '../lib/navigation';
+import { StorageKeys, readString, writeString } from '../lib/storage';
 
 /**
  * Embed player page.
@@ -31,12 +33,20 @@ import { goToWatch, goToDetail } from '../lib/navigation';
  * - **`postMessage` handlers verify the origin** before trusting a payload.
  */
 
-/** How long to wait for an embed's `load` event before warning the user. */
-const EMBED_TIMEOUT_MS = 12_000;
+/**
+ * How long to wait for an embed's `load` event before offering the next source.
+ *
+ * Was 12 s. Twelve seconds of a black screen is indistinguishable from a broken
+ * site, and these sources fail often enough that the wait was the common case
+ * rather than the exception. At 4.5 s the failover is offered while the viewer is
+ * still expecting something to happen.
+ */
+const EMBED_TIMEOUT_MS = 4_000;
 const CONTROLS_HIDE_MS = 3_000;
-const NEXT_EPISODE_SECONDS = 35;
-const COMPLETION_THRESHOLD = 90;
+const NEXT_EPISODE_SECONDS = 15;
 const TOP_ZONE_RATIO = 0.15;
+
+const serverProbeCache = new Map<string, { reachable: boolean; latencyMs: number }>();
 
 type EmbedState = 'idle' | 'loading' | 'ready' | 'slow';
 
@@ -53,16 +63,6 @@ interface PlaybackProgress {
   percentage: number;
 }
 
-function formatSeconds(totalSec: number): string {
-  const hours = Math.floor(totalSec / 3600);
-  const minutes = Math.floor((totalSec % 3600) / 60);
-  const seconds = Math.floor(totalSec % 60);
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
 export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const { updateContinueWatching, continueWatching, userProfile } = useApp();
 
@@ -71,16 +71,59 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [serversOpen, setServersOpen] = useState(true);
-  // Default to the one source with a documented, matching postMessage API
-  // (`vidlink.pro` sends `PLAYER_EVENT`/`MEDIA_DATA` with real currentTime +
-  // duration). The other entries are undocumented embeds that were never
-  // confirmed to send *any* progress message, which is why "watch progress"
-  // looked broken: `STREAM_SOURCES[0]` (ModiPlay Hindi) opened by default and
-  // simply never reports back, so nothing after the initial open-write ever
-  // updates. Falls back to the first entry if `vidlink` is ever removed.
-  const [source, setSource] = useState<StreamSource>(() => findSource('vidlink') ?? STREAM_SOURCES[0]);
+  const [rankedSources, setRankedSources] = useState<StreamSource[]>(STREAM_SOURCES);
+  const [failedSources, setFailedSources] = useState<Set<string>>(new Set());
+  const [source, setSource] = useState<StreamSource>(() => {
+    const pref = readString(StorageKeys.preferredServer, '');
+    return findSource(pref) ?? findSource('vidlink') ?? STREAM_SOURCES[0];
+  });
   const [embedState, setEmbedState] = useState<EmbedState>('idle');
   const [retryToken, setRetryToken] = useState(0);
+  const [, setProbeUpdates] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    const pref = readString(StorageKeys.preferredServer, '');
+    
+    setRankedSources(prev => [...prev].sort((a, b) => {
+      if (a.id === pref && b.id !== pref) return -1;
+      if (b.id === pref && a.id !== pref) return 1;
+      return 0;
+    }));
+
+    const probeAll = async () => {
+      const promises = STREAM_SOURCES.map(async (s) => {
+        if (serverProbeCache.has(s.id)) return;
+        try {
+          const start = performance.now();
+          const url = new URL(s.buildUrl({ id: 'probe' }));
+          await fetch(url.origin, { method: 'HEAD', mode: 'no-cors', signal: AbortSignal.timeout(3000) });
+          serverProbeCache.set(s.id, { reachable: true, latencyMs: Math.round(performance.now() - start) });
+        } catch {
+          serverProbeCache.set(s.id, { reachable: false, latencyMs: 0 });
+        }
+        if (active) setProbeUpdates(u => u + 1);
+      });
+      await Promise.all(promises);
+      if (active) {
+        setRankedSources(prev => [...prev].sort((a, b) => {
+          if (a.id === pref && b.id !== pref) return -1;
+          if (b.id === pref && a.id !== pref) return 1;
+          const probeA = serverProbeCache.get(a.id);
+          const probeB = serverProbeCache.get(b.id);
+          if (probeA?.reachable && !probeB?.reachable) return -1;
+          if (probeB?.reachable && !probeA?.reachable) return 1;
+          if (probeA?.reachable && probeB?.reachable) {
+            return (probeA.latencyMs || 0) - (probeB.latencyMs || 0);
+          }
+          return 0;
+        }));
+      }
+    };
+    probeAll();
+    
+    return () => { active = false; };
+  }, []);
 
   const [seasons, setSeasons] = useState<TmdbSeason[]>([]);
   const [selectedSeason, setSelectedSeason] = useState(1);
@@ -112,6 +155,12 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     if (type !== 'tv' || !selectedEpisode) return null;
     const index = episodes.findIndex((entry) => entry.id === selectedEpisode.id);
     return index >= 0 ? (episodes[index + 1] ?? null) : null;
+  }, [type, episodes, selectedEpisode]);
+
+  const prevEpisode = useMemo(() => {
+    if (type !== 'tv' || !selectedEpisode) return null;
+    const index = episodes.findIndex((entry) => entry.id === selectedEpisode.id);
+    return index > 0 ? (episodes[index - 1] ?? null) : null;
   }, [type, episodes, selectedEpisode]);
 
   const nextEpisodeRef = useRef(nextEpisode);
@@ -265,6 +314,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     // `retryToken` intentionally participates so "Try again" remounts the frame.
   }, [movie, missingImdbId, type, source, id, seasonNumber, episodeNumber, resolvedImdbId, effectiveProgress]);
 
+  const [failoverMessage, setFailoverMessage] = useState<string | null>(null);
+
   useEffect(() => {
     if (!embedSrc) {
       setEmbedState('idle');
@@ -272,10 +323,35 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     }
     setEmbedState('loading');
     const timer = window.setTimeout(() => {
-      setEmbedState((state) => (state === 'loading' ? 'slow' : state));
+      setEmbedState((state) => {
+        if (state === 'loading') {
+          setFailedSources(prev => new Set([...prev, source.id]));
+          return 'slow';
+        }
+        return state;
+      });
     }, EMBED_TIMEOUT_MS);
     return () => window.clearTimeout(timer);
-  }, [embedSrc, retryToken]);
+  }, [embedSrc, retryToken, source.id]);
+
+  useEffect(() => {
+    if (embedState === 'slow') {
+      const nextSource = rankedSources.find(s => !failedSources.has(s.id) && s.id !== source.id && s.status !== 'maintenance');
+      if (nextSource) {
+        setFailoverMessage(`Source unavailable — trying ${nextSource.name}…`);
+        setSource(nextSource);
+      } else {
+        setFailoverMessage('All sources failed. Please try again later.');
+      }
+    }
+  }, [embedState, failedSources, rankedSources, source.id]);
+
+  useEffect(() => {
+    if (embedState === 'ready') {
+      setFailoverMessage(null);
+      writeString(StorageKeys.preferredServer, source.id);
+    }
+  }, [embedState, source.id]);
 
   const handleStartOver = useCallback(() => {
     setForceStartFromBeginning(true);
@@ -290,10 +366,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   }, [runtimeSeconds]);
 
   useEffect(() => {
-    if (restored && restored.position_seconds > 30 && !restartPromptDismissed && !forceStartFromBeginning) {
+    if (restored && (restored.progress_percentage || 0) >= MIN_RESUME_PERCENT && !restartPromptDismissed && !forceStartFromBeginning) {
       const timer = window.setTimeout(() => {
         setRestartPromptDismissed(true);
-      }, 9000);
+      }, 10000);
       return () => window.clearTimeout(timer);
     }
   }, [restored, restartPromptDismissed, forceStartFromBeginning]);
@@ -317,12 +393,18 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         duration_seconds: progress.durationSeconds,
       });
 
-      const effectiveUid = userProfile.uid || 'guest_viewer';
+      /* No fabricated identity. Every guest previously shared the literal
+       * 'guest_viewer' uid, so all of their sessions collided into one set of
+       * documents -- and the current Firestore rules reject a `watch_sessions`
+       * write whose `uid` is not the caller's own, so it would be denied anyway.
+       * Guests now hold a real Firebase anonymous uid; when there is none at all
+       * (Firebase unconfigured) there is nothing to attribute, so skip. */
+      if (!userProfile.uid) return;
       const effectiveName = userProfile.name || (userProfile.isLoggedIn ? 'User' : 'Guest Viewer');
 
       void watchTrackingService.logWatchProgress(
         {
-          uid: effectiveUid,
+          uid: userProfile.uid,
           userName: effectiveName,
           userAvatar: userProfile.avatar ?? null,
           mediaId: String(movie.id),
@@ -425,11 +507,15 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             ? inner.currentTime
             : typeof inner.position === 'number'
               ? inner.position
-              : typeof payload.watched === 'number'
-                ? payload.watched
-                : typeof payload.currentTime === 'number'
-                  ? payload.currentTime
-                  : null;
+              : typeof inner.timestamp === 'number' && inner.timestamp < 1000000
+                ? inner.timestamp
+                : typeof payload.watched === 'number'
+                  ? payload.watched
+                  : typeof payload.currentTime === 'number'
+                    ? payload.currentTime
+                    : typeof payload.timestamp === 'number' && payload.timestamp < 1000000
+                      ? payload.timestamp
+                      : null;
 
       const duration =
         typeof inner.duration === 'number' && inner.duration > 0
@@ -631,6 +717,28 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [nextEpisode, goToEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
 
+  useEffect(() => {
+    if (!showNextEpisode) return;
+    const handleInteraction = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target?.closest?.('.next-episode-card')) return;
+      
+      setShowNextEpisode(false);
+      hasDismissedNextPrompt.current = true;
+    };
+    
+    // Use capture phase to ensure it catches before bubbling is stopped
+    window.addEventListener('click', handleInteraction, true);
+    window.addEventListener('wheel', handleInteraction, true);
+    window.addEventListener('touchstart', handleInteraction, true);
+    
+    return () => {
+      window.removeEventListener('click', handleInteraction, true);
+      window.removeEventListener('wheel', handleInteraction, true);
+      window.removeEventListener('touchstart', handleInteraction, true);
+    };
+  }, [showNextEpisode]);
+
   /* ---------------------------------------------------------------------- */
   /* Render                                                                 */
   /* ---------------------------------------------------------------------- */
@@ -758,6 +866,18 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 )}
               </button>
 
+              {type === 'tv' && prevEpisode && (
+                <button
+                  type="button"
+                  onClick={() => goToEpisode(prevEpisode)}
+                  className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
+                  title={`Previous: S${selectedSeason} E${prevEpisode.episode_number}`}
+                >
+                  <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
+                  <span className="hidden md:inline">Prev</span>
+                </button>
+              )}
+
               {type === 'tv' && nextEpisode && (
                 <button
                   type="button"
@@ -825,38 +945,56 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         {/* Resumption Prompt Overlay */}
         <AnimatePresence>
           {restored &&
-            restored.position_seconds > 30 &&
-            (restored.progress_percentage || 0) < 92 &&
+            (restored.progress_percentage || 0) >= MIN_RESUME_PERCENT &&
+            (restored.progress_percentage || 0) < COMPLETION_THRESHOLD &&
             !restartPromptDismissed &&
             !forceStartFromBeginning && (
               <motion.div
-                initial={{ opacity: 0, y: -20, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -20, scale: 0.95 }}
-                transition={{ duration: 0.25 }}
-                className="absolute top-20 sm:top-24 left-1/2 -translate-x-1/2 z-40 bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl px-4 py-2.5 shadow-2xl flex items-center gap-3 max-w-[92vw]"
-                role="status"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4"
               >
-                <div className="w-2 h-2 rounded-full bg-brand animate-pulse shrink-0" />
-                <p className="text-xs sm:text-sm text-foreground font-medium">
-                  Resumed at <span className="text-brand font-mono font-bold">{formatSeconds(restored.position_seconds)}</span>
-                </p>
-                <div className="h-3.5 w-px bg-white/20 shrink-0" />
-                <button
-                  type="button"
-                  onClick={handleStartOver}
-                  className="text-xs font-bold text-brand hover:underline shrink-0 cursor-pointer"
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-[#181a20]/95 backdrop-blur-xl rounded-2xl border border-white/10 p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center"
+                  role="dialog"
+                  aria-labelledby="resume-title"
                 >
-                  Start Over (0:00)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRestartPromptDismissed(true)}
-                  aria-label="Dismiss resumption alert"
-                  className="w-5 h-5 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground shrink-0 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
+                  <div className="w-24 aspect-video rounded-lg overflow-hidden mb-4 bg-white/5 relative">
+                    <img
+                      src={movie.backdropUrl || movie.posterUrl || ''}
+                      alt=""
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <h3 id="resume-title" className="text-lg font-bold text-foreground mb-1">
+                    Resume where you left off?
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-6">
+                    {type === 'tv' && selectedEpisode
+                      ? `S${selectedSeason} E${selectedEpisode.episode_number} · ${formatDuration(restored.position_seconds)}`
+                      : `at ${formatDuration(restored.position_seconds)}`}
+                  </p>
+                  <div className="flex flex-col gap-2 w-full">
+                    <button
+                      type="button"
+                      onClick={() => setRestartPromptDismissed(true)}
+                      className="w-full bg-brand hover:bg-brand/90 text-background font-bold py-3 px-4 rounded-xl transition-colors"
+                    >
+                      Resume
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleStartOver}
+                      className="w-full bg-transparent hover:bg-white/5 text-foreground font-semibold py-3 px-4 rounded-xl transition-colors"
+                    >
+                      Start from beginning
+                    </button>
+                  </div>
+                </motion.div>
               </motion.div>
             )}
         </AnimatePresence>
@@ -900,52 +1038,20 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           )}
         </AnimatePresence>
 
-        {/* Honest slow-source warning with 1-click fallback pills */}
+        {/* Failover notification */}
         <AnimatePresence>
-          {embedState === 'slow' && (
+          {failoverMessage && embedState !== 'ready' && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw] sm:max-w-2xl bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl p-3 sm:p-4 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4"
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw] sm:max-w-2xl bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl p-3 sm:p-4 shadow-2xl flex items-center gap-3"
               role="status"
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
-                <p className="text-xs sm:text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{source.name}</span> is taking a while.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setRetryToken((value) => value + 1)}
-                  className="text-xs font-bold px-2.5 py-1 rounded-lg bg-white/10 text-brand hover:bg-white/15 transition-colors cursor-pointer"
-                >
-                  Retry
-                </button>
-                {STREAM_SOURCES.filter((s) => s.id !== source.id && s.status !== 'maintenance')
-                  .slice(0, 3)
-                  .map((alt) => (
-                    <button
-                      key={alt.id}
-                      type="button"
-                      onClick={() => handleSourceChange(alt)}
-                      className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 transition-all cursor-pointer"
-                      title={`Switch to ${alt.name}`}
-                    >
-                      {alt.name.split(' ')[0]}
-                    </button>
-                  ))}
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="text-xs font-bold text-muted-foreground hover:text-foreground underline sm:no-underline cursor-pointer"
-                >
-                  More
-                </button>
-              </div>
+              <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
+              <p className="text-xs sm:text-sm text-foreground font-medium">
+                {failoverMessage}
+              </p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -957,58 +1063,67 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               initial={{ opacity: 0, y: 50, scale: 0.9 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 50, scale: 0.9 }}
-              className="absolute bottom-24 right-4 sm:right-8 z-40 bg-card/95 backdrop-blur-2xl border border-white/15 p-4 sm:p-5 rounded-2xl shadow-2xl max-w-sm w-[calc(100vw-2rem)] sm:w-84"
+              className="next-episode-card absolute bottom-6 right-6 z-40 bg-[#181a20]/95 backdrop-blur-xl border border-white/10 p-4 rounded-2xl shadow-2xl w-[280px]"
             >
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-brand bg-brand/15 px-2 py-0.5 rounded-full border border-brand/30">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-mono uppercase tracking-wider font-bold text-foreground">
                   Up Next
                 </span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNextEpisode(false);
-                    hasDismissedNextPrompt.current = true;
-                  }}
-                  className="w-6 h-6 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                  aria-label="Dismiss"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              </div>
+              <div className="flex gap-3 mb-4">
+                <div className="w-20 aspect-video rounded-lg overflow-hidden bg-white/5 shrink-0 relative">
+                  <img
+                    src={(nextEpisode.still_path ? api.getImageUrl(nextEpisode.still_path, 'w300') : (movie.backdropUrl || movie.posterUrl)) ?? undefined}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="flex flex-col justify-center min-w-0">
+                  <h2 className="text-foreground font-bold text-sm line-clamp-2 leading-tight">
+                    {nextEpisode.name || `S${selectedSeason} E${nextEpisode.episode_number}`}
+                  </h2>
+                  {nextEpisode.name && (
+                    <p className="text-muted-foreground text-xs font-medium truncate mt-0.5">
+                      S{selectedSeason} E{nextEpisode.episode_number}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <h2 className="text-foreground font-bold text-sm sm:text-base line-clamp-1 mb-1">
-                S{selectedSeason} E{nextEpisode.episode_number}: {nextEpisode.name || 'Next Episode'}
-              </h2>
-              <p className="text-muted-foreground text-xs mb-3 font-mono">
-                Auto-playing in <span className="text-brand font-bold">{nextCountdown}s</span>...
-              </p>
-
-              {/* Countdown progress bar */}
-              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-4">
-                <div
-                  className="h-full bg-brand transition-all duration-1000 ease-linear rounded-full"
-                  style={{ width: `${Math.max(0, Math.min(100, ((NEXT_EPISODE_SECONDS - nextCountdown) / NEXT_EPISODE_SECONDS) * 100))}%` }}
-                />
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => goToEpisode(nextEpisode)}
-                  className="flex-1 bg-brand hover:bg-brand/90 text-background font-bold py-2.5 px-4 rounded-xl transition-all shadow-lg shadow-brand/25 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer"
-                >
-                  <Play className="w-4 h-4 fill-current" aria-hidden="true" /> Play Now
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowNextEpisode(false);
-                    hasDismissedNextPrompt.current = true;
-                  }}
-                  className="px-4 py-2.5 bg-white/10 hover:bg-white/15 text-foreground font-semibold rounded-xl transition-colors text-xs cursor-pointer"
-                >
-                  Stay
-                </button>
+              <div className="flex items-center justify-between mt-2">
+                <div className="relative w-10 h-10 flex items-center justify-center">
+                  <svg className="absolute inset-0 w-full h-full -rotate-90">
+                    <circle cx="20" cy="20" r="18" className="stroke-white/10 fill-none" strokeWidth="3" />
+                    <circle 
+                      cx="20" cy="20" r="18" 
+                      className="stroke-brand fill-none transition-all duration-1000 ease-linear" 
+                      strokeWidth="3"
+                      strokeDasharray={18 * 2 * Math.PI}
+                      strokeDashoffset={(18 * 2 * Math.PI) * (1 - nextCountdown / NEXT_EPISODE_SECONDS)}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <span className="text-xs font-bold text-foreground relative z-10">{nextCountdown}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowNextEpisode(false);
+                      hasDismissedNextPrompt.current = true;
+                    }}
+                    className="text-muted-foreground hover:text-foreground text-xs font-semibold transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToEpisode(nextEpisode)}
+                    className="bg-brand hover:bg-brand/90 text-background font-bold py-2 px-4 rounded-xl transition-all shadow-lg shadow-brand/25 flex items-center justify-center gap-1.5 text-xs cursor-pointer"
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" aria-hidden="true" /> Play Now
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
@@ -1185,9 +1300,11 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                     document.getElementById and mutating el.style.maxHeight. */}
                 {serversOpen && (
                   <ul className="space-y-3 mt-4 list-none m-0 p-0">
-                    {STREAM_SOURCES.map((entry) => {
+                    {rankedSources.map((entry) => {
                       const active = source.id === entry.id;
                       const down = entry.status === 'maintenance';
+                      const probe = serverProbeCache.get(entry.id);
+                      const isPreferred = entry.id === readString(StorageKeys.preferredServer, '');
                       return (
                         <li key={entry.id}>
                           <button
@@ -1205,14 +1322,15 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                             )}
                           >
                             <span className="flex flex-col gap-1.5 min-w-0">
-                              <span className="font-medium text-sm leading-none truncate">
+                              <span className="font-medium text-sm leading-none flex items-center gap-2 truncate">
                                 {entry.name}
+                                {isPreferred && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand/20 text-brand uppercase font-bold tracking-wider">
+                                    Last used
+                                  </span>
+                                )}
                               </span>
                               <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                                {/* The signal bars and "12ms" readout are gone:
-                                    they rendered hardcoded constants as if they
-                                    were measurements. A cross-origin embed
-                                    cannot be timed from the browser. */}
                                 {entry.language === 'hindi' && (
                                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-orange-500/15 border border-orange-500/30 text-orange-400 font-bold">
                                     Hindi
@@ -1223,8 +1341,25 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                                     Multi-audio
                                   </span>
                                 )}
-                                {down && <span className="text-[10px]">Unavailable</span>}
-                                {entry.latencyMs !== null && <span>{entry.latencyMs}ms</span>}
+                                {down ? (
+                                  <span className="text-[10px]">Unavailable</span>
+                                ) : (
+                                  <span className="flex items-center gap-1.5 text-[10px]">
+                                    {!probe ? (
+                                      <span className="w-1.5 h-1.5 rounded-full border border-white/50 border-t-transparent animate-spin" />
+                                    ) : probe.reachable ? (
+                                      <>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                                        <span>{probe.latencyMs}ms</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                                        <span>Error</span>
+                                      </>
+                                    )}
+                                  </span>
+                                )}
                               </span>
                             </span>
                             {entry.quality && (

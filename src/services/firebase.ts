@@ -11,7 +11,8 @@ import { getFirestore, type Firestore } from 'firebase/firestore';
  *    friends. Any script that could write localStorage -- an XSS, or a user
  *    talked into pasting a line into devtools -- could repoint the whole app
  *    at an attacker-controlled Firebase project and harvest credentials on
- *    this origin. Config now comes only from build-time env vars.
+ *    this origin. Config now comes only from build-time env vars, with no
+ *    hardcoded fallbacks.
  *
  * 2. `export const firebase = initFirebase()` ran network/SDK setup at module
  *    import time, so merely importing this file initialised Firebase. Init is
@@ -32,14 +33,20 @@ const EMPTY_SERVICES: FirebaseServices = {
   googleProvider: null,
 };
 
+/**
+ * Config comes only from build-time env vars. There are deliberately no
+ * hardcoded fallbacks: with them, `isFirebaseConfigured()` could never return
+ * false, so the local-only guest path below was unreachable dead code and a
+ * misconfigured deploy silently pointed at someone else's project.
+ */
 function readConfig(): FirebaseOptions {
   return {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyBQB6fuAcXeYW47UNLaQeSix8v_c9DHJsc',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'cinevault-1a253.firebaseapp.com',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'cinevault-1a253',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'cinevault-1a253.firebasestorage.app',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '8955223945',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:8955223945:web:18c5d5f16aebe0a8104b58',
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
   };
 }
 

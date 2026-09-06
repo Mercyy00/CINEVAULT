@@ -1,15 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe, SkipForward, AlertTriangle } from 'lucide-react';
-import { kitsuApi } from '../api';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle } from 'lucide-react';
+import { api, kitsuApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
 import { TRUSTED_PLAYER_ORIGINS } from '../config/servers';
+import { COMPLETION_THRESHOLD, isResumable } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
 import { goToWatch, goToDetail } from '../lib/navigation';
 
-export type AnimeServerId = 'vidlink' | 'megaplay' | 'anikoto' | 'vidsrc';
+export type AnimeServerId = 'megaplay' | 'videasy' | 'screenmirror' | 'gogoanime' | 'screenscape' | 'vidlink';
 
 interface AnimeServerOption {
   id: AnimeServerId;
@@ -29,19 +30,151 @@ function formatSeconds(totalSec: number): string {
 }
 
 const ANIME_SERVERS: AnimeServerOption[] = [
-  { id: 'vidlink', name: 'VidLink Pro (Live Sync)', quality: '1080p', tag: 'Fast • Live Progress' },
-  { id: 'megaplay', name: 'MegaPlay (MAL)', quality: 'HD', tag: 'Direct MAL Streams' },
-  { id: 'anikoto', name: 'Anikoto (Legacy)', quality: 'HD', tag: 'Server 13 Proxy' },
-  { id: 'vidsrc', name: 'VidSrc Anime', quality: 'HD', tag: 'Multi-host Mirror' },
+  { id: 'megaplay', name: 'MegaPlay (Primary)', quality: '1080p', tag: 'Fast • Direct MAL • Sub/Dub' },
+  { id: 'videasy', name: 'VIDEASY 4K (AniList)', quality: '4K', tag: 'Direct AniList • 4K Sub/Dub' },
+  { id: 'screenmirror', name: 'ScreenMirror (ModiPlay)', quality: '4K', tag: 'TMDB • Hindi / Multi-Audio' },
+  { id: 'gogoanime', name: 'GogoAnime (MAL)', quality: 'HD', tag: 'Direct Gogo Player' },
+  { id: 'screenscape', name: 'ScreenScape 4K', quality: '4K', tag: 'TMDB • Hindi Dub • Ultra HD' },
+  { id: 'vidlink', name: 'VidLink Pro (Backup)', quality: '1080p', tag: 'MAL Sync • Live Progress' },
 ];
 
 const TRUSTED_ANIME_ORIGINS = new Set([
   ...TRUSTED_PLAYER_ORIGINS,
-  'https://vidlink.pro',
   'https://megaplay.buzz',
-  'https://anikotoapi.site',
-  'https://vidsrc.cc',
+  'https://player.videasy.to',
+  'https://videasy.to',
+  'https://rozgarlelo.modiplay.xyz',
+  'https://gogoanime.me.uk',
+  'https://screenscape.me',
+  'https://vidlink.pro',
 ]);
+
+const anilistIdCache = new Map<string, string>();
+
+async function fetchAnilistId(
+  malId?: string | number,
+  title?: string,
+  kitsuId?: string | number,
+  knownAnilistId?: string | number
+): Promise<string | null> {
+  if (knownAnilistId && String(knownAnilistId) !== '0' && String(knownAnilistId).trim() !== '') {
+    return String(knownAnilistId).trim();
+  }
+
+  const cleanMal = malId && String(malId) !== '0' ? String(malId).trim() : '';
+  const cleanTitle = title?.trim() || '';
+  const cleanKitsu = kitsuId && String(kitsuId) !== '0' ? String(kitsuId).trim() : '';
+
+  const cacheKey = `${cleanMal}_${cleanTitle}_${cleanKitsu}`;
+  if (anilistIdCache.has(cacheKey)) {
+    return anilistIdCache.get(cacheKey)!;
+  }
+
+  // Priority 1: Check Kitsu mappings for exact AniList ID
+  if (cleanKitsu) {
+    try {
+      const res = await fetch(`https://kitsu.io/api/edge/anime/${encodeURIComponent(cleanKitsu)}/mappings`);
+      if (res.ok) {
+        const json = await res.json();
+        const mappings = json.data || [];
+        const anilistEntry = mappings.find(
+          (m: any) =>
+            m.attributes?.externalSite === 'anilist/anime' ||
+            m.attributes?.externalSite === 'anilist'
+        );
+        if (anilistEntry?.attributes?.externalId) {
+          const result = String(anilistEntry.attributes.externalId);
+          anilistIdCache.set(cacheKey, result);
+          return result;
+        }
+      }
+    } catch {
+      // Continue to AniList GraphQL
+    }
+  }
+
+  // Priority 2: Query AniList GraphQL by MAL ID (idMal)
+  const malNum = cleanMal ? parseInt(cleanMal, 10) : null;
+  if (malNum && !isNaN(malNum)) {
+    try {
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `query ($idMal: Int) { Media (idMal: $idMal, type: ANIME) { id } }`,
+          variables: { idMal: malNum },
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const anilistId = json?.data?.Media?.id;
+        if (anilistId) {
+          const result = String(anilistId);
+          anilistIdCache.set(cacheKey, result);
+          return result;
+        }
+      }
+    } catch {
+      // Fallback to title query
+    }
+  }
+
+  // Priority 3: Query AniList GraphQL by exact title
+  if (cleanTitle) {
+    try {
+      const res = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `query ($search: String) { Media (search: $search, type: ANIME) { id } }`,
+          variables: { search: cleanTitle },
+        }),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const anilistId = json?.data?.Media?.id;
+        if (anilistId) {
+          const result = String(anilistId);
+          anilistIdCache.set(cacheKey, result);
+          return result;
+        }
+      }
+    } catch {
+      // Fallback to sanitized title
+    }
+
+    // Priority 4: Query AniList GraphQL with sanitized title
+    const sanitizedTitle = cleanTitle
+      .replace(/\s*\([^)]*\)/g, '')
+      .replace(/\s*:\s*.*/g, '')
+      .trim();
+    if (sanitizedTitle && sanitizedTitle.toLowerCase() !== cleanTitle.toLowerCase()) {
+      try {
+        const res = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: `query ($search: String) { Media (search: $search, type: ANIME) { id } }`,
+            variables: { search: sanitizedTitle },
+          }),
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const anilistId = json?.data?.Media?.id;
+          if (anilistId) {
+            const result = String(anilistId);
+            anilistIdCache.set(cacheKey, result);
+            return result;
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }
+
+  return null;
+}
 
 interface PlaybackProgress {
   positionSeconds: number;
@@ -59,8 +192,11 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [language, setLanguage] = useState<'sub' | 'dub'>('sub');
-  // Default to VidLink with real-time postMessage watch progress reporting
-  const [server, setServer] = useState<AnimeServerId>('vidlink');
+  // Default to MegaPlay (fast, verified reliable direct MAL streaming)
+  const [server, setServer] = useState<AnimeServerId>('megaplay');
+  const [tmdbId, setTmdbId] = useState<string>('');
+  const tmdbIdRef = useRef<string>('');
+  const anilistIdRef = useRef<string>('');
   
   const [isLoading, setIsLoading] = useState(true);
   const [isServerLoading, setIsServerLoading] = useState(false);
@@ -94,7 +230,15 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     setRestartPromptDismissed(false);
   }, [id, episode]);
 
-  const updateIframeSrc = async (epNum: number, lang: 'sub' | 'dub', srv: AnimeServerId = server, malId?: string, title?: string) => {
+  const updateIframeSrc = async (
+    epNum: number,
+    lang: 'sub' | 'dub',
+    srv: AnimeServerId = server,
+    malId?: string,
+    title?: string,
+    resolvedTmdbId?: string,
+    resolvedAnilistId?: string
+  ) => {
     setIsServerLoading(true);
     setIsServerSlow(false);
     if (serverSlowTimerRef.current) clearTimeout(serverSlowTimerRef.current);
@@ -103,50 +247,82 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     }, 12_000);
     setCurrentIframeSrc('about:blank');
     
-    setTimeout(async () => {
-      const effectiveMalId = malId && malId !== '0' ? malId : id;
-      if (srv === 'vidlink') {
-        setCurrentIframeSrc(`https://vidlink.pro/anime/${effectiveMalId}/${epNum}/${lang}`);
-      } else if (srv === 'megaplay' && effectiveMalId) {
-        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
-      } else if (srv === 'vidsrc') {
-        setCurrentIframeSrc(`https://vidsrc.cc/v2/embed/anime/${effectiveMalId}/${epNum}/${lang}`);
-      } else {
-        // Anikoto fallback resolution
+    let currentTmdb = resolvedTmdbId || tmdbIdRef.current || tmdbId;
+    if ((srv === 'screenmirror' || srv === 'screenscape') && !currentTmdb) {
+      const queryTitle = title || movie?.title || '';
+      if (queryTitle) {
         try {
-          const searchRes = await fetch(
-            `https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(title || movie?.title || '')}`
-          );
-          if (searchRes.ok) {
-            const searchData = await searchRes.json();
-            const anikotoId = searchData?.results?.[0]?.id;
-            if (anikotoId) {
-              const seriesRes = await fetch(`https://anikotoapi.site/series/${anikotoId}`);
-              if (seriesRes.ok) {
-                const seriesData = await seriesRes.json();
-                const ep =
-                  seriesData?.episodes?.find((e: any) => e.number === epNum) ??
-                  seriesData?.episodes?.[0];
-                const embedId = ep?.episode_embed_id ?? ep?.id;
-                if (embedId) {
-                  setCurrentIframeSrc(`https://megaplay.buzz/stream/s-2/${embedId}/${lang}`);
-                  setIsServerLoading(false);
-                  return;
-                }
-              }
+          const tvRes = await api.searchTv(queryTitle);
+          if (tvRes.results && tvRes.results.length > 0) {
+            const bestTv = tvRes.results.find((item: any) => 
+              item.name?.toLowerCase() === queryTitle.toLowerCase() ||
+              item.original_name?.toLowerCase() === queryTitle.toLowerCase()
+            ) || tvRes.results[0];
+            if (bestTv?.id) {
+              currentTmdb = String(bestTv.id);
+              tmdbIdRef.current = currentTmdb;
+              setTmdbId(currentTmdb);
             }
           }
-        } catch (e) {
-          console.error(e);
+        } catch {
+          // Fallback to query below
         }
-        // Fallback to VidLink or MegaPlay
+      }
+    }
+
+    setTimeout(async () => {
+      const effectiveMalId = malId && malId !== '0' ? malId : id;
+      const targetTmdb = currentTmdb || tmdbIdRef.current || tmdbId;
+
+      if (srv === 'megaplay' && effectiveMalId) {
+        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+      } else if (srv === 'videasy') {
+        const queryTitle = title || movie?.title || '';
+        let targetAnilist = resolvedAnilistId || anilistIdRef.current || movie?.anilistId;
+        if (!targetAnilist) {
+          const resolved = await fetchAnilistId(effectiveMalId, queryTitle, id, movie?.anilistId);
+          if (resolved) {
+            targetAnilist = resolved;
+            anilistIdRef.current = resolved;
+          }
+        }
+
+        if (targetAnilist) {
+          const isAnimeMovie = (movie?.episodeCount === 1 && epNum === 1) || movie?.type === 'movie';
+          const videasyUrl = isAnimeMovie
+            ? `https://player.videasy.to/anime/${targetAnilist}?color=e8852a&nextEpisode=false&episodeSelector=false`
+            : `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true`;
+          setCurrentIframeSrc(videasyUrl);
+        } else {
+          // Never use malId for VIDEASY: VIDEASY strictly requires an AniList ID.
+          // Fall back gracefully to MegaPlay (MAL) so the user does not get a broken player.
+          console.warn(`[VIDEASY] No AniList ID could be found for "${queryTitle}". Falling back to MegaPlay (MAL).`);
+          setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+        }
+      } else if (srv === 'gogoanime' && effectiveMalId) {
+        setCurrentIframeSrc(`https://gogoanime.me.uk/newplayer.php?mal_id=${effectiveMalId}&ep=${epNum}&category=${lang}`);
+      } else if (srv === 'screenmirror') {
+        if (targetTmdb) {
+          setCurrentIframeSrc(`https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${targetTmdb}&s=1&e=${epNum}`);
+        } else {
+          setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+        }
+      } else if (srv === 'screenscape') {
+        if (targetTmdb) {
+          setCurrentIframeSrc(`https://screenscape.me/embed?tmdb=${targetTmdb}&type=tv&s=1&e=${epNum}&lan=hindi`);
+        } else {
+          setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+        }
+      } else if (srv === 'vidlink') {
         setCurrentIframeSrc(`https://vidlink.pro/anime/${effectiveMalId}/${epNum}/${lang}`);
+      } else {
+        // Safe default: MegaPlay
+        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
       }
       setIsServerLoading(false);
     }, 200);
   };
 
-  
   useEffect(() => {
     if (movie) {
       updateSeoMetadata({
@@ -170,44 +346,43 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           
           let episodesData: any[] = [];
           try {
-             const searchRes = await fetch(`https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(internalMovie.title)}`);
-             if (searchRes.ok) {
-               const searchData = await searchRes.json();
-               if (searchData?.results?.length > 0) {
-                 const anikotoId = searchData.results[0].id;
-                 const seriesRes = await fetch(`https://anikotoapi.site/series/${anikotoId}`);
-                 if (seriesRes.ok) {
-                   const seriesData = await seriesRes.json();
-                   if (seriesData?.episodes) {
-                     episodesData = seriesData.episodes.map((ep: any) => ({
-                       id: ep.id || `ep-${ep.number}`,
-                       number: ep.number,
-                       episode: ep.number,
-                       title: ep.title || `Episode ${ep.number}`,
-                       image: ep.image || '',
-                       isReleased: true
-                     }));
-                   }
-                 }
-               }
-             }
-           } catch (e) {
-             console.error("Anikoto proxy fetch failed", e);
-           }
-           
-           if (episodesData.length === 0) {
-             const count = internalMovie.episodeCount || 0;
-             episodesData = Array.from({ length: count }, (_, i) => ({
-               id: `ep-${i + 1}`,
-               number: i + 1,
-               episode: i + 1,
-               title: `Episode ${i + 1}`,
-               image: '',
-               isReleased: true
-             }));
-           }
-           
-           setEpisodes(episodesData);
+            const kitsuEpisodes = await kitsuApi.getEpisodes(id, 100);
+            if (kitsuEpisodes && kitsuEpisodes.length > 0) {
+              episodesData = kitsuEpisodes.map((ep) => ({
+                id: `ep-${ep.episode}`,
+                number: ep.episode,
+                episode: ep.episode,
+                title: ep.title || `Episode ${ep.episode}`,
+                image: ep.thumbnail || '',
+                isReleased: true,
+                description: ep.description || '',
+                duration: ep.duration || '24m',
+              }));
+            }
+          } catch (e) {
+            console.warn("Kitsu episodes fetch error, fallback to generation", e);
+          }
+          
+          const totalCount = Math.max(internalMovie.episodeCount || 0, episodesData.length);
+          if (totalCount > episodesData.length) {
+            const existingNums = new Set(episodesData.map(e => e.number));
+            for (let i = 1; i <= totalCount; i++) {
+              if (!existingNums.has(i)) {
+                episodesData.push({
+                  id: `ep-${i}`,
+                  number: i,
+                  episode: i,
+                  title: `Episode ${i}`,
+                  image: '',
+                  isReleased: true,
+                  duration: '24m',
+                });
+              }
+            }
+            episodesData.sort((a, b) => a.number - b.number);
+          }
+          
+          setEpisodes(episodesData);
 
           const epNum = parseInt(episode);
           let targetEp = episodesData.find((e: any) => e.number === epNum);
@@ -225,10 +400,56 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
              };
           }
           
+          let fetchedTmdb = '';
+          try {
+            // Priority 1: Search specifically in TMDB TV catalog for exact title match
+            const tvRes = await api.searchTv(internalMovie.title);
+            if (tvRes.results && tvRes.results.length > 0) {
+              const bestTv = tvRes.results.find((item: any) => 
+                item.name?.toLowerCase() === internalMovie.title?.toLowerCase() ||
+                item.original_name?.toLowerCase() === internalMovie.title?.toLowerCase()
+              ) || tvRes.results[0];
+              if (bestTv?.id) {
+                fetchedTmdb = String(bestTv.id);
+                tmdbIdRef.current = fetchedTmdb;
+                setTmdbId(fetchedTmdb);
+              }
+            }
+            // Priority 2: Fallback to multi search if not found in TV
+            if (!fetchedTmdb) {
+              const multiRes = await api.searchMulti(internalMovie.title, 1);
+              const bestMatch = multiRes.results?.find((item: any) => item.media_type === 'tv' || item.media_type === 'movie');
+              if (bestMatch?.id) {
+                fetchedTmdb = String(bestMatch.id);
+                tmdbIdRef.current = fetchedTmdb;
+                setTmdbId(fetchedTmdb);
+              }
+            }
+          } catch {
+            // Non-blocking fallback
+          }
+
+          // Pre-resolve AniList ID so it is instantly available for VIDEASY
+          let fetchedAnilist = internalMovie.anilistId || '';
+          if (!fetchedAnilist) {
+            fetchedAnilist = (await fetchAnilistId(internalMovie.malId, internalMovie.title, id)) || '';
+          }
+          if (fetchedAnilist) {
+            anilistIdRef.current = fetchedAnilist;
+          }
+
           if (targetEp) {
             setSelectedEpisode(targetEp);
             setLanguage(language);
-            updateIframeSrc(targetEp.number, language, server, internalMovie.malId, internalMovie.title);
+            updateIframeSrc(
+              targetEp.number,
+              language,
+              server,
+              internalMovie.malId,
+              internalMovie.title,
+              fetchedTmdb,
+              fetchedAnilist
+            );
           }
         }
       } catch (err) {
@@ -258,7 +479,15 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     const newLang = language === 'sub' ? 'dub' : 'sub';
     if (selectedEpisode) {
       setLanguage(newLang);
-      updateIframeSrc(selectedEpisode.episode, newLang, server, movie?.malId, movie?.title);
+      updateIframeSrc(
+        selectedEpisode.episode,
+        newLang,
+        server,
+        movie?.malId,
+        movie?.title,
+        tmdbIdRef.current || tmdbId,
+        anilistIdRef.current || movie?.anilistId
+      );
     }
   };
 
@@ -304,7 +533,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         initialPosition = match.position_seconds || (match.progress_percentage ? Math.round((match.progress_percentage / 100) * defaultDuration) : 0);
         initialDuration = match.duration_seconds || defaultDuration;
         initialPercentage = match.progress_percentage || 0;
-        if (initialPosition > 30 && initialPercentage < 92) {
+        if (initialPosition > 30 && isResumable(initialPercentage)) {
           setRestoredPosition(initialPosition);
         }
       }
@@ -318,7 +547,11 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
       percentage: initialPercentage,
     };
 
-    const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
+    /* Real uid only. This read `localStorage.getItem('cv_guest_uid')` -- a key the
+     * storage migration deletes -- and fell back to a shared 'guest_viewer'
+     * literal, which the Firestore rules now reject because it is not the
+     * caller's own uid. Guests hold a Firebase anonymous uid instead. */
+    const effectiveUid = userProfile.uid;
     const effectiveName = userProfile.name || 'Guest Viewer';
 
     // Initial sync write
@@ -336,22 +569,24 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
       mal_id: movie.malId,
     });
 
-    watchTrackingService.logWatchProgress({
-      uid: effectiveUid,
-      userName: effectiveName,
-      userAvatar: userProfile.avatar || null,
-      mediaId: String(movie.id),
-      mediaType: 'anime',
-      title: movie.title,
-      posterPath: movie.posterUrl || null,
-      backdropPath: movie.backdropUrl || null,
-      episodeNumber: selectedEpisode.episode || selectedEpisode.number,
-      episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
-      currentTime: initialPosition,
-      duration: initialDuration,
-      progressPercentage: initialPercentage,
-      status: initialPercentage >= 90 ? 'completed' : 'watching',
-    }, true);
+    if (effectiveUid) {
+      watchTrackingService.logWatchProgress({
+        uid: effectiveUid,
+        userName: effectiveName,
+        userAvatar: userProfile.avatar || null,
+        mediaId: String(movie.id),
+        mediaType: 'anime',
+        title: movie.title,
+        posterPath: movie.posterUrl || null,
+        backdropPath: movie.backdropUrl || null,
+        episodeNumber: selectedEpisode.episode || selectedEpisode.number,
+        episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
+        currentTime: initialPosition,
+        duration: initialDuration,
+        progressPercentage: initialPercentage,
+        status: initialPercentage >= COMPLETION_THRESHOLD ? 'completed' : 'watching',
+      }, true);
+    }
 
     const flushProgress = () => {
       const { positionSeconds, durationSeconds, percentage } = progressRef.current;
@@ -370,6 +605,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           mal_id: movie.malId,
         });
 
+        if (!effectiveUid) return;
         watchTrackingService.logWatchProgress({
           uid: effectiveUid,
           userName: effectiveName,
@@ -384,7 +620,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           currentTime: positionSeconds,
           duration: durationSeconds || 0,
           progressPercentage: percentage,
-          status: percentage >= 90 ? 'completed' : 'watching',
+          status: percentage >= COMPLETION_THRESHOLD ? 'completed' : 'watching',
         }, true);
       }
     };
@@ -418,7 +654,15 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         duration_seconds: progressRef.current.durationSeconds,
         mal_id: movie.malId,
       });
-      updateIframeSrc(selectedEpisode.episode || selectedEpisode.number, language, server, movie.malId, movie.title);
+      updateIframeSrc(
+        selectedEpisode.episode || selectedEpisode.number,
+        language,
+        server,
+        movie.malId,
+        movie.title,
+        tmdbIdRef.current || tmdbId,
+        anilistIdRef.current || movie?.anilistId
+      );
     }
   };
 
@@ -545,6 +789,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         claimedId != null &&
         String(claimedId) !== String(id) &&
         String(claimedId) !== String(movie?.malId) &&
+        String(claimedId) !== String(anilistIdRef.current) &&
         String(claimedId) !== String(selectedEpisode?.episode)
       ) {
         return;
@@ -559,11 +804,15 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
               ? inner.position
               : typeof inner.time === 'number'
                 ? inner.time
-                : typeof payload.watched === 'number'
-                  ? payload.watched
-                  : typeof payload.currentTime === 'number'
-                    ? payload.currentTime
-                    : null;
+                : typeof inner.timestamp === 'number' && inner.timestamp < 1000000
+                  ? inner.timestamp
+                  : typeof payload.watched === 'number'
+                    ? payload.watched
+                    : typeof payload.currentTime === 'number'
+                      ? payload.currentTime
+                      : typeof payload.timestamp === 'number' && payload.timestamp < 1000000
+                        ? payload.timestamp
+                        : null;
 
       const duration =
         typeof inner.duration === 'number' && inner.duration > 0
@@ -597,9 +846,9 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         eventName === 'playback_ended' ||
         payload.ended === true ||
         inner.ended === true ||
-        calculatedPercentage >= 90;
+        calculatedPercentage >= COMPLETION_THRESHOLD;
 
-      const effectiveUid = userProfile.uid || localStorage.getItem('cv_guest_uid') || 'guest_viewer';
+      const effectiveUid = userProfile.uid;
       const effectiveName = userProfile.name || 'Guest Viewer';
 
       // Update state in app store & Firestore
@@ -618,22 +867,24 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           mal_id: movie.malId,
         });
 
-        watchTrackingService.logWatchProgress({
-          uid: effectiveUid,
-          userName: effectiveName,
-          userAvatar: userProfile.avatar || null,
-          mediaId: String(movie.id),
-          mediaType: 'anime',
-          title: movie.title,
-          posterPath: movie.posterUrl || null,
-          backdropPath: movie.backdropUrl || null,
-          episodeNumber: selectedEpisode.episode || selectedEpisode.number,
-          episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
-          currentTime: Math.round(watched),
-          duration: finalDuration ? Math.round(finalDuration) : 0,
-          progressPercentage: calculatedPercentage,
-          status: isComplete ? 'completed' : 'watching',
-        }, false);
+        if (effectiveUid) {
+          watchTrackingService.logWatchProgress({
+            uid: effectiveUid,
+            userName: effectiveName,
+            userAvatar: userProfile.avatar || null,
+            mediaId: String(movie.id),
+            mediaType: 'anime',
+            title: movie.title,
+            posterPath: movie.posterUrl || null,
+            backdropPath: movie.backdropUrl || null,
+            episodeNumber: selectedEpisode.episode || selectedEpisode.number,
+            episodeTitle: selectedEpisode.title || `Episode ${selectedEpisode.episode || selectedEpisode.number}`,
+            currentTime: Math.round(watched),
+            duration: finalDuration ? Math.round(finalDuration) : 0,
+            progressPercentage: calculatedPercentage,
+            status: isComplete ? 'completed' : 'watching',
+          }, false);
+        }
       }
 
       // Check for approaching end or completion to prompt next episode
@@ -726,11 +977,11 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -100 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-0 left-0 right-0 p-6 z-40 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-auto"
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 bg-gradient-to-b from-background/90 via-background/40 to-transparent pointer-events-auto"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
               <button 
                 onClick={() => {
                   const current = window.location.pathname;
@@ -746,50 +997,92 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                   }, 100);
                 }}
                 aria-label="Back"
-                className="w-12 h-12 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
               <button 
                 onClick={(e) => {
                   e.stopPropagation();
                   setSidebarOpen(true);
                 }}
-                className="w-12 h-12 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer"
+                aria-label="Open episodes and servers"
+                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
-              <div className="hidden md:block">
-                <h1 className="text-xl font-bold text-foreground shadow-black drop-shadow-md">{movie.title}</h1>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSidebarOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
+                title="Change streaming server"
+              >
+                <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" />
+                <span className="max-w-[80px] sm:max-w-[120px] truncate">
+                  {ANIME_SERVERS.find(s => s.id === server)?.name.split(' ')[0] || 'Server'}
+                </span>
+                <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
+                  {ANIME_SERVERS.find(s => s.id === server)?.quality || 'HD'}
+                </span>
+              </button>
+
+              {/* Prev & Next Episode Navigation */}
+              {(() => {
+                const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
+                const currentNum = selectedEpisode?.episode || parseInt(episode) || 1;
+                const prevEpNum = currentIndex > 0 ? (episodes[currentIndex - 1]?.episode || currentNum - 1) : (currentNum > 1 ? currentNum - 1 : null);
+                const nextEpNum = (currentIndex !== -1 && currentIndex < episodes.length - 1) ? (episodes[currentIndex + 1]?.episode || currentNum + 1) : (movie?.episodeCount && currentNum < movie.episodeCount ? currentNum + 1 : null);
+
+                return (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {prevEpNum && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          goToWatch(id, 'anime', undefined, prevEpNum, movie?.malId || '0');
+                        }}
+                        className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
+                        title={`Previous: Episode ${prevEpNum}`}
+                      >
+                        <SkipBack className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Prev</span>
+                      </button>
+                    )}
+
+                    {nextEpNum && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
+                        title={`Next: Episode ${nextEpNum}`}
+                      >
+                        <SkipForward className="w-3.5 h-3.5" />
+                        <span className="hidden md:inline">Next Episode</span>
+                        <span className="md:hidden">Next</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="hidden lg:block min-w-0 ml-1">
+                <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">{movie.title}</h1>
                 {selectedEpisode && (
-                  <p className="text-sm text-brand tracking-wide font-medium">Episode {selectedEpisode.episode} - {selectedEpisode.title}</p>
+                  <p className="text-[10px] sm:text-xs text-brand tracking-wide font-medium truncate max-w-[200px] xl:max-w-[320px]">
+                    Episode {selectedEpisode.episode}{selectedEpisode.title ? ` — ${selectedEpisode.title}` : ''}
+                  </p>
                 )}
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              {(() => {
-                const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
-                if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
-                  const nextEpNum = episodes[currentIndex + 1]?.episode || selectedEpisode.episode + 1;
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
-                      }}
-                      className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10"
-                      title={`Next: Episode ${nextEpNum}`}
-                    >
-                      <SkipForward className="w-3.5 h-3.5" />
-                      <span className="hidden sm:inline">Next Episode</span>
-                      <span className="sm:hidden">Next</span>
-                    </button>
-                  );
-                }
-                return null;
-              })()}
-            </div>
+            {/* Right side is intentionally empty and non-interactive so player native buttons remain unblocked */}
+            <div className="w-12 h-6 pointer-events-none" aria-hidden="true" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -920,7 +1213,9 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                           language,
                           alt.id,
                           movie?.malId,
-                          movie?.title
+                          movie?.title,
+                          tmdbIdRef.current || tmdbId,
+                          anilistIdRef.current || movie?.anilistId
                         );
                       }
                     }}
@@ -1052,6 +1347,49 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 </button>
               </div>
 
+              {/* Quick Prev / Next Episode Navigation */}
+              {(() => {
+                const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
+                const currentNum = selectedEpisode?.episode || parseInt(episode) || 1;
+                const prevEpNum = currentIndex > 0 ? (episodes[currentIndex - 1]?.episode || currentNum - 1) : (currentNum > 1 ? currentNum - 1 : null);
+                const nextEpNum = (currentIndex !== -1 && currentIndex < episodes.length - 1) ? (episodes[currentIndex + 1]?.episode || currentNum + 1) : (movie?.episodeCount && currentNum < movie.episodeCount ? currentNum + 1 : null);
+
+                if (!prevEpNum && !nextEpNum) return null;
+
+                return (
+                  <div className="px-6 mt-4 flex items-center gap-2">
+                    {prevEpNum && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSidebarOpen(false);
+                          goToWatch(id, 'anime', undefined, prevEpNum, movie?.malId || '0');
+                        }}
+                        className="flex-1 py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-foreground/80 hover:text-foreground flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        title={`Previous Episode ${prevEpNum}`}
+                      >
+                        <SkipBack className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>Prev (Ep {prevEpNum})</span>
+                      </button>
+                    )}
+                    {nextEpNum && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSidebarOpen(false);
+                          goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
+                        }}
+                        className="flex-1 py-2 px-3 rounded-xl bg-brand/15 hover:bg-brand/25 border border-brand/30 text-xs font-bold text-brand flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm group"
+                        title={`Next Episode ${nextEpNum}`}
+                      >
+                        <SkipForward className="w-3.5 h-3.5 text-brand group-hover:translate-x-0.5 transition-transform" />
+                        <span>Next (Ep {nextEpNum})</span>
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Language Toggle */}
               <div className="px-6 mt-6">
                 <div className="bg-white/5 p-1 rounded-xl border border-white/10 flex relative">
@@ -1098,7 +1436,9 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                           language,
                           srv.id,
                           movie?.malId,
-                          movie?.title
+                          movie?.title,
+                          tmdbIdRef.current || tmdbId,
+                          anilistIdRef.current || movie?.anilistId
                         );
                       }}
                       className={cn(

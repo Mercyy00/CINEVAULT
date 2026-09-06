@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ChevronLeft, ChevronRight, Crown, Flame, TrendingUp, Sparkles } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Crown } from 'lucide-react';
 import { Movie } from '../types';
 import { api } from '../api';
 import { MovieCard } from './MovieCard';
 import { cn } from '../lib/utils';
+import { useCarousel } from '../hooks/useCarousel';
 
 interface Top10RowProps {
   onMovieSelect: (id: string, type: string) => void;
@@ -28,111 +29,96 @@ const REGION_NAMES: Record<string, string> = {
   NL: 'the Netherlands',
 };
 
-const VELOCITY_TAGS: Record<number, { text: string; icon?: React.ReactNode; color: string }> = {
-  1: { text: '#1 Leader', icon: <Crown className="w-3 h-3 text-[#ffe270] fill-[#ffe270]" />, color: 'from-[#ffcf33]/25 to-[#e8852a]/20 text-[#ffe885] border-[#ffcf33]/40' },
-  2: { text: '#2 Runner-up', icon: <Sparkles className="w-3 h-3 text-cyan-200" />, color: 'from-cyan-400/20 to-blue-500/20 text-cyan-100 border-cyan-300/40' },
-  3: { text: '#3 Hot Pick', icon: <Flame className="w-3 h-3 text-orange-400 fill-orange-400" />, color: 'from-orange-500/20 to-rose-500/20 text-orange-200 border-orange-400/40' },
-  4: { text: '▲ Trending Up', icon: <TrendingUp className="w-3 h-3 text-emerald-400" />, color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-  5: { text: '🔥 Viral', icon: <Flame className="w-3 h-3 text-rose-400" />, color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-  6: { text: '▲ High Demand', icon: <TrendingUp className="w-3 h-3 text-amber-400" />, color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-  7: { text: 'Top Rated', color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-  8: { text: 'Fan Favorite', color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-  9: { text: 'Must Watch', color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-  10: { text: 'Final Cut', color: 'from-white/10 to-white/5 text-white/80 border-white/10' },
-};
+const RANK_COUNT = 10;
+
+/**
+ * `VELOCITY_TAGS` used to live here: a rank-keyed table that stamped
+ * "🔥 Viral" on whatever landed 5th and "▲ High Demand" on whatever landed 6th.
+ * It looked like telemetry and was nothing but the array index restyled, in the
+ * same family as the "96% Match" that came off `MovieCard`. Rank is real, so the
+ * numeral and the #1 crown stay; the invented signals are gone.
+ */
+
+/**
+ * Region-ranked top ten.
+ *
+ * The previous version called `/trending/all` -- a single global list -- and
+ * then titled it "Top 10 in India Today", so the region picker changed the
+ * heading and nothing else. TMDB has no regional trending endpoint, but
+ * `discover` does accept `watch_region`, which genuinely restricts results to
+ * titles streamable in that country. Movies and shows are fetched separately
+ * (discover has no combined mode) and interleaved.
+ */
+async function loadRegionalTop(region: string): Promise<Movie[]> {
+  const params = {
+    watch_region: region,
+    with_watch_monetization_types: 'flatrate',
+    sort_by: 'popularity.desc',
+    'vote_count.gte': 50,
+    page: 1,
+  };
+
+  const [movies, shows] = await Promise.all([
+    api.discover('movie', params),
+    api.discover('tv', params),
+  ]);
+
+  const usable = (results: unknown) =>
+    (Array.isArray(results) ? results : [])
+      .filter((item): item is Record<string, unknown> => Boolean(item))
+      .filter((item) => item.media_type !== 'person' && Boolean(item.poster_path))
+      .map((item) => api.mapToInternalMovie(item as never));
+
+  const films = usable(movies?.results);
+  const series = usable(shows?.results);
+
+  // Alternate so a region dominated by one medium doesn't fill all ten slots.
+  const interleaved: Movie[] = [];
+  for (let i = 0; interleaved.length < RANK_COUNT && (films[i] || series[i]); i += 1) {
+    if (films[i]) interleaved.push(films[i]);
+    if (interleaved.length < RANK_COUNT && series[i]) interleaved.push(series[i]);
+  }
+  return interleaved.slice(0, RANK_COUNT);
+}
 
 export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   const [movies, setMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(true);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(false);
+  const [error, setError] = useState(false);
+  const [reloadToken, setReloadToken] = useState(0);
 
-  const rowRef = useRef<HTMLUListElement>(null);
+  const { scrollerProps, showLeftArrow, showRightArrow, rovingIndex, resetFocus, scrollByPage } =
+    useCarousel({ itemCount: movies.length });
 
-  // Drag variables
-  const isDown = useRef(false);
-  const startX = useRef(0);
-  const scrollLeftState = useRef(0);
-
-  const regionLabel = REGION_NAMES[region?.toUpperCase() || ''] || region || 'Global';
+  const regionCode = (region || 'US').toUpperCase();
+  const regionLabel = REGION_NAMES[regionCode] || region || 'Global';
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
     setLoading(true);
+    setError(false);
 
-    api
-      .getTrending('all', 'day', 1)
-      .then((data) => {
-        if (!mounted) return;
-        if (data.results && data.results.length > 0) {
-          const mapped = data.results.slice(0, 10).map(api.mapToInternalMovie);
-          setMovies(mapped);
-        }
+    loadRegionalTop(regionCode)
+      .then((ranked) => {
+        if (!active) return;
+        setMovies(ranked);
+        resetFocus();
+        // An empty list is a failure here: the row promises ten titles.
+        setError(ranked.length === 0);
       })
-      .catch((err) => {
-        console.error('Failed to load Top 10 Today:', err);
+      .catch((cause) => {
+        if (!active) return;
+        console.error('Failed to load the regional top ten:', cause);
+        setError(true);
       })
       .finally(() => {
-        if (mounted) setLoading(false);
+        if (active) setLoading(false);
       });
 
     return () => {
-      mounted = false;
+      active = false;
     };
-  }, [region]);
-
-  const updateScrollButtons = () => {
-    const el = rowRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 20);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 20);
-  };
-
-  useEffect(() => {
-    updateScrollButtons();
-    const el = rowRef.current;
-    if (el) {
-      el.addEventListener('scroll', updateScrollButtons, { passive: true });
-      window.addEventListener('resize', updateScrollButtons);
-    }
-    return () => {
-      if (el) el.removeEventListener('scroll', updateScrollButtons);
-      window.removeEventListener('resize', updateScrollButtons);
-    };
-  }, [movies, loading]);
-
-  const scroll = (direction: 'left' | 'right') => {
-    const el = rowRef.current;
-    if (!el) return;
-    const distance = el.clientWidth * 0.75;
-    el.scrollBy({
-      left: direction === 'left' ? -distance : distance,
-      behavior: 'smooth',
-    });
-  };
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDown.current = true;
-    if (rowRef.current) {
-      startX.current = e.pageX - rowRef.current.offsetLeft;
-      scrollLeftState.current = rowRef.current.scrollLeft;
-    }
-  };
-
-  const handleMouseLeave = () => {
-    isDown.current = false;
-  };
-
-  const handleMouseUp = () => {
-    isDown.current = false;
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDown.current || !rowRef.current) return;
-    const x = e.pageX - rowRef.current.offsetLeft;
-    const walk = (x - startX.current) * 1.15;
-    rowRef.current.scrollLeft = scrollLeftState.current - walk;
-  };
+  }, [regionCode, reloadToken, resetFocus]);
 
   const heading = (
     <div className="mb-5 px-4 sm:px-8 lg:px-12 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
@@ -143,7 +129,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
             <span className="relative inline-flex rounded-full h-2 w-2 bg-brand" />
           </span>
           <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand font-bold">
-            Live Stream Velocity
+            Streaming now
           </span>
         </div>
         <div className="flex items-center gap-3">
@@ -152,8 +138,10 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
           </h2>
         </div>
       </div>
+      {/* Was "Updated hourly based on watch activity". There is no watch
+          activity, and TMDB's popularity score is recomputed daily. */}
       <p className="text-xs sm:text-sm text-muted-foreground/70 font-mono">
-        Updated hourly based on watch activity
+        By TMDB popularity, refreshed daily
       </p>
     </div>
   );
@@ -178,6 +166,31 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
     );
   }
 
+  // Silence was the old failure mode: a rejected request just left the row out
+  // of the page with nothing said and no way to retry.
+  if (error) {
+    return (
+      <section className="mb-12 sm:mb-16 w-full px-4 sm:px-8 lg:px-12" aria-label="Top 10 Today">
+        {heading}
+        <div
+          role="alert"
+          className="w-full py-12 glass border border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4 shadow-card"
+        >
+          <p className="text-sm sm:text-base font-medium">
+            Couldn’t load the top ten for {regionLabel}.
+          </p>
+          <button
+            type="button"
+            onClick={() => setReloadToken((value) => value + 1)}
+            className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-xs sm:text-sm font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          >
+            Try again
+          </button>
+        </div>
+      </section>
+    );
+  }
+
   if (movies.length === 0) return null;
 
   const arrowClasses =
@@ -189,14 +202,14 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
 
       <div className="relative w-full">
         <AnimatePresence>
-          {canScrollLeft && (
+          {showLeftArrow && (
             <motion.button
               type="button"
               initial={{ opacity: 0, scale: 0.8, x: -10 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.8, x: -10 }}
               transition={{ duration: 0.2 }}
-              onClick={() => scroll('left')}
+              onClick={() => scrollByPage('left')}
               aria-label="Scroll Top 10 left"
               className={`${arrowClasses} left-2 sm:left-4`}
             >
@@ -205,17 +218,15 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
           )}
         </AnimatePresence>
 
+        {/* The oversized numerals need real headroom, but `pt-16 pb-20 -my-10`
+            pulled the row into its neighbours, where the padding swallowed
+            clicks meant for the rows above and below. */}
         <ul
-          ref={rowRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseLeave}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          className="flex gap-3 sm:gap-6 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-16 pb-20 -my-10 snap-x select-none list-none m-0 items-end will-change-scroll"
+          {...scrollerProps}
+          className="flex gap-3 sm:gap-6 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-10 pb-14 -my-8 snap-x select-none list-none m-0 items-end will-change-scroll"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;
-            const velocity = VELOCITY_TAGS[rank];
             const podiumClass =
               rank === 1
                 ? 'top10-podium-1'
@@ -239,7 +250,9 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                 key={`top10-showcase-${movie.type}-${movie.id}`}
                 className="snap-start flex-shrink-0 flex items-end relative group/top10-item transition-transform duration-200 hover:-translate-y-1"
               >
-                {/* 1. 3D Sculpted Metallic Numeral (1-10) */}
+                {/* 3D sculpted numeral. Decorative: the rank is announced as part
+                    of each card's accessible name instead, so screen readers get
+                    "1. Dune" rather than a stray digit. */}
                 <div
                   aria-hidden="true"
                   className={cn(
@@ -252,30 +265,22 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                   {rank}
                 </div>
 
-                {/* 2. Elevated Double-Bezel Card Container */}
                 <div className="w-[145px] sm:w-[175px] md:w-[205px] lg:w-[230px] relative z-10 flex flex-col">
-                  {/* Micro Velocity Pill */}
-                  {velocity && (
+                  {rank === 1 && (
                     <div className="mb-2 flex items-center gap-1.5 self-start">
-                      <span
-                        className={cn(
-                          "px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-gradient-to-r backdrop-blur-md border shadow-sm",
-                          velocity.color
-                        )}
-                      >
-                        {velocity.icon}
-                        <span>{velocity.text}</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-gradient-to-r from-[#ffcf33]/25 to-[#e8852a]/20 text-[#ffe885] border border-[#ffcf33]/40 backdrop-blur-md shadow-sm">
+                        <Crown className="w-3 h-3 text-[#ffe270] fill-[#ffe270]" aria-hidden="true" />
+                        <span>#1 in {regionLabel}</span>
                       </span>
                     </div>
                   )}
 
-                  {/* Poster Card */}
-                  <div className={cn("w-full rounded-[1.25rem]", podiumClass)}>
+                  <div className={cn('w-full rounded-[1.25rem]', podiumClass)}>
                     <MovieCard
                       movie={movie}
                       onClick={() => onMovieSelect(movie.id, movie.type)}
-                      cardIndex={idx}
-                      totalCards={movies.length}
+                      rankLabel={`${rank}`}
+                      tabIndex={idx === rovingIndex ? 0 : -1}
                     />
                   </div>
                 </div>
@@ -285,14 +290,14 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
         </ul>
 
         <AnimatePresence>
-          {canScrollRight && (
+          {showRightArrow && (
             <motion.button
               type="button"
               initial={{ opacity: 0, scale: 0.8, x: 10 }}
               animate={{ opacity: 1, scale: 1, x: 0 }}
               exit={{ opacity: 0, scale: 0.8, x: 10 }}
               transition={{ duration: 0.2 }}
-              onClick={() => scroll('right')}
+              onClick={() => scrollByPage('right')}
               aria-label="Scroll Top 10 right"
               className={`${arrowClasses} right-2 sm:right-4`}
             >

@@ -94,42 +94,38 @@ export function AnimeDetail({ id }: { id: string }) {
             console.error("Characters fetch failed", e);
           }
 
-          // Fetch episodes via Anikoto or fallback count
+          // Fetch real episodes via Kitsu API
           let episodesData: any[] = [];
           try {
-            const searchRes = await fetch(`https://anikotoapi.site/api/anime/search?keyword=${encodeURIComponent(mappedMovie.title)}`);
-            if (searchRes.ok) {
-              const searchData = await searchRes.json();
-              if (searchData?.results?.length > 0) {
-                const anikotoId = searchData.results[0].id;
-                const seriesRes = await fetch(`https://anikotoapi.site/series/${anikotoId}`);
-                if (seriesRes.ok) {
-                  const seriesData = await seriesRes.json();
-                  if (seriesData?.episodes) {
-                    episodesData = seriesData.episodes.map((ep: any) => ({
-                      id: ep.id || `ep-${ep.number}`,
-                      number: ep.number,
-                      title: ep.title || `Episode ${ep.number}`,
-                      image: ep.image || '',
-                      overview: ep.description || `Episode ${ep.number} of ${mappedMovie.title}`
-                    }));
-                  }
-                }
-              }
+            const kitsuEpisodes = await kitsuApi.getEpisodes(id, 100);
+            if (kitsuEpisodes && kitsuEpisodes.length > 0) {
+              episodesData = kitsuEpisodes.map((ep) => ({
+                id: `ep-${ep.episode}`,
+                number: ep.episode,
+                title: ep.title || `Episode ${ep.episode}`,
+                image: ep.thumbnail || '',
+                overview: ep.description || `Episode ${ep.episode} of ${mappedMovie.title}`
+              }));
             }
           } catch (e) {
-            console.error("Anikoto proxy fetch failed", e);
+            console.warn("Kitsu episodes fetch error", e);
           }
 
-          if (episodesData.length === 0) {
-            const count = mappedMovie.episodeCount || 12;
-            episodesData = Array.from({ length: count }, (_, i) => ({
-              id: `ep-${i + 1}`,
-              number: i + 1,
-              title: `Episode ${i + 1}`,
-              image: '',
-              overview: `Episode ${i + 1} of ${mappedMovie.title}`
-            }));
+          const totalCount = Math.max(mappedMovie.episodeCount || 12, episodesData.length);
+          if (totalCount > episodesData.length) {
+            const existingNums = new Set(episodesData.map(e => e.number));
+            for (let i = 1; i <= totalCount; i++) {
+              if (!existingNums.has(i)) {
+                episodesData.push({
+                  id: `ep-${i}`,
+                  number: i,
+                  title: `Episode ${i}`,
+                  image: '',
+                  overview: `Episode ${i} of ${mappedMovie.title}`
+                });
+              }
+            }
+            episodesData.sort((a, b) => a.number - b.number);
           }
 
           setEpisodes(episodesData);

@@ -5,19 +5,43 @@ import { api } from '../api';
 import { cn } from '../lib/utils';
 
 interface FilterBarProps {
-  onFilterChange: (filters: { type: string; providerId?: string; country: string; genreId?: string; language?: string }) => void;
+  onFilterChange: (filters: { type: string; providerId?: string; country: string; genreId?: string; language?: string; sortBy?: string }) => void;
   defaultType?: string;
 }
 
 export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarProps) {
   const [providers, setProviders] = useState<any[]>([]);
-  const [type, setType] = useState(defaultType);
-  const [country, setCountry] = useState('US');
-  const [providerId, setProviderId] = useState<string>('');
+  const [type, setType] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('type');
+      if (p) return p;
+    }
+    return defaultType;
+  });
+  const [country, setCountry] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search).get('country');
+      if (p) return p;
+    }
+    return 'US';
+  });
+  const [providerId, setProviderId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('provider') || '';
+    }
+    return '';
+  });
+  const [sortBy, setSortBy] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return new URLSearchParams(window.location.search).get('sort') || 'popularity.desc';
+    }
+    return 'popularity.desc';
+  });
 
   const [showProviders, setShowProviders] = useState(false);
   const [showCountry, setShowCountry] = useState(false);
   const [showType, setShowType] = useState(false);
+  const [showSort, setShowSort] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -25,7 +49,6 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
       if (isMounted && data.results) {
         const sorted = data.results.sort((a: any, b: any) => a.display_priority - b.display_priority).slice(0, 20);
         setProviders(sorted);
-        setProviderId('');
       }
     }).catch((err) => {
       console.error('Error fetching providers', err);
@@ -34,7 +57,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   }, [type, country]);
 
   useEffect(() => {
-    const filters: any = { type, country };
+    const filters: any = { type, country, sortBy };
     if (providerId) filters.providerId = providerId;
 
     if (type === 'anime') {
@@ -42,7 +65,24 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
       filters.language = 'ja';
     }
     onFilterChange(filters);
-  }, [type, country, providerId]);
+
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (type && type !== defaultType) url.searchParams.set('type', type);
+      else url.searchParams.delete('type');
+
+      if (country && country !== 'US') url.searchParams.set('country', country);
+      else url.searchParams.delete('country');
+
+      if (providerId) url.searchParams.set('provider', providerId);
+      else url.searchParams.delete('provider');
+
+      if (sortBy && sortBy !== 'popularity.desc') url.searchParams.set('sort', sortBy);
+      else url.searchParams.delete('sort');
+
+      window.history.replaceState(null, '', url.pathname + url.search);
+    }
+  }, [type, country, providerId, sortBy]);
 
   const COUNTRIES = [
     { code: 'US', name: 'United States' },
@@ -55,6 +95,12 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
     { id: 'movie', name: 'Movies' },
     { id: 'tv', name: 'TV Shows' },
     { id: 'anime', name: 'Anime' },
+  ];
+
+  const SORT_OPTIONS = [
+    { id: 'popularity.desc', name: 'Popularity' },
+    { id: 'vote_average.desc', name: 'Top Rated' },
+    { id: 'primary_release_date.desc', name: 'Release Date' },
   ];
 
   const DropdownItem = ({ active, onClick, children }: any) => (
@@ -85,6 +131,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowType(!showType);
             setShowCountry(false);
             setShowProviders(false);
+            setShowSort(false);
           }}
           className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
         >
@@ -126,6 +173,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowCountry(!showCountry);
             setShowType(false);
             setShowProviders(false);
+            setShowSort(false);
           }}
           className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
         >
@@ -167,6 +215,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(!showProviders);
             setShowType(false);
             setShowCountry(false);
+            setShowSort(false);
           }}
           className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
         >
@@ -212,6 +261,48 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
                     />
                   )}
                   <span className="truncate">{p.provider_name}</span>
+                </DropdownItem>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Sort Filter */}
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => {
+            setShowSort(!showSort);
+            setShowType(false);
+            setShowCountry(false);
+            setShowProviders(false);
+          }}
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+        >
+          <span className="text-muted-foreground text-xs font-normal">Sort:</span>
+          <span>{SORT_OPTIONS.find((s) => s.id === sortBy)?.name || 'Popularity'}</span>
+          <ChevronDown className="w-3.5 h-3.5 opacity-60" />
+        </button>
+        <AnimatePresence>
+          {showSort && (
+            <motion.div
+              initial={{ opacity: 0, y: 8, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 8, scale: 0.95 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-full left-0 mt-2 w-44 bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+            >
+              {SORT_OPTIONS.map((s) => (
+                <DropdownItem
+                  key={s.id}
+                  active={sortBy === s.id}
+                  onClick={() => {
+                    setSortBy(s.id);
+                    setShowSort(false);
+                  }}
+                >
+                  {s.name}
                 </DropdownItem>
               ))}
             </motion.div>

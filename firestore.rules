@@ -4,9 +4,17 @@ rules_version = '2';
 //
 // Deny by default. A user may only ever read or write documents scoped to
 // their own uid. "admin" is a custom claim minted server-side with the
-// Firebase Admin SDK -- it can never be granted by a client write.
+// Firebase Admin SDK -- it can never be granted by a client write, and there
+// is no email allowlist here (a hardcoded address used to sit in isAdmin(),
+// which both leaked a personal email and contradicted the line above).
+//
+// Guests are Firebase *anonymous* sessions, so they have real uids and are
+// covered by isOwner(). The previous rules allowed `uid.matches('^guest_.*')`,
+// which let any unauthenticated visitor read and overwrite every guest profile
+// and every guest watch-history document, and read all guest watch sessions.
 //
 // Test locally:  firebase emulators:start --only firestore
+//                npm run test:rules
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -19,7 +27,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return isSignedIn() && (request.auth.token.admin == true || request.auth.token.email == 'godlikejayesh@gmail.com');
+      return isSignedIn() && request.auth.token.admin == true;
     }
 
     // Fields a client is never allowed to set or change on its own profile.
@@ -38,34 +46,30 @@ service cloud.firestore {
 
     // ---- User profiles ---------------------------------------------------
     match /users/{uid} {
-      allow read: if isOwner(uid) || isAdmin() || uid.matches('^guest_.*');
+      allow read: if isOwner(uid) || isAdmin();
       // On create, a client must not hand itself a role.
-      allow create: if (isOwner(uid) || uid.matches('^guest_.*'))
+      allow create: if isOwner(uid)
         && !request.resource.data.keys().hasAny(['role', 'isAdmin', 'claims']);
-      allow update: if (isOwner(uid) && noPrivilegeEscalation())
-        || (uid.matches('^guest_.*') && noPrivilegeEscalation())
-        || isAdmin();
+      allow update: if (isOwner(uid) && noPrivilegeEscalation()) || isAdmin();
       allow delete: if isOwner(uid) || isAdmin();
 
       // ---- Per-user watch history ---------------------------------------
       match /history/{historyId} {
-        allow read, write: if isOwner(uid) || uid.matches('^guest_.*');
-        allow read: if isAdmin();
+        allow read: if isOwner(uid) || isAdmin();
+        allow write: if isOwner(uid);
       }
     }
 
     // ---- Watch sessions (analytics) --------------------------------------
-    // A session belongs to a user or guest. Clients may write their own
-    // sessions. Admins can view all sessions.
+    // A session belongs to exactly one uid. Clients may only ever read and
+    // write their own; admins can read and delete all.
     match /watch_sessions/{sessionId} {
-      allow read: if isAdmin()
-        || (isSignedIn() && resource.data.uid == request.auth.uid)
-        || (resource.data.uid.matches('^guest_.*'));
-      allow create: if (isSignedIn() && request.resource.data.uid == request.auth.uid)
-        || (request.resource.data.uid.matches('^guest_.*'));
-      allow update: if (isSignedIn() && resource.data.uid == request.auth.uid && request.resource.data.uid == request.auth.uid)
-        || (request.resource.data.uid.matches('^guest_.*') && resource.data.uid.matches('^guest_.*'));
-      allow delete: if isAdmin();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
+      allow create: if isSignedIn() && request.resource.data.uid == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.uid == request.auth.uid);
     }
 
     // ---- Everything else --------------------------------------------------

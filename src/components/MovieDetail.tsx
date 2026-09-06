@@ -9,7 +9,6 @@ import {
   Clock,
   Calendar,
   ArrowLeft,
-  ChevronDown,
   Share2,
   Download,
   X,
@@ -37,6 +36,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
   const [isLoadingEpisodes, setIsLoadingEpisodes] = useState(false);
+  const [seasonCache, setSeasonCache] = useState<Map<number, any[]>>(new Map());
+  const [collection, setCollection] = useState<{ name: string; parts: Movie[] } | null>(null);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   // Cast & Actor Modal
   const [selectedActor, setSelectedActor] = useState<{ id: string; name: string; photo?: string } | null>(null);
@@ -145,6 +147,26 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           console.warn('Videos load error:', err);
         }
 
+        if (internalMovie.collectionId) {
+          api.getCollection(internalMovie.collectionId).then(col => {
+            if (mounted && col.parts) {
+              setCollection({
+                name: col.name,
+                parts: col.parts.map((p: any) => api.mapToInternalMovie(p)).filter((p: Movie) => p.id !== id)
+              });
+            }
+          }).catch(console.error);
+        }
+
+        try {
+          const rev = await api.getReviews(type, id);
+          if (mounted && rev.results) {
+            setReviews(api.mapReviews(rev));
+          }
+        } catch (err) {
+          console.warn('Reviews load error:', err);
+        }
+
         setMovie(internalMovie);
 
         if (type === 'tv' && details.seasons) {
@@ -177,11 +199,17 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
 
   const loadSeason = async (seasonNumber: number, defaultEp: number = 1) => {
     setSelectedSeason(seasonNumber);
+    if (seasonCache.has(seasonNumber)) {
+      setEpisodes(seasonCache.get(seasonNumber)!);
+      setSelectedEpisode(defaultEp);
+      return;
+    }
     setIsLoadingEpisodes(true);
     try {
       const seasonDetails = await api.getSeasonDetails(id, seasonNumber);
       if (seasonDetails.episodes) {
         setEpisodes(seasonDetails.episodes);
+        setSeasonCache(prev => new Map(prev).set(seasonNumber, seasonDetails.episodes!));
         setSelectedEpisode(defaultEp);
       }
     } catch (err) {
@@ -447,6 +475,39 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           </motion.div>
         </div>
 
+        {/* ═══ FULL-WIDTH SECTION: WHERE TO WATCH ═══ */}
+        {movie.providers && movie.providers.length > 0 && (
+          <div className="mb-14 w-full">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground">Where to Watch</h3>
+              <span className="text-xs text-muted-foreground font-mono">Powered by JustWatch</span>
+            </div>
+            <div className="flex gap-6 overflow-x-auto scrollbar-none pb-2">
+              {(['flatrate', 'rent', 'buy'] as const).map(kind => {
+                const providers = movie.providers!.filter(p => p.kind === kind);
+                if (providers.length === 0) return null;
+                return (
+                  <div key={kind} className="flex flex-col gap-2">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
+                      {kind === 'flatrate' ? 'Stream' : kind === 'rent' ? 'Rent' : 'Buy'}
+                    </span>
+                    <div className="flex gap-3">
+                      {providers.map(p => (
+                        <div key={p.id} className="group relative w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-white/10 shadow-sm cursor-pointer">
+                          {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-full h-full object-cover" />}
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 font-bold border border-white/10 text-white">
+                            {p.name}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* ═══ FULL-WIDTH SECTION 1: TV EPISODE SELECTOR ═══ */}
         {type === 'tv' && seasons.length > 0 && (
           <div className="mb-14 glass rounded-3xl p-6 sm:p-8 border border-white/10 w-full">
@@ -454,19 +515,21 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
                 <Play className="w-5 h-5 text-brand fill-current" /> Episodes
               </h3>
-              <div className="relative min-w-[200px]">
-                <select
-                  value={selectedSeason}
-                  onChange={(e) => loadSeason(parseInt(e.target.value))}
-                  className="w-full appearance-none bg-black/40 border border-white/20 hover:border-brand rounded-full px-6 py-3 text-foreground focus:outline-none focus:border-brand text-base font-display transition-colors cursor-pointer"
-                >
-                  {seasons.map((s: any) => (
-                    <option key={s.season_number} value={s.season_number} className="bg-background text-foreground">
-                      Season {s.season_number}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+              <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2 max-w-full">
+                {seasons.map((s: any) => (
+                  <button
+                    key={s.season_number}
+                    onClick={() => loadSeason(s.season_number)}
+                    className={cn(
+                      'px-4 sm:px-5 py-2 sm:py-2.5 rounded-full whitespace-nowrap text-xs sm:text-sm font-semibold transition-all border',
+                      selectedSeason === s.season_number
+                        ? 'bg-brand text-background border-brand shadow-card'
+                        : 'bg-white/5 text-foreground border-white/10 hover:bg-white/15'
+                    )}
+                  >
+                    Season {s.season_number}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -503,12 +566,17 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                           <Play className="w-8 h-8" />
                         </div>
                       )}
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
+                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur z-10">
                         {ep.runtime || 45}m
                       </div>
                       {selectedEpisode === ep.episode_number && (
-                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
+                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px] z-10">
                           <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
+                        </div>
+                      )}
+                      {progressItem?.season_number === selectedSeason && progressItem?.episode_number === ep.episode_number && progressItem?.progress_percentage > 0 && (
+                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20">
+                          <div className="h-full bg-brand" style={{ width: `${progressItem.progress_percentage}%` }} />
                         </div>
                       )}
                     </div>
@@ -544,6 +612,31 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ FULL-WIDTH SECTION: FRANCHISE COLLECTION ═══ */}
+        {collection && collection.parts.length > 0 && (
+          <div className="mb-14 w-full">
+            <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5 px-3 sm:px-6 lg:px-8">
+              <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))] inline-block mr-3 align-middle" />
+              {collection.name}
+            </h3>
+            <div className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
+              {collection.parts.map(part => (
+                <div
+                  key={part.id}
+                  onClick={() => goToDetail(part.id, part.type)}
+                  className="w-32 sm:w-40 shrink-0 cursor-pointer group flex flex-col"
+                >
+                  <div className="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 group-hover:border-brand transition-all relative shadow-card mb-2">
+                    <PosterImage src={part.posterUrl} title={part.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground group-hover:text-brand line-clamp-1">{part.title}</p>
+                  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{part.year || 'Released'}</p>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -638,15 +731,83 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           </div>
         )}
 
+        {/* ═══ FULL-WIDTH SECTION: REVIEWS ═══ */}
+        {reviews && reviews.length > 0 && (
+          <div className="mb-14 w-full">
+            <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5 flex items-center gap-2">
+               Reviews
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {reviews.slice(0, 3).map(review => (
+                <div key={review.id} className="p-4 sm:p-5 bg-white/5 border border-white/10 rounded-2xl flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-brand/20 overflow-hidden flex items-center justify-center shrink-0 border border-brand/30">
+                      {review.avatarUrl ? (
+                        <img src={review.avatarUrl} alt={review.user} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-brand font-bold text-sm uppercase">{review.user.charAt(0)}</span>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-foreground line-clamp-1">{review.user}</h4>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+                        <span className="flex items-center gap-1">
+                          <Star className="w-3 h-3 text-[#f5a54a] fill-[#f5a54a]" />
+                          {review.rating ? `${review.rating}/10` : '—'}
+                        </span>
+                        {review.createdAt && <span>• {new Date(review.createdAt).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-sm text-foreground/80 line-clamp-3 hover:line-clamp-none transition-all cursor-pointer flex-1">
+                    {review.content}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* ═══ FULL-WIDTH SECTION 4: RELATED & RECOMMENDED ═══ */}
         <div className="mt-8 space-y-10 w-full">
-          <MovieRow
-            title="More Like This"
-            fetchFn={(page) => api.getSimilar(type, id, page)}
-            onMovieSelect={(similarId, similarType) => {
-              goToDetail(similarId, similarType);
-            }}
-          />
+          {movie.recommendations && movie.recommendations.length > 0 ? (
+            <div className="mb-14 w-full">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5 px-3 sm:px-6 lg:px-8">
+                <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))] inline-block mr-3 align-middle" />
+                More Like This
+              </h3>
+              <div className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none pb-8 px-4 sm:px-8 lg:px-12 -mx-4 lg:-mx-8">
+                {movie.recommendations.map(rec => (
+                  <div
+                    key={rec.id}
+                    onClick={() => goToDetail(rec.id, rec.type)}
+                    className="w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] shrink-0 cursor-pointer group flex flex-col"
+                  >
+                    <div className="aspect-[2/3] rounded-[1.25rem] overflow-hidden border border-white/10 group-hover:border-brand transition-all relative shadow-card mb-2">
+                      <PosterImage src={rec.posterUrl} title={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white flex items-center gap-1">
+                         <Star className="w-2.5 h-2.5 text-[#f5a54a] fill-[#f5a54a]" />
+                         <span>{formatRating(rec.rating)}</span>
+                      </div>
+                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-mono uppercase font-bold text-white/90">
+                         {rec.type}
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold text-foreground group-hover:text-brand line-clamp-1">{rec.title}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{rec.year || 'Released'}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <MovieRow
+              title="More Like This"
+              fetchFn={(page) => api.getSimilar(type, id, page)}
+              onMovieSelect={(similarId, similarType) => {
+                goToDetail(similarId, similarType);
+              }}
+            />
+          )}
 
           <MovieRow
             title="Recommended For You"

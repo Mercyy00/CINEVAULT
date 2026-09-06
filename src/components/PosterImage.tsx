@@ -4,6 +4,14 @@ import { cn } from '../lib/utils';
 
 interface PosterImageProps {
   src: string | null | undefined;
+  /**
+   * Candidate widths for `src`. Without this, `sizes` below is inert -- which is
+   * what it was before: every surface, including a 150px phone card, downloaded
+   * the same w500 poster.
+   */
+  srcSet?: string;
+  /** Tiny ~w92 thumbnail for instant blur-up loading */
+  thumbSrc?: string | null;
   /** The title being depicted. Used to build meaningful alt text. */
   title: string;
   className?: string;
@@ -13,17 +21,28 @@ interface PosterImageProps {
   sizes?: string;
   loading?: 'lazy' | 'eager';
   fetchPriority?: 'high' | 'low' | 'auto';
+  /**
+   * Intrinsic aspect ratio, applied to the wrapper so the box is reserved
+   * before the image arrives. Defaults to a 2:3 poster.
+   */
+  aspect?: string;
 }
 
 /**
  * Progressive Image Loader
  *
- * Renders an authentic skeleton shimmer while loading, and smoothly transitions
- * to crisp, unblurred, crystal-clear artwork as soon as the image loads (or immediately
- * if cached by the browser), completely avoiding permanent blur.
+ * Renders a skeleton shimmer while loading, then transitions to crisp artwork
+ * as soon as the image loads (or immediately if the browser already has it
+ * cached), avoiding permanent blur.
+ *
+ * The wrapper carries an explicit aspect ratio: the skeleton and the loaded
+ * image used to be sized by different rules, which is where the layout shift on
+ * row render came from.
  */
 export function PosterImage({
   src,
+  srcSet,
+  thumbSrc,
   title,
   className = '',
   containerClassName = '',
@@ -31,6 +50,7 @@ export function PosterImage({
   sizes,
   loading = 'lazy',
   fetchPriority,
+  aspect = '2 / 3',
 }: PosterImageProps) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -54,6 +74,7 @@ export function PosterImage({
           "w-full h-full flex flex-col items-center justify-center gap-2 bg-[#121318] text-muted-foreground p-4 text-center select-none",
           containerClassName || className
         )}
+        style={{ aspectRatio: containerClassName || className ? undefined : aspect }}
         role={decorative ? 'presentation' : 'img'}
         aria-label={decorative ? undefined : `${title} — no artwork available`}
       >
@@ -68,14 +89,25 @@ export function PosterImage({
   return (
     <div className={cn("relative w-full h-full overflow-hidden bg-[#0c0d12]", containerClassName)}>
       {/* 1. Base Shimmer Placeholder while loading */}
-      {!loaded && (
+      {!loaded && !thumbSrc && (
         <div className="absolute inset-0 skeleton-shimmer bg-[#14151d] pointer-events-none z-0" />
+      )}
+
+      {/* 1.5. LQIP Blur-up if we have a thumbSrc */}
+      {!loaded && thumbSrc && (
+        <img
+          src={thumbSrc}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover filter blur-[8px] scale-[1.1] pointer-events-none z-0 opacity-50"
+        />
       )}
 
       {/* 2. Artwork: Unblurs into full crisp resolution immediately upon loading */}
       <img
         ref={imgRef}
         src={src}
+        srcSet={srcSet}
         alt={decorative ? '' : `${title} poster`}
         className={cn(
           "w-full h-full object-cover transition-all duration-300 ease-out relative z-10",

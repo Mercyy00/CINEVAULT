@@ -24,6 +24,13 @@ export const StorageKeys = {
   profile: `${NAMESPACE}profile`,
   profiles: `${NAMESPACE}profiles`,
   activeProfileId: `${NAMESPACE}activeProfileId`,
+  /** Locally cached watch sessions. Was a bare literal inside watchTracking.ts,
+   *  so `clearAppData()` happened to catch it only because of the `cv:` prefix. */
+  localWatchSessions: `${NAMESPACE}localWatchSessions`,
+  /** 'granted' | 'denied'. Absent until the visitor answers. */
+  telemetryConsent: `${NAMESPACE}telemetryConsent`,
+  /** Last source id that played successfully, so it is offered first. */
+  preferredServer: `${NAMESPACE}preferredServer`,
   /** Read by the pre-paint bootstrap in index.html. Keep the names in sync. */
   theme: `${NAMESPACE}theme`,
   themeMode: `${NAMESPACE}themeMode`,

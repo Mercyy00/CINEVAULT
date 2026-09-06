@@ -7,8 +7,51 @@
   to = "/index.html"
   status = 200
 
+# ---------------------------------------------------------------------------
+# Security headers
+#
+# This app embeds third-party <iframe> players it does not control. Without a
+# CSP those frames share a document with Firebase auth state and localStorage.
+# `frame-src` is an explicit allowlist that must stay in sync with
+# STREAM_SOURCES / TRUSTED_PLAYER_ORIGINS in src/config/servers.ts.
+#
+# `script-src` still needs 'unsafe-inline' because index.html runs an inline
+# pre-paint theme bootstrap. Replace with a hash if that script is ever frozen.
+# ---------------------------------------------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Content-Security-Policy = """\
+      default-src 'self'; \
+      base-uri 'self'; \
+      object-src 'none'; \
+      form-action 'self'; \
+      frame-ancestors 'none'; \
+      script-src 'self' 'unsafe-inline' https://apis.google.com https://www.gstatic.com; \
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
+      font-src 'self' data: https://fonts.gstatic.com; \
+      img-src 'self' data: blob: https://image.tmdb.org https://media.kitsu.io https://*.kitsu.io https://i.ytimg.com https://lh3.googleusercontent.com https://www.gravatar.com; \
+      media-src 'self' blob:; \
+      connect-src 'self' https://api.themoviedb.org https://kitsu.io https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://firebaseinstallations.googleapis.com https://www.googleapis.com wss://*.firebaseio.com https://*.firebaseio.com; \
+      frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://rozgarlelo.modiplay.xyz https://screenscape.me https://opstream.fun https://zxcstream.xyz https://peachify.pro https://viduki.net https://111movies.com https://vidlink.pro https://cinesrc.st https://player.videasy.net https://videasy.net https://vidsync.xyz https://cinevault-1a253.firebaseapp.com; \
+      worker-src 'self'; \
+      manifest-src 'self'; \
+      upgrade-insecure-requests\
+      """
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+    Permissions-Policy = "geolocation=(), microphone=(), camera=(), usb=(), magnetometer=(), accelerometer=(), gyroscope=(), payment=(), interest-cohort=()"
+
 [[headers]]
   for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
@@ -16,3 +59,8 @@
   for = "/sw.js"
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"

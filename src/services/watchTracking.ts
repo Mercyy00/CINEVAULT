@@ -12,7 +12,8 @@ import {
   where,
 } from 'firebase/firestore';
 import { getFirebase } from './firebase';
-import { readJSON, writeJSON } from '../lib/storage';
+import { remoteTelemetryAllowed } from '../lib/consent';
+import { StorageKeys, readJSON, writeJSON } from '../lib/storage';
 
 /**
  * Watch-session telemetry.
@@ -32,6 +33,13 @@ import { readJSON, writeJSON } from '../lib/storage';
  *   pause/complete.
  * - **Errors are not silently swallowed.** Six empty `catch {}` blocks meant a
  *   permissions failure looked identical to success.
+ * - **Remote writes are consent-gated.** See `lib/consent.ts`. Local history
+ *   still works with telemetry declined; only the cloud copy is skipped.
+ * - **A permanent failure stops retrying.** The error path used to delete the
+ *   throttle entry so the next tick would try again -- which, for a
+ *   `permission-denied` that will never succeed, meant a write attempt every
+ *   five seconds for the whole session. Permanent codes now blocklist the
+ *   session; only transient failures are retried.
  */
 
 export interface WatchSession {
@@ -67,13 +75,32 @@ export interface UserProfileDoc {
   lastActiveAt: number;
 }
 
-const LOCAL_SESSIONS_KEY = 'cv:localWatchSessions';
+const LOCAL_SESSIONS_KEY = StorageKeys.localWatchSessions;
 const MAX_LOCAL_SESSIONS = 100;
 const MAX_LIVE_SESSIONS = 100;
 const MAX_USERS = 200;
 
 /** One remote write per session per this interval, unless forced. */
 const WRITE_THROTTLE_MS = 30_000;
+
+/**
+ * Firestore error codes that will never succeed on retry for this session.
+ * Retrying them just burns quota and floods the console.
+ */
+const PERMANENT_ERROR_CODES = new Set([
+  'permission-denied',
+  'unauthenticated',
+  'invalid-argument',
+  'failed-precondition',
+]);
+
+function errorCode(error: unknown): string {
+  return typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+}
+
+function isPermanent(error: unknown): boolean {
+  return PERMANENT_ERROR_CODES.has(errorCode(error));
+}
 
 function getLocalSessions(): WatchSession[] {
   return readJSON<WatchSession[]>(LOCAL_SESSIONS_KEY, [], Array.isArray);
@@ -85,6 +112,9 @@ function saveLocalSessions(sessions: WatchSession[]): void {
 
 /** sessionId -> epoch ms of the last remote write. */
 const lastWriteAt = new Map<string, number>();
+
+/** Sessions whose remote copy is hopeless. Cleared on reload, not persisted. */
+const abandonedSessions = new Set<string>();
 
 function buildSessionId(uid: string, mediaType: string, mediaId: string, season = 0, episode = 0) {
   return `${uid}_${mediaType}_${mediaId}_s${season}_e${episode}`;
@@ -101,6 +131,9 @@ export const watchTrackingService = {
   ): Promise<void> {
     const season = session.seasonNumber ?? 0;
     const episode = session.episodeNumber ?? 0;
+    // A session with no uid cannot be attributed or authorised. Callers used to
+    // pass a shared 'guest_viewer' literal rather than nothing at all.
+    if (!session.uid) return;
     const sessionId =
       session.id ?? buildSessionId(session.uid, session.mediaType, session.mediaId, season, episode);
     const now = Date.now();
@@ -132,6 +165,10 @@ export const watchTrackingService = {
     const since = now - (lastWriteAt.get(sessionId) ?? 0);
     if (!flush && since < WRITE_THROTTLE_MS) return;
 
+    // Local history above is unconditional; only the cloud copy needs consent.
+    if (!remoteTelemetryAllowed()) return;
+    if (abandonedSessions.has(sessionId)) return;
+
     const { db } = getFirebase();
     if (!db) return;
 
@@ -144,17 +181,24 @@ export const watchTrackingService = {
           ? setDoc(doc(db, 'users', session.uid, 'history', sessionId), fullSession, { merge: true })
           : Promise.resolve(),
       ]);
-    } catch {
-      // Allow the next tick to retry rather than pinning the throttle window.
+    } catch (error) {
+      if (isPermanent(error)) {
+        // Retrying is pointless. Stop for this session and say so once.
+        abandonedSessions.add(sessionId);
+        console.error('Watch progress will not sync for this session:', errorCode(error), error);
+        return;
+      }
+      // Transient (offline, deadline-exceeded, unavailable). Let the next tick retry.
       lastWriteAt.delete(sessionId);
-      // Suppress unhandled crash logs if offline or network failure
     }
   },
 
   /**
    * Upserts the user's (or guest's) directory entry.
    *
-   * Only fields the user has provided are stored.
+   * Only fields the user has provided are stored, and only when telemetry is
+   * permitted -- a guest who has declined (or has not been asked) gets no
+   * Firestore document at all.
    */
   async recordUser(user: {
     uid: string;
@@ -163,6 +207,7 @@ export const watchTrackingService = {
     isGuest?: boolean;
   }): Promise<void> {
     if (!user.uid) return;
+    if (!remoteTelemetryAllowed()) return;
 
     const { db } = getFirebase();
     if (!db) return;
@@ -190,7 +235,15 @@ export const watchTrackingService = {
     }
   },
 
-  /** Live view of recent sessions. Admin-only per the Firestore rules. */
+  /**
+   * Live view of recent sessions. Admin-only per the Firestore rules.
+   *
+   * The snapshot is *not* written back to local storage. It used to call
+   * `saveLocalSessions(sessions)`, which overwrote the viewer's own cached
+   * history with the 100 most recent sessions belonging to *other* people --
+   * so an admin opening the dashboard lost their local history and inherited
+   * everyone else's.
+   */
   subscribeToActiveSessions(
     onData: (sessions: WatchSession[]) => void,
     onError?: (error: Error) => void
@@ -209,9 +262,7 @@ export const watchTrackingService = {
     return onSnapshot(
       q,
       (snapshot) => {
-        const sessions = snapshot.docs.map((entry) => entry.data() as WatchSession);
-        saveLocalSessions(sessions);
-        onData(sessions);
+        onData(snapshot.docs.map((entry) => entry.data() as WatchSession));
       },
       (error) => {
         console.error('watch_sessions subscription failed:', error);
@@ -301,18 +352,37 @@ export const watchTrackingService = {
     return sortByRecency(results);
   },
 
-  async deleteSession(sessionId: string): Promise<void> {
-    saveLocalSessions(getLocalSessions().filter((entry) => entry.id !== sessionId));
+  /**
+   * Deletes a session everywhere it exists.
+   *
+   * `logWatchProgress` writes two documents -- `watch_sessions/{id}` and
+   * `users/{uid}/history/{id}` -- but this only ever deleted the first, so a
+   * "remove from history" left the per-user mirror behind and the entry
+   * reappeared on the next hydrate. When `uid` is omitted it is recovered from
+   * the local copy of the session.
+   */
+  async deleteSession(sessionId: string, uid?: string): Promise<void> {
+    const local = getLocalSessions();
+    const ownerUid = uid ?? local.find((entry) => entry.id === sessionId)?.uid;
+    saveLocalSessions(local.filter((entry) => entry.id !== sessionId));
     lastWriteAt.delete(sessionId);
+    abandonedSessions.delete(sessionId);
 
     const { db } = getFirebase();
     if (!db) return;
 
-    try {
-      await deleteDoc(doc(db, 'watch_sessions', sessionId));
-    } catch (error) {
-      console.error('Delete session failed:', error);
-      throw error;
+    const targets = [deleteDoc(doc(db, 'watch_sessions', sessionId))];
+    if (ownerUid) {
+      targets.push(deleteDoc(doc(db, 'users', ownerUid, 'history', sessionId)));
+    }
+
+    const results = await Promise.allSettled(targets);
+    const failure = results.find(
+      (result): result is PromiseRejectedResult => result.status === 'rejected'
+    );
+    if (failure) {
+      console.error('Delete session failed:', failure.reason);
+      throw failure.reason instanceof Error ? failure.reason : new Error('Delete session failed');
     }
   },
 };

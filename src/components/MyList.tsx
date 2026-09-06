@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Play, Trash2, GripVertical, CheckCircle, Clock, History, Bookmark, X } from 'lucide-react';
+import { ArrowDownUp, Film, Play, Trash2, GripVertical, CheckCircle, Clock, History, Bookmark, Tv, X } from 'lucide-react';
 import { useApp } from '../store';
 import { WatchStatus } from '../types';
 import { cn } from '../lib/utils';
 import { PosterImage } from './PosterImage';
-import { api } from '../api';
+import { api, POSTER_SIZES, BACKDROP_SIZES } from '../api';
 import { goToWatch, goToHome } from '../lib/navigation';
 
 type Tab = 'watchlist' | 'history';
+type SortKey = 'custom' | 'year' | 'rating' | 'title';
+type TypeFilter = 'all' | 'movie' | 'tv' | 'anime';
 
 export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: string) => void }) {
   const {
@@ -24,6 +26,8 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<Tab>('watchlist');
+  const [sortKey, setSortKey] = useState<SortKey>('custom');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
 
   // Local state for dragging to immediately reflect changes visually
   const [items, setItems] = useState(() =>
@@ -33,6 +37,31 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
   React.useEffect(() => {
     setItems(watchlist.filter(i => i.movie));
   }, [watchlist]);
+
+  /** Sorted + filtered view of the watchlist. */
+  const displayedItems = useMemo(() => {
+    let filtered = items;
+    if (typeFilter !== 'all') {
+      filtered = items.filter((item) => item.movie?.type === typeFilter);
+    }
+    if (sortKey === 'custom') return filtered;
+
+    return [...filtered].sort((a, b) => {
+      const am = a.movie;
+      const bm = b.movie;
+      if (!am || !bm) return 0;
+      switch (sortKey) {
+        case 'year':
+          return (Number(bm.year) || 0) - (Number(am.year) || 0);
+        case 'rating':
+          return (bm.rating ?? 0) - (am.rating ?? 0);
+        case 'title':
+          return am.title.localeCompare(bm.title);
+        default:
+          return 0;
+      }
+    });
+  }, [items, sortKey, typeFilter]);
 
   const handleDragEnd = (result: DropResult) => {
     if (!result.destination) return;
@@ -97,6 +126,18 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
   const renderWatchlist = () => {
     if (items.length === 0) return renderEmptyWatchlist();
 
+    // When sorted or filtered, DnD doesn't make sense — the order is algorithmic.
+    const isDragEnabled = sortKey === 'custom' && typeFilter === 'all';
+
+    if (displayedItems.length === 0) {
+      return (
+        <div className="text-center py-16 text-muted-foreground">
+          <p className="text-lg font-display font-semibold mb-2">No matches</p>
+          <p className="text-sm">Try adjusting your filters.</p>
+        </div>
+      );
+    }
+
     return (
       <DragDropContext onDragEnd={handleDragEnd}>
         <Droppable droppableId="watchlist">
@@ -107,8 +148,8 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
               className="grid gap-4"
             >
               <AnimatePresence>
-                {items.map((item, index) => (
-                  <Draggable key={item.movieId} draggableId={item.movieId} index={index}>
+                {displayedItems.map((item, index) => (
+                  <Draggable key={item.movieId} draggableId={item.movieId} index={index} isDragDisabled={!isDragEnabled}>
                     {(provided, snapshot) => (
                       <motion.div
                         ref={provided.innerRef}
@@ -137,6 +178,9 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                         >
                           <PosterImage
                             src={item.movie.posterUrl}
+                            srcSet={item.movie.posterSrcSet}
+                            thumbSrc={item.movie.posterThumbUrl}
+                            sizes={POSTER_SIZES}
                             title={item.movie.title}
                             className="w-full h-full object-cover"
                           />
@@ -255,6 +299,21 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                         ? item.poster_path
                         : api.getImageUrl(item.poster_path)
                       : undefined) ?? undefined
+                  }
+                  srcSet={
+                    item.backdrop_path && !item.backdrop_path.startsWith('http')
+                      ? api.getBackdropSrcSet(item.backdrop_path)
+                      : item.poster_path && !item.poster_path.startsWith('http')
+                      ? api.getPosterSrcSet(item.poster_path)
+                      : undefined
+                  }
+                  sizes={item.backdrop_path ? BACKDROP_SIZES : POSTER_SIZES}
+                  thumbSrc={
+                    item.backdrop_path && !item.backdrop_path.startsWith('http')
+                      ? api.getImageUrl(item.backdrop_path, 'w300')
+                      : item.poster_path && !item.poster_path.startsWith('http')
+                      ? api.getImageUrl(item.poster_path, 'w92')
+                      : undefined
                   }
                   title={item.title}
                   className="w-full h-full object-cover"
@@ -379,6 +438,52 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
           )}
         </button>
       </div>
+
+      {/* Sort & Filter Controls (watchlist tab only) */}
+      {activeTab === 'watchlist' && items.length > 0 && (
+        <div className="flex flex-wrap items-center gap-3 mb-6">
+          {/* Type filter pills */}
+          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full p-1">
+            {([
+              { key: 'all' as TypeFilter, label: 'All', icon: null },
+              { key: 'movie' as TypeFilter, label: 'Movies', icon: <Film className="w-3.5 h-3.5" /> },
+              { key: 'tv' as TypeFilter, label: 'TV', icon: <Tv className="w-3.5 h-3.5" /> },
+              { key: 'anime' as TypeFilter, label: 'Anime', icon: null },
+            ]).map(({ key, label, icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTypeFilter(key)}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer',
+                  typeFilter === key
+                    ? 'bg-brand text-background shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                )}
+              >
+                {icon}
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Sort control */}
+          <div className="flex items-center gap-2 ml-auto">
+            <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground appearance-none cursor-pointer pr-8 hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              aria-label="Sort watchlist"
+            >
+              <option value="custom">Custom order</option>
+              <option value="year">Release year</option>
+              <option value="rating">Highest rated</option>
+              <option value="title">Title A–Z</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">

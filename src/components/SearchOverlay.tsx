@@ -3,11 +3,12 @@ import { AnimatePresence, motion } from 'motion/react';
 import FocusLock from 'react-focus-lock';
 import { ArrowRight, Clock, Search, Sparkles, Star, Trash2, TrendingUp, X } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
-import { api, kitsuApi } from '../api';
+import { api, kitsuApi, POSTER_SIZES } from '../api';
 import { formatRating, type Movie } from '../types';
 import { PosterImage } from './PosterImage';
 import { readJSON, writeJSON } from '../lib/storage';
 import { navigate } from '../lib/navigation';
+import { cn } from '../lib/utils';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -26,6 +27,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
   const [results, setResults] = useState<Movie[]>([]);
   const [activeTab, setActiveTab] = useState<'all' | 'anime' | 'movie' | 'tv'>('all');
   const [searching, setSearching] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [trendingTitles, setTrendingTitles] = useState<Movie[]>([]);
   const [history, setHistory] = useState<string[]>(() =>
     readJSON<string[]>(HISTORY_KEY, [], (value) => Array.isArray(value))
   );
@@ -72,6 +75,29 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
   }, [isOpen, onClose]);
 
   useEffect(() => {
+    setSelectedIndex(-1);
+  }, [debouncedQuery, activeTab]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let active = true;
+    api
+      .getTrending('all', 'day', 1)
+      .then((res: any) => {
+        if (!active) return;
+        const usable = (res.results ?? [])
+          .filter((item: any) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path))
+          .slice(0, 6)
+          .map(api.mapToInternalMovie);
+        setTrendingTitles(usable);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
     const term = debouncedQuery.trim();
     if (term.length < MIN_QUERY_LENGTH) {
       setResults([]);
@@ -83,52 +109,79 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     setSearching(true);
     setActiveTab('all');
 
-    Promise.all([
-      api.searchMulti(term, 1).catch(() => ({ results: [], total_pages: 0 })),
-      kitsuApi.search(term, 20).catch(() => ({ data: [], included: [] })),
-    ])
-      .then(([tmdb, kitsu]) => {
+    let tmdbResults: Movie[] = [];
+    let kitsuResults: Movie[] = [];
+
+    const rankAndDedup = (items: Movie[], queryTerm: string): Movie[] => {
+      const cleanTerm = queryTerm.toLowerCase();
+      const sorted = [...items].sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        const aExact = aTitle === cleanTerm;
+        const bExact = bTitle === cleanTerm;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        const aStarts = aTitle.startsWith(cleanTerm);
+        const bStarts = bTitle.startsWith(cleanTerm);
+        if (aStarts && !bStarts) return -1;
+        if (!aStarts && bStarts) return 1;
+        return 0;
+      });
+
+      const seen = new Set<string>();
+      return sorted.filter((item) => {
+        const key = `${item.type}-${item.id}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+
+    let tmdbDone = false;
+    let kitsuDone = false;
+
+    const finishIfDone = () => {
+      if (tmdbDone && kitsuDone && active) {
+        setSearching(false);
+      }
+    };
+
+    // 1. Fetch TMDB immediately — renders in ~300ms so tiles appear without delay
+    api
+      .searchMulti(term, 1)
+      .then((tmdb) => {
         if (!active) return;
-        const fromTmdb: Movie[] = (tmdb.results ?? [])
+        tmdbDone = true;
+        tmdbResults = (tmdb.results ?? [])
           .filter((item) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path))
           .map(api.mapToInternalMovie);
-        const fromKitsu: Movie[] = (kitsu.data ?? [])
-          .map((item) => kitsuApi.mapKitsuToInternal(item, kitsu.included ?? []));
-
-        // Intelligently rank: exact matches and startsWith matches first
-        const cleanTerm = term.toLowerCase();
-        const combined = [...fromKitsu, ...fromTmdb];
-        combined.sort((a, b) => {
-          const aTitle = a.title.toLowerCase();
-          const bTitle = b.title.toLowerCase();
-          const aExact = aTitle === cleanTerm;
-          const bExact = bTitle === cleanTerm;
-          if (aExact && !bExact) return -1;
-          if (!aExact && bExact) return 1;
-          const aStarts = aTitle.startsWith(cleanTerm);
-          const bStarts = bTitle.startsWith(cleanTerm);
-          if (aStarts && !bStarts) return -1;
-          if (!aStarts && bStarts) return 1;
-          return 0;
-        });
-
-        // Deduplicate
-        const seen = new Set<string>();
-        const deduped = combined.filter((item) => {
-          const key = `${item.type}-${item.id}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
-
-        setResults(deduped);
+        setResults(rankAndDedup([...kitsuResults, ...tmdbResults], term));
+        setSearching(false);
       })
       .catch((cause) => {
-        console.error('Search failed:', cause);
-        if (active) setResults([]);
+        console.error('TMDB search failed:', cause);
+        tmdbDone = true;
+        finishIfDone();
+      });
+
+    // 2. Concurrently fetch Kitsu anime without blocking TMDB results
+    kitsuApi
+      .search(term, 12)
+      .then((kitsu) => {
+        if (!active) return;
+        kitsuDone = true;
+        kitsuResults = (kitsu.data ?? []).map((item) =>
+          kitsuApi.mapKitsuToInternal(item, kitsu.included ?? [])
+        );
+        if (kitsuResults.length > 0) {
+          setResults(rankAndDedup([...kitsuResults, ...tmdbResults], term));
+        }
+        setSearching(false);
       })
-      .finally(() => {
-        if (active) setSearching(false);
+      .catch((cause) => {
+        console.warn('Kitsu search failed/skipped:', cause);
+        kitsuDone = true;
+        finishIfDone();
       });
 
     return () => {
@@ -199,7 +252,19 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   onKeyDown={(event) => {
-                    if (event.key === 'Enter') submit(query);
+                    if (event.key === 'ArrowDown') {
+                      event.preventDefault();
+                      setSelectedIndex((prev) => Math.min(prev + 1, displayedResults.length - 1));
+                    } else if (event.key === 'ArrowUp') {
+                      event.preventDefault();
+                      setSelectedIndex((prev) => Math.max(prev - 1, -1));
+                    } else if (event.key === 'Enter') {
+                      if (selectedIndex >= 0 && displayedResults[selectedIndex]) {
+                        openMovie(displayedResults[selectedIndex]);
+                      } else {
+                        submit(query);
+                      }
+                    }
                   }}
                   placeholder="Search movies, shows, anime…"
                   className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-4xl font-display text-foreground placeholder-muted-foreground/50 min-w-0"
@@ -328,11 +393,18 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               <button
                                 type="button"
                                 onClick={() => openMovie(movie)}
-                                className="group w-full text-left flex flex-col cursor-pointer"
+                                onMouseEnter={() => setSelectedIndex(index)}
+                                className={cn(
+                                  'group w-full text-left flex flex-col cursor-pointer p-1 rounded-xl transition-all',
+                                  selectedIndex === index && 'ring-2 ring-brand bg-white/5'
+                                )}
                               >
                                 <div className="aspect-[2/3] rounded-xl overflow-hidden mb-3 relative border border-white/10 group-hover:border-brand/50 transition-colors">
                                   <PosterImage
                                     src={movie.posterUrl}
+                                    srcSet={movie.posterSrcSet}
+                                    thumbSrc={movie.posterThumbUrl}
+                                    sizes={POSTER_SIZES}
                                     title={movie.title}
                                     decorative
                                     className="w-full h-full object-cover"
@@ -453,13 +525,52 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                             key={term}
                             type="button"
                             onClick={() => submit(term)}
-                            className="px-4 py-2 rounded-full border border-white/10 text-foreground hover:border-brand hover:text-brand transition-colors bg-white/5"
+                            className="px-4 py-2 rounded-full border border-white/10 text-foreground hover:border-brand hover:text-brand transition-colors bg-white/5 cursor-pointer"
                           >
                             {term}
                           </button>
                         ))}
                       </div>
                     </div>
+
+                    {trendingTitles.length > 0 && (
+                      <div>
+                        <h2 className="text-lg text-muted-foreground mb-4 font-display flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-brand" aria-hidden="true" /> Trending right now
+                        </h2>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 sm:gap-4">
+                          {trendingTitles.map((item) => (
+                            <button
+                              key={`trending-${item.type}-${item.id}`}
+                              type="button"
+                              onClick={() => openMovie(item)}
+                              className="group flex flex-col text-left cursor-pointer"
+                            >
+                              <div className="aspect-[2/3] rounded-xl overflow-hidden mb-2 border border-white/10 group-hover:border-brand/50 transition-colors">
+                                <PosterImage
+                                  src={item.posterUrl}
+                                  srcSet={item.posterSrcSet}
+                                  thumbSrc={item.posterThumbUrl}
+                                  sizes={POSTER_SIZES}
+                                  title={item.title}
+                                  decorative
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                              <span className="text-xs font-semibold text-foreground group-hover:text-brand truncate">
+                                {item.title}
+                              </span>
+                              {item.rating && (
+                                <span className="text-[11px] text-brand flex items-center gap-1 mt-0.5">
+                                  <Star className="w-2.5 h-2.5 fill-current" />
+                                  {formatRating(item.rating)}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

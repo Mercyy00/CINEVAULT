@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Star, User, Sparkles } from 'lucide-react';
+import { X, User, Sparkles } from 'lucide-react';
 import { api } from '../api';
-import { Movie, formatRating } from '../types';
+import { Movie } from '../types';
 import { PosterImage } from './PosterImage';
 import { cn } from '../lib/utils';
 
@@ -196,34 +196,27 @@ export function ActorModal({
                   No titles found for this actor.
                 </p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {movies.map((movie) => (
+                <div className="flex gap-4 overflow-x-auto scrollbar-none pb-4 -mx-5 px-5 sm:mx-0 sm:px-0">
+                  {movies.slice(0, 12).map((movie) => (
                     <div
                       key={`actor-movie-${movie.id}`}
                       onClick={() => {
                         onClose();
                         onMovieSelect(movie.id, movie.type);
                       }}
-                      className="group cursor-pointer flex flex-col"
+                      className="w-20 shrink-0 group cursor-pointer flex flex-col"
                     >
-                      <div className="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 group-hover:border-brand transition-all relative shadow-card mb-2">
+                      <div className="aspect-[2/3] rounded-xl overflow-hidden border border-white/10 group-hover:border-brand transition-all relative shadow-card mb-2">
                         <PosterImage
                           src={movie.posterUrl}
                           title={movie.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         />
-                        <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white flex items-center gap-1">
-                          <Star className="w-2.5 h-2.5 text-[#f5a54a] fill-[#f5a54a]" />
-                          <span>{formatRating(movie.rating)}</span>
-                        </div>
-                        <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-mono uppercase font-bold text-white/90">
-                          {movie.type}
-                        </div>
                       </div>
-                      <p className="text-xs sm:text-sm font-bold text-foreground group-hover:text-brand transition-colors line-clamp-1">
+                      <p className="text-[10px] sm:text-xs font-bold text-foreground group-hover:text-brand transition-colors line-clamp-2 leading-tight">
                         {movie.title}
                       </p>
-                      <p className="text-[11px] text-muted-foreground font-mono">
+                      <p className="text-[9px] text-muted-foreground font-mono mt-0.5">
                         {movie.year || 'Released'}
                       </p>
                     </div>
