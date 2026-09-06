@@ -13,7 +13,7 @@ import type { ContinueWatchingItem, Movie, WatchStatus, WatchlistItem } from './
 import { authService, type AuthUser } from './services/auth';
 import { continueWatchingKey, syncService } from './services/sync';
 import { watchTrackingService } from './services/watchTracking';
-import { isAppFontId, loadAppFont, type AppFontId } from './lib/fonts';
+import { loadAppFont, normalizeFontId, type AppFontId } from './lib/fonts';
 import { COMPLETION_THRESHOLD } from './lib/playback';
 import {
   getTelemetryConsent,
@@ -313,7 +313,7 @@ function buildDefaultProfile(uid: string): UserProfile {
     defaultServer: 'auto',
     audioPreference: 'sub',
     filmGrain: true,
-    logoStyle: 'vault',
+    logoStyle: 'cat',
     showSpoilers: false,
     autoPlayNext: true,
     reducedMotion: false,
@@ -381,7 +381,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {},
       (value) => typeof value === 'object' && value !== null
     );
-    return { ...fallback, ...stored, uid: stored.uid || fallback.uid };
+    const resolvedLogo = stored.logoStyle === 'vault' ? 'vault' : 'cat';
+    return { ...fallback, ...stored, logoStyle: resolvedLogo, uid: stored.uid || fallback.uid };
   });
 
   // ── Multi-Profile Management ─────────────────────────────────────────
@@ -447,7 +448,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const [appFont, setAppFontState] = useState<AppFont>(() => {
     const stored = readString(StorageKeys.font, DEFAULT_FONT);
-    return isAppFontId(stored) ? stored : DEFAULT_FONT;
+    return normalizeFontId(stored);
   });
 
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -673,7 +674,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       
       if (cloud?.theme && isTheme(cloud.theme)) setThemeState(cloud.theme);
-      if (cloud?.appFont && isAppFontId(cloud.appFont)) setAppFontState(cloud.appFont);
+      if (cloud?.appFont) setAppFontState(normalizeFontId(cloud.appFont));
 
       setUserProfile((previous) => ({
         ...previous,
@@ -830,7 +831,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [debouncedPush, pushToCloud, showToast]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
-  const setAppFont = useCallback((next: AppFont) => setAppFontState(next), []);
+  const setAppFont = useCallback((next: AppFont) => setAppFontState(normalizeFontId(next)), []);
 
   const setOnboardingComplete = useCallback((value: boolean) => {
     setOnboardingCompleteState(value);
@@ -997,7 +998,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setWatchlist(target.watchlist ?? []);
       setContinueWatching(target.continueWatching ?? []);
       if (target.theme && isTheme(target.theme)) setThemeState(target.theme);
-      if (target.appFont && isAppFontId(target.appFont)) setAppFontState(target.appFont);
+      if (target.appFont) setAppFontState(normalizeFontId(target.appFont));
       showToast(`Switched to ${target.name}${target.isKids ? ' (Kids Mode)' : ''}`);
     },
     [showToast]

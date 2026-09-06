@@ -117,6 +117,12 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   }, []);
 
   useEffect(() => {
+    if (showCustomizer && customizerTab === 'fonts') {
+      APP_FONT_IDS.forEach(loadAppFont);
+    }
+  }, [showCustomizer, customizerTab]);
+
+  useEffect(() => {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.header-popup-container')) {
@@ -172,7 +178,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
             <div 
               className={cn(
                 "w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 bg-brand transition-all shrink-0 drop-shadow-md group-hover:rotate-6",
-                userProfile.logoStyle === 'cat' ? "brand-logo-cat" : "brand-logo-vault"
+                userProfile.logoStyle === 'vault' ? "brand-logo-vault" : "brand-logo-cat"
               )} 
             />
             <span className="hidden sm:inline text-brand">
@@ -364,7 +370,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                           <div className="flex flex-col">
                             <span
                               className="text-xs font-bold text-foreground"
-                              style={{ fontFamily: `'${f.name}', sans-serif` }}
+                              style={{ fontFamily: APP_FONTS[f.id]?.fontFamily || `'${f.name}', sans-serif` }}
                             >
                               {f.name}
                             </span>

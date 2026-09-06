@@ -104,11 +104,11 @@
   --color-cv-panel: var(--theme-card);
 
   /* Typography */
-  --font-sans: var(--font-sans, "Inter", system-ui, -apple-system, sans-serif);
-  --font-body: var(--font-sans, "Inter", system-ui, -apple-system, sans-serif);
-  --font-display: var(--font-display, "Bricolage Grotesque", "Inter", sans-serif);
-  --font-serif: var(--font-display, "Bricolage Grotesque", "Inter", sans-serif);
-  --font-heading: var(--font-display, "Bricolage Grotesque", "Inter", sans-serif);
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-display: var(--font-display);
+  --font-serif: var(--font-display);
+  --font-heading: var(--font-heading);
 
   /* Radius */
   --radius: 1rem;
@@ -124,24 +124,28 @@
     --font-heading: "Bricolage Grotesque", "Inter", system-ui, sans-serif;
   }
 
+  [data-font="syne"],
   [data-font="dinko"] {
-    --font-display: "DINKO", "GC Dinko", "Syne", "Cabinet Grotesk", sans-serif;
-    --font-heading: "DINKO", "GC Dinko", "Syne", "Cabinet Grotesk", sans-serif;
+    --font-display: "Syne", "Cabinet Grotesk", sans-serif;
+    --font-heading: "Syne", "Cabinet Grotesk", sans-serif;
   }
 
+  [data-font="clash"],
   [data-font="inklab"] {
-    --font-display: "Inklab", "GC Inklab", "Clash Display", "Space Grotesk", sans-serif;
-    --font-heading: "Inklab", "GC Inklab", "Clash Display", "Space Grotesk", sans-serif;
+    --font-display: "Clash Display", "Space Grotesk", sans-serif;
+    --font-heading: "Clash Display", "Space Grotesk", sans-serif;
   }
 
+  [data-font="orbitron"],
   [data-font="gunken"] {
-    --font-display: "GUNKEN", "Orbitron", "Space Grotesk", sans-serif;
-    --font-heading: "GUNKEN", "Orbitron", "Space Grotesk", sans-serif;
+    --font-display: "Orbitron", "Space Grotesk", sans-serif;
+    --font-heading: "Orbitron", "Space Grotesk", sans-serif;
   }
 
+  [data-font="cinzel"],
   [data-font="odida"] {
-    --font-display: "Odida", "Cinzel", "Playfair Display", serif;
-    --font-heading: "Odida", "Cinzel", "Playfair Display", serif;
+    --font-display: "Cinzel", "Playfair Display", serif;
+    --font-heading: "Cinzel", "Playfair Display", serif;
   }
 
   [data-font="melodrama"] {
@@ -149,14 +153,23 @@
     --font-heading: "Melodrama", "DM Serif Display", "Playfair Display", serif;
   }
 
+  [data-font="fredoka"],
   [data-font="talina"] {
-    --font-display: "Talina", "Fredoka", "Comfortaa", cursive, sans-serif;
-    --font-heading: "Talina", "Fredoka", "Comfortaa", cursive, sans-serif;
+    --font-display: "Fredoka", "Comfortaa", cursive, sans-serif;
+    --font-heading: "Fredoka", "Comfortaa", cursive, sans-serif;
   }
 
+  [data-font="anton"],
   [data-font="grind"] {
-    --font-display: "GRIND", "GC Grind", "Anton", "Impact", sans-serif;
-    --font-heading: "GRIND", "GC Grind", "Anton", "Impact", sans-serif;
+    --font-display: "Anton", "Impact", sans-serif;
+    --font-heading: "Anton", "Impact", sans-serif;
+  }
+
+  /* Universal display font binding for all headings and display elements */
+  h1, h2, h3, h4, h5, h6,
+  .font-display,
+  .font-heading {
+    font-family: var(--font-display) !important;
   }
 
   /* ═══════════════════════════════════════════════════════

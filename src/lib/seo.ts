@@ -23,7 +23,7 @@ const DEFAULT_DESCRIPTION =
   'Browse films, television and anime, build a personalized watchlist, and pick up where you left off. Metadata powered by TMDB and AniList.';
 const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) || 'https://cinevault.app';
-const DEFAULT_OG_IMAGE = `${BASE_URL}/logo-vault.png`;
+const DEFAULT_OG_IMAGE = `${BASE_URL}/logo-cat.png`;
 
 function setMetaTag(attribute: 'name' | 'property', attrValue: string, content: string) {
   if (typeof document === 'undefined') return;
@@ -133,7 +133,7 @@ export const ROUTE_SEO: Record<string, SeoConfig> = {
           '@id': `${BASE_URL}/#organization`,
           name: 'CineVault',
           url: BASE_URL,
-          logo: `${BASE_URL}/logo-vault.png`,
+          logo: `${BASE_URL}/logo-cat.png`,
           description: 'A cinematic discovery and watchlist platform for film and anime enthusiasts.',
         },
       ],
@@ -209,7 +209,7 @@ export function generateMediaStructuredData(item: {
     '@type': type,
     name: item.title,
     description: item.overview || undefined,
-    image: item.posterUrl || item.backdropUrl || `${BASE_URL}/logo-vault.png`,
+    image: item.posterUrl || item.backdropUrl || `${BASE_URL}/logo-cat.png`,
     datePublished: item.releaseDate || undefined,
     genre: item.genres && item.genres.length > 0 ? item.genres : undefined,
     aggregateRating:

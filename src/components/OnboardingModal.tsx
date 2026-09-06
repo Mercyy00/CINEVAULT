@@ -286,7 +286,7 @@ export function OnboardingModal() {
                     <div
                       className={cn(
                         'w-14 h-14 bg-brand mb-4 transition-all drop-shadow-[0_0_25px_rgba(232,133,42,0.6)]',
-                        userProfile.logoStyle === 'cat' ? 'brand-logo-cat' : 'brand-logo-vault'
+                        userProfile.logoStyle === 'vault' ? 'brand-logo-vault' : 'brand-logo-cat'
                       )}
                     />
                     <h1 className="text-3xl sm:text-4xl font-black font-display text-foreground mb-2">

@@ -65,7 +65,7 @@ const ALL_FONTS = APP_FONT_IDS.map((id) => ({
   id,
   name: APP_FONTS[id].name,
   tag: APP_FONTS[id].tag,
-  fontFamily: `'${APP_FONTS[id].name}', sans-serif`,
+  fontFamily: APP_FONTS[id].fontFamily,
 }));
 
 const LANGUAGES = [
@@ -118,6 +118,12 @@ export function ProfilePage() {
       }
     }, 100);
   };
+
+  useEffect(() => {
+    if (activeTab === 'appearance') {
+      APP_FONT_IDS.forEach(loadAppFont);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -846,6 +852,29 @@ export function ProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Cat Logo (Primary) */}
+                  <button
+                    onClick={() => {
+                      updateUserProfile({ logoStyle: 'cat' });
+                      showToast('Logo style set to Cat Silhouette (Primary)');
+                    }}
+                    className={cn(
+                      "p-4 rounded-xl border transition-all text-left flex items-center justify-between gap-3 cursor-pointer shadow-sm",
+                      userProfile.logoStyle !== 'vault' ? "bg-brand/10 border-brand ring-1 ring-brand/30" : "bg-card hover:bg-muted/40 border-border"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-brand/15 border border-brand/30 flex items-center justify-center shrink-0">
+                        <div className="w-6 h-6 bg-brand brand-logo-cat" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-foreground">Cat Silhouette <span className="text-[10px] text-brand font-semibold">(Primary)</span></h4>
+                        <span className="text-[10px] text-muted-foreground">Anime & Miru Aesthetic</span>
+                      </div>
+                    </div>
+                    {userProfile.logoStyle !== 'vault' && <Check className="w-4 h-4 text-brand shrink-0" />}
+                  </button>
+
                   {/* Vault Logo */}
                   <button
                     onClick={() => {
@@ -854,7 +883,7 @@ export function ProfilePage() {
                     }}
                     className={cn(
                       "p-4 rounded-xl border transition-all text-left flex items-center justify-between gap-3 cursor-pointer shadow-sm",
-                      userProfile.logoStyle !== 'cat' ? "bg-brand/10 border-brand ring-1 ring-brand/30" : "bg-card hover:bg-muted/40 border-border"
+                      userProfile.logoStyle === 'vault' ? "bg-brand/10 border-brand ring-1 ring-brand/30" : "bg-card hover:bg-muted/40 border-border"
                     )}
                   >
                     <div className="flex items-center gap-3">
@@ -866,30 +895,7 @@ export function ProfilePage() {
                         <span className="text-[10px] text-muted-foreground">Original CineVault Safe Theme</span>
                       </div>
                     </div>
-                    {userProfile.logoStyle !== 'cat' && <Check className="w-4 h-4 text-brand shrink-0" />}
-                  </button>
-
-                  {/* Cat Logo */}
-                  <button
-                    onClick={() => {
-                      updateUserProfile({ logoStyle: 'cat' });
-                      showToast('Logo style set to Cat Silhouette');
-                    }}
-                    className={cn(
-                      "p-4 rounded-xl border transition-all text-left flex items-center justify-between gap-3 cursor-pointer shadow-sm",
-                      userProfile.logoStyle === 'cat' ? "bg-brand/10 border-brand ring-1 ring-brand/30" : "bg-card hover:bg-muted/40 border-border"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-brand/15 border border-brand/30 flex items-center justify-center shrink-0">
-                        <div className="w-6 h-6 bg-brand brand-logo-cat" />
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-bold text-foreground">Cat Silhouette</h4>
-                        <span className="text-[10px] text-muted-foreground">Anime & Miru Aesthetic</span>
-                      </div>
-                    </div>
-                    {userProfile.logoStyle === 'cat' && <Check className="w-4 h-4 text-brand shrink-0" />}
+                    {userProfile.logoStyle === 'vault' && <Check className="w-4 h-4 text-brand shrink-0" />}
                   </button>
                 </div>
               </div>
@@ -1072,7 +1078,7 @@ export function ProfilePage() {
                     <div 
                       className={cn(
                         "w-7 h-7 bg-brand transition-all",
-                        userProfile.logoStyle === 'cat' ? "brand-logo-cat" : "brand-logo-vault"
+                        userProfile.logoStyle === 'vault' ? "brand-logo-vault" : "brand-logo-cat"
                       )} 
                     />
                   </div>

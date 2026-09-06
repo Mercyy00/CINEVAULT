@@ -100,7 +100,7 @@ export function Footer() {
                 <div
                   className={cn(
                     'w-7 h-7 bg-brand transition-all shrink-0 drop-shadow-md',
-                    userProfile.logoStyle === 'cat' ? 'brand-logo-cat' : 'brand-logo-vault'
+                    userProfile.logoStyle === 'vault' ? 'brand-logo-vault' : 'brand-logo-cat'
                   )}
                   aria-hidden="true"
                 />
