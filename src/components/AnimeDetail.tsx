@@ -77,12 +77,74 @@ export function AnimeDetail({ id }: { id: string }) {
         setMovie(mappedMovie);
         setRelations(fetchedRelations || []);
         setCast(fetchedCast || mappedMovie.cast || []);
+
+        // Instant Episode Seeding (<300ms from AniList GraphQL response)
+        const isOnePiece =
+          String(id) === '21' ||
+          mappedMovie.title?.toLowerCase().includes('one piece');
+
+        const actualCount = isOnePiece
+          ? Math.max(mappedMovie.episodeCount || 0, 1180)
+          : (mappedMovie.episodeCount || (raw.episodes as number) || 0);
+
+        const initialEpisodes: any[] = [];
+        const streaming = raw.streamingEpisodes || [];
+        const fallbackImg = mappedMovie.backdropUrl || mappedMovie.posterUrl || '';
+
+        const seededMap = new Map<number, any>();
+        streaming.forEach((item, idx) => {
+          const match = item.title?.match(/Episode\s+(\d+)/i);
+          const epNum = match ? parseInt(match[1], 10) : idx + 1;
+          if (epNum > 0 && (isOnePiece || epNum <= actualCount)) {
+            const cleanTitle = item.title
+              ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
+              : `Episode ${epNum}`;
+            seededMap.set(epNum, {
+              id: `ep-${epNum}`,
+              number: epNum,
+              title: cleanTitle,
+              image: item.thumbnail || fallbackImg,
+              overview: `Episode ${epNum} of ${mappedMovie.title}`,
+            });
+          }
+        });
+
+        for (let i = 1; i <= actualCount; i++) {
+          if (seededMap.has(i)) {
+            initialEpisodes.push(seededMap.get(i));
+          } else {
+            initialEpisodes.push({
+              id: `ep-${i}`,
+              number: i,
+              title: `Episode ${i}`,
+              image: fallbackImg,
+              overview: `Episode ${i} of ${mappedMovie.title}`,
+            });
+          }
+        }
+
+        if (initialEpisodes.length > 0) {
+          setEpisodes(initialEpisodes);
+          if (initialEpisodes.length > 50) {
+            const chunks = [];
+            for (let i = 0; i < initialEpisodes.length; i += 50) {
+              chunks.push({
+                label: `Episodes ${i + 1}-${Math.min(i + 50, initialEpisodes.length)}`,
+                start: i,
+                end: Math.min(i + 50, initialEpisodes.length),
+              });
+            }
+            setChunkOptions(chunks);
+            setSelectedChunk(0);
+          }
+        }
+
         // Unblock the main page immediately (<300ms)
         setIsLoading(false);
 
-        // Fetch episodes in the background without blocking the UI
+        // Fetch rich episode metadata in the background without blocking the UI
         try {
-          const anilistEpisodes = await anilistApi.getEpisodes(id, mappedMovie.episodeCount || 0, raw);
+          const anilistEpisodes = await anilistApi.getEpisodes(id, actualCount, raw);
           if (!isMounted) return;
 
           let episodesData: any[] = [];
@@ -91,14 +153,11 @@ export function AnimeDetail({ id }: { id: string }) {
               id: `ep-${ep.episode}`,
               number: ep.episode,
               title: ep.title || `Episode ${ep.episode}`,
-              image: ep.thumbnail || mappedMovie.backdropUrl || mappedMovie.posterUrl || '',
+              image: ep.thumbnail || fallbackImg,
               overview: ep.description || `Episode ${ep.episode} of ${mappedMovie.title}`
             }));
           }
 
-          const isOnePiece =
-            String(id) === '21' ||
-            mappedMovie.title?.toLowerCase().includes('one piece');
           if (isOnePiece && episodesData.length < 1180) {
             const existingNums = new Set(episodesData.map(e => e.number));
             for (let i = 1; i <= 1180; i++) {
@@ -107,7 +166,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   id: `ep-${i}`,
                   number: i,
                   title: `Episode ${i}`,
-                  image: mappedMovie.backdropUrl || mappedMovie.posterUrl || '',
+                  image: fallbackImg,
                   overview: `Episode ${i} of ${mappedMovie.title}`
                 });
               }
@@ -115,25 +174,23 @@ export function AnimeDetail({ id }: { id: string }) {
             episodesData.sort((a, b) => a.number - b.number);
           }
 
-          setEpisodes(episodesData);
+          if (episodesData.length > 0) {
+            setEpisodes(episodesData);
 
-          if (episodesData.length > 50) {
-            const chunks = [];
-            for (let i = 0; i < episodesData.length; i += 50) {
-              chunks.push({
-                label: `Episodes ${i + 1}-${Math.min(i + 50, episodesData.length)}`,
-                start: i,
-                end: Math.min(i + 50, episodesData.length)
-              });
+            if (episodesData.length > 50) {
+              const chunks = [];
+              for (let i = 0; i < episodesData.length; i += 50) {
+                chunks.push({
+                  label: `Episodes ${i + 1}-${Math.min(i + 50, episodesData.length)}`,
+                  start: i,
+                  end: Math.min(i + 50, episodesData.length)
+                });
+              }
+              setChunkOptions(chunks);
             }
-            setChunkOptions(chunks);
-            setSelectedChunk(0);
-          } else {
-            setChunkOptions([]);
-            setSelectedChunk(0);
           }
         } catch (e) {
-          console.warn("AniList episodes fetch error", e);
+          console.warn("AniList episodes background fetch error", e);
         } finally {
           if (isMounted) {
             setIsEpisodesLoading(false);
@@ -523,9 +580,13 @@ export function AnimeDetail({ id }: { id: string }) {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
             <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Play className="w-5 h-5 text-brand fill-current" /> Episodes
-              {isEpisodesLoading ? (
+              {isEpisodesLoading && episodes.length === 0 ? (
                 <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-brand/10 text-brand animate-pulse">
                   Loading episodes...
+                </span>
+              ) : isEpisodesLoading ? (
+                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-brand/10 text-brand animate-pulse">
+                  Syncing details...
                 </span>
               ) : episodes.length > 0 ? (
                 <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-white/10 text-muted-foreground">
@@ -533,7 +594,7 @@ export function AnimeDetail({ id }: { id: string }) {
                 </span>
               ) : null}
             </h3>
-            {!isEpisodesLoading && chunkOptions.length > 0 && (
+            {chunkOptions.length > 0 && (
               <div className="relative min-w-[220px]">
                 <select
                   value={selectedChunk}
@@ -551,7 +612,7 @@ export function AnimeDetail({ id }: { id: string }) {
             )}
           </div>
 
-          {isEpisodesLoading ? (
+          {isEpisodesLoading && episodes.length === 0 ? (
             <div className="space-y-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="w-full flex flex-col md:flex-row gap-4 p-4 rounded-2xl bg-white/5 animate-pulse border border-white/5">

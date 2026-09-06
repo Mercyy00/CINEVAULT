@@ -281,3 +281,32 @@ describe('findMatchingSeason', () => {
     expect(matched).toBeNull();
   });
 });
+
+describe('anilistApi.getEpisodes live check', () => {
+  it('fetches episodes for One Piece (21)', async () => {
+    const eps = await anilistApi.getEpisodes(21);
+    console.log('One Piece episodes count:', eps.length);
+    const withThumb = eps.filter((e) => Boolean(e.thumbnail));
+    console.log('One Piece with thumb:', withThumb.length);
+    if (eps.length > 0) {
+      console.log('Sample Ep 1:', eps[0]);
+      console.log('Sample Ep 25:', eps[24]);
+      console.log('Sample Ep 100:', eps[99]);
+      console.log('Sample Ep 1000:', eps[999]);
+    }
+    expect(eps.length).toBeGreaterThan(0);
+  }, 30000);
+
+  it('fetches episodes for Bleach Calamity (185874)', async () => {
+    const eps = await anilistApi.getEpisodes(185874);
+    console.log('Bleach Calamity episodes count:', eps.length);
+    const withThumb = eps.filter((e) => Boolean(e.thumbnail));
+    console.log('Bleach Calamity with thumb:', withThumb.length);
+    if (eps.length > 0) {
+      console.log('Sample Ep 1:', eps[0]);
+      console.log('Sample Ep 7:', eps[6]);
+    }
+    expect(eps.length).toBeGreaterThan(0);
+  }, 30000);
+});
+

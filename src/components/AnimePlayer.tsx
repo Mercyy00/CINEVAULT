@@ -207,64 +207,72 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         setMovie(internalMovie);
         anilistIdRef.current = internalMovie.anilistId || id;
         
-        let episodesData: any[] = [];
-        try {
-          const anilistEpisodes = await anilistApi.getEpisodes(id, internalMovie.episodeCount || 0, raw);
-          if (anilistEpisodes && anilistEpisodes.length > 0) {
-            episodesData = anilistEpisodes.map((ep) => ({
-              id: `ep-${ep.episode}`,
-              number: ep.episode,
-              episode: ep.episode,
-              title: ep.title || `Episode ${ep.episode}`,
-              image: ep.thumbnail || internalMovie.backdropUrl || internalMovie.posterUrl || '',
-              isReleased: true,
-              description: ep.description || '',
-              duration: ep.duration || '24m',
-            }));
-          }
-        } catch (e) {
-          console.warn("AniList episodes fetch error, fallback to generation", e);
-        }
-        
         const isOnePiece =
           String(id) === '21' ||
           internalMovie.title?.toLowerCase().includes('one piece');
-        if (isOnePiece && episodesData.length < 1180) {
-          const existingNums = new Set(episodesData.map(e => e.number));
-          for (let i = 1; i <= 1180; i++) {
-            if (!existingNums.has(i)) {
-              episodesData.push({
-                id: `ep-${i}`,
-                number: i,
-                episode: i,
-                title: `Episode ${i}`,
-                image: internalMovie.backdropUrl || internalMovie.posterUrl || '',
-                isReleased: true,
-                duration: '24m',
-              });
-            }
+        const actualCount = isOnePiece
+          ? Math.max(internalMovie.episodeCount || 0, 1180)
+          : (internalMovie.episodeCount || (raw.episodes as number) || 0);
+
+        const fallbackImg = internalMovie.backdropUrl || internalMovie.posterUrl || '';
+        const streaming = raw.streamingEpisodes || [];
+        const seededMap = new Map<number, any>();
+        streaming.forEach((item, idx) => {
+          const match = item.title?.match(/Episode\s+(\d+)/i);
+          const num = match ? parseInt(match[1], 10) : idx + 1;
+          if (num > 0 && (isOnePiece || num <= actualCount)) {
+            const cleanTitle = item.title
+              ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
+              : `Episode ${num}`;
+            seededMap.set(num, {
+              id: `ep-${num}`,
+              number: num,
+              episode: num,
+              title: cleanTitle,
+              image: item.thumbnail || fallbackImg,
+              isReleased: true,
+              description: '',
+              duration: '24m',
+            });
           }
-          episodesData.sort((a, b) => a.number - b.number);
+        });
+
+        let episodesData: any[] = [];
+        const totalBaseline = Math.max(actualCount, parseInt(episode) || 1);
+        for (let i = 1; i <= totalBaseline; i++) {
+          if (seededMap.has(i)) {
+            episodesData.push(seededMap.get(i));
+          } else {
+            episodesData.push({
+              id: `ep-${i}`,
+              number: i,
+              episode: i,
+              title: `Episode ${i}`,
+              image: fallbackImg,
+              isReleased: true,
+              description: '',
+              duration: '24m',
+            });
+          }
         }
-        
+
         setEpisodes(episodesData);
 
         const epNum = parseInt(episode) || 1;
-        let targetEp = episodesData.find((e: any) => e.number === epNum);
-        
-        if (!targetEp) {
-           targetEp = {
-              id: `ep-${epNum}`,
-              season: 1,
-              episode: epNum,
-              number: epNum,
-              title: `Episode ${epNum}`,
-              duration: '24m',
-              image: '',
-              description: `Episode ${epNum} of ${internalMovie.title}`
-           };
-        }
-        
+        let targetEp = episodesData.find((e: any) => e.number === epNum) || {
+          id: `ep-${epNum}`,
+          season: 1,
+          episode: epNum,
+          number: epNum,
+          title: `Episode ${epNum}`,
+          duration: '24m',
+          image: fallbackImg,
+          description: `Episode ${epNum} of ${internalMovie.title}`
+        };
+
+        setSelectedEpisode(targetEp);
+        setLanguage(language);
+
         let fetchedTmdb = '';
         try {
           // Priority 1: Search specifically in TMDB TV catalog for exact title match
@@ -294,19 +302,58 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           // Non-blocking fallback
         }
 
-        if (targetEp) {
-          setSelectedEpisode(targetEp);
-          setLanguage(language);
-          updateIframeSrc(
-            targetEp.number,
-            language,
-            server,
-            internalMovie.malId,
-            internalMovie.title,
-            fetchedTmdb,
-            internalMovie.anilistId || id
-          );
-        }
+        // Start playback immediately!
+        updateIframeSrc(
+          targetEp.number,
+          language,
+          server,
+          internalMovie.malId,
+          internalMovie.title,
+          fetchedTmdb,
+          internalMovie.anilistId || id
+        );
+
+        setIsLoading(false);
+
+        // Enrich episode titles and stills in the background without blocking playback
+        anilistApi.getEpisodes(id, actualCount, raw).then((anilistEpisodes) => {
+          if (!isMounted || !anilistEpisodes || anilistEpisodes.length === 0) return;
+          const enriched = anilistEpisodes.map((ep) => ({
+            id: `ep-${ep.episode}`,
+            number: ep.episode,
+            episode: ep.episode,
+            title: ep.title || `Episode ${ep.episode}`,
+            image: ep.thumbnail || fallbackImg,
+            isReleased: true,
+            description: ep.description || '',
+            duration: ep.duration || '24m',
+          }));
+
+          if (isOnePiece && enriched.length < 1180) {
+            const existingNums = new Set(enriched.map(e => e.number));
+            for (let i = 1; i <= 1180; i++) {
+              if (!existingNums.has(i)) {
+                enriched.push({
+                  id: `ep-${i}`,
+                  number: i,
+                  episode: i,
+                  title: `Episode ${i}`,
+                  image: fallbackImg,
+                  isReleased: true,
+                  description: '',
+                  duration: '24m',
+                });
+              }
+            }
+            enriched.sort((a, b) => a.number - b.number);
+          }
+
+          setEpisodes(enriched);
+          const updatedTarget = enriched.find((e: any) => e.number === epNum);
+          if (updatedTarget) {
+            setSelectedEpisode(updatedTarget);
+          }
+        }).catch(() => {});
       } catch (err) {
         console.error(err);
       } finally {
