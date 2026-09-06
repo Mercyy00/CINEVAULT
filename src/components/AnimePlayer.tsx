@@ -209,7 +209,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         
         let episodesData: any[] = [];
         try {
-          const anilistEpisodes = await anilistApi.getEpisodes(id, internalMovie.episodeCount || 12);
+          const anilistEpisodes = await anilistApi.getEpisodes(id, internalMovie.episodeCount || 0);
           if (anilistEpisodes && anilistEpisodes.length > 0) {
             episodesData = anilistEpisodes.map((ep) => ({
               id: `ep-${ep.episode}`,
@@ -229,11 +229,9 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         const isOnePiece =
           String(id) === '21' ||
           internalMovie.title?.toLowerCase().includes('one piece');
-        const minTarget = isOnePiece ? 1180 : 0;
-        const totalCount = Math.max(internalMovie.episodeCount || minTarget, minTarget, episodesData.length);
-        if (totalCount > episodesData.length) {
+        if (isOnePiece && episodesData.length < 1180) {
           const existingNums = new Set(episodesData.map(e => e.number));
-          for (let i = 1; i <= totalCount; i++) {
+          for (let i = 1; i <= 1180; i++) {
             if (!existingNums.has(i)) {
               episodesData.push({
                 id: `ep-${i}`,

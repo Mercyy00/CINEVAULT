@@ -684,6 +684,19 @@ function mapProviders(item: TmdbItem): WatchProvider[] {
 
 const ANILIST_BASE = 'https://graphql.anilist.co';
 
+export interface AnimeRelation {
+  id: string;
+  relationType: string;
+  type: 'ANIME' | 'MANGA';
+  format?: string;
+  title: string;
+  year?: number;
+  episodes?: number | null;
+  rating?: number | null;
+  posterUrl?: string | null;
+  status?: string;
+}
+
 export interface AniListMedia {
   id: number;
   title?: {
@@ -728,6 +741,32 @@ export interface AniListMedia {
         id: number;
         name?: { full?: string | null } | null;
         image?: { large?: string | null } | null;
+      } | null;
+    }> | null;
+  } | null;
+  relations?: {
+    edges?: Array<{
+      relationType?: string | null;
+      node?: {
+        id: number;
+        type?: string | null;
+        format?: string | null;
+        status?: string | null;
+        title?: {
+          english?: string | null;
+          romaji?: string | null;
+          native?: string | null;
+        } | null;
+        coverImage?: {
+          large?: string | null;
+          extraLarge?: string | null;
+        } | null;
+        bannerImage?: string | null;
+        episodes?: number | null;
+        averageScore?: number | null;
+        startDate?: {
+          year?: number | null;
+        } | null;
       } | null;
     }> | null;
   } | null;
@@ -915,7 +954,14 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
     item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || null;
 
   const nextAiring = item.nextAiringEpisode?.episode;
-  let episodeCount = item.episodes ?? (nextAiring ? nextAiring - 1 : 0);
+  let episodeCount: number;
+  if (item.status?.toUpperCase() === 'RELEASING' && nextAiring) {
+    episodeCount = Math.max(0, nextAiring - 1);
+  } else if (item.status?.toUpperCase() === 'NOT_YET_RELEASED') {
+    episodeCount = 0;
+  } else {
+    episodeCount = item.episodes ?? (nextAiring ? nextAiring - 1 : 0);
+  }
   const isOnePiece =
     String(item.id) === '21' ||
     item.title?.english?.toLowerCase().includes('one piece') ||
@@ -1183,7 +1229,7 @@ export const anilistApi = {
 
   getDetails: async (
     id: string | number
-  ): Promise<{ movie: Movie; raw: AniListMedia }> => {
+  ): Promise<{ movie: Movie; raw: AniListMedia; relations: AnimeRelation[] }> => {
     const numId = typeof id === 'number' ? id : parseInt(id, 10);
     const query = `
       ${MEDIA_FIELDS_FRAGMENT}
@@ -1214,6 +1260,32 @@ export const anilistApi = {
               }
             }
           }
+          relations {
+            edges {
+              relationType
+              node {
+                id
+                type
+                format
+                status
+                title {
+                  english
+                  romaji
+                  native
+                }
+                coverImage {
+                  large
+                  extraLarge
+                }
+                bannerImage
+                episodes
+                averageScore
+                startDate {
+                  year
+                }
+              }
+            }
+          }
         }
       }
     `;
@@ -1221,13 +1293,38 @@ export const anilistApi = {
     if (!data?.Media) {
       throw new ApiError('Anime not found on AniList', 404, `/anime/${id}`);
     }
+
+    const rawRelations = data.Media.relations?.edges || [];
+    const relations: AnimeRelation[] = rawRelations
+      .filter((edge) => Boolean(edge?.node && edge?.relationType))
+      .map((edge) => {
+        const n = edge!.node!;
+        const relTitle = n.title?.english || n.title?.romaji || 'Untitled';
+        return {
+          id: String(n.id),
+          relationType: edge!.relationType || 'OTHER',
+          type: (n.type as any) || 'ANIME',
+          format: n.format || undefined,
+          title: relTitle,
+          year: n.startDate?.year || undefined,
+          episodes: n.episodes || null,
+          rating:
+            typeof n.averageScore === 'number' && n.averageScore > 0
+              ? Math.round(n.averageScore) / 10
+              : null,
+          posterUrl: n.coverImage?.extraLarge || n.coverImage?.large || null,
+          status: n.status || undefined,
+        };
+      });
+
     return {
       movie: mapAniListToInternal(data.Media),
       raw: data.Media,
+      relations,
     };
   },
 
-  getEpisodes: async (id: string | number, fallbackCount = 12): Promise<Episode[]> => {
+  getEpisodes: async (id: string | number, _fallbackCount = 12): Promise<Episode[]> => {
     try {
       const { movie, raw } = await anilistApi.getDetails(id);
       const streaming = raw.streamingEpisodes || [];
@@ -1240,22 +1337,30 @@ export const anilistApi = {
         raw.title?.romaji?.toLowerCase().includes('one piece');
 
       const nextAiring = raw.nextAiringEpisode?.episode;
-      const releasingCount = nextAiring ? nextAiring - 1 : 0;
-      let expectedEpisodeCount = movie.episodeCount || raw.episodes || releasingCount;
+      let actualEpisodeCount: number;
+      if (raw.status?.toUpperCase() === 'RELEASING' && nextAiring) {
+        actualEpisodeCount = Math.max(0, nextAiring - 1);
+      } else if (raw.status?.toUpperCase() === 'NOT_YET_RELEASED') {
+        actualEpisodeCount = 0;
+      } else if (typeof raw.episodes === 'number' && raw.episodes > 0) {
+        actualEpisodeCount = raw.episodes;
+      } else {
+        actualEpisodeCount = movie.episodeCount || (nextAiring ? nextAiring - 1 : 0);
+      }
+
       if (isOnePiece) {
-        expectedEpisodeCount = Math.max(expectedEpisodeCount, 1180);
+        actualEpisodeCount = Math.max(actualEpisodeCount, 1180);
+      }
+
+      if (actualEpisodeCount === 0) {
+        return [];
       }
 
       // 1. Seed with AniList streamingEpisodes (Crunchyroll, VRV, etc.)
       streaming.forEach((item, idx) => {
         const match = item.title?.match(/Episode\s+(\d+)/i);
         const epNum = match ? parseInt(match[1], 10) : idx + 1;
-        if (epNum > 0) {
-          // If expected episode count is known, do not seed out-of-range episodes
-          if (expectedEpisodeCount > 0 && !isOnePiece && epNum > expectedEpisodeCount) {
-            return;
-          }
-
+        if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
           const cleanTitle = item.title
             ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
             : `Episode ${epNum}`;
@@ -1272,140 +1377,11 @@ export const anilistApi = {
         }
       });
 
-      // 2. Enrich with TMDB TV episodes (titles, overviews, and high-res screenshot stills)
-      try {
-        const queryTitle = movie.title || raw.title?.english || raw.title?.romaji || '';
-        const titleCandidates = [
-          raw.title?.english,
-          raw.title?.romaji,
-          movie.title,
-        ].filter((t): t is string => Boolean(t && t.trim()));
-
-        if (queryTitle) {
-          const searchRes = await api.searchTv(queryTitle);
-          const bestTv = searchRes.results?.find((item: any) =>
-            item.name?.toLowerCase() === queryTitle.toLowerCase() ||
-            item.original_name?.toLowerCase() === queryTitle.toLowerCase()
-          ) || searchRes.results?.[0];
-
-          if (bestTv?.id) {
-            const tvDetails = await request<{
-              number_of_episodes?: number;
-              first_air_date?: string;
-              seasons?: Array<{ season_number: number; name?: string; episode_count: number; air_date?: string }>;
-            }>(tmdbUrl(`/tv/${bestTv.id}`));
-
-            const validSeasons = (tvDetails.seasons || [])
-              .filter((s) => s.season_number > 0 && s.episode_count > 0)
-              .sort((a, b) => a.season_number - b.season_number);
-
-            const tmdbTotalEps = tvDetails.number_of_episodes || 0;
-            const tmdbAirYear = tvDetails.first_air_date
-              ? parseInt(tvDetails.first_air_date.slice(0, 4), 10)
-              : null;
-            const animeYear = raw.startDate?.year || movie.year || 0;
-
-            // Check if TMDB returned a parent franchise show rather than this specific anime release
-            const isFranchiseParent =
-              !isOnePiece &&
-              expectedEpisodeCount > 0 &&
-              validSeasons.length > 1 &&
-              (tmdbTotalEps > expectedEpisodeCount * 2 + 5 ||
-                Boolean(tmdbAirYear && animeYear && Math.abs(tmdbAirYear - animeYear) > 2));
-
-            let seasonsToFetch: Array<{ season_number: number; episode_count: number }> = [];
-
-            if (isFranchiseParent) {
-              // Locate the specific sequel/cour season inside the parent franchise
-              const matchedSeason = findMatchingSeason(
-                validSeasons,
-                titleCandidates,
-                animeYear,
-                expectedEpisodeCount
-              );
-
-              if (matchedSeason) {
-                seasonsToFetch = [matchedSeason];
-              } else {
-                // If it's a parent franchise show and no season matches, do NOT import unrelated episodes!
-                seasonsToFetch = [];
-              }
-            } else if (validSeasons.length > 0) {
-              // Direct match (standalone anime or continuous series like One Piece)
-              seasonsToFetch = validSeasons.slice(0, 25);
-            }
-
-            if (seasonsToFetch.length > 0) {
-              const seasonResults: PromiseSettledResult<{ id?: number; name?: string; episodes?: TmdbEpisode[] }>[] = [];
-              for (let i = 0; i < seasonsToFetch.length; i += 5) {
-                const batch = seasonsToFetch.slice(i, i + 5);
-                const batchRes = await Promise.allSettled(
-                  batch.map((s) => api.getSeasonDetails(String(bestTv.id), s.season_number))
-                );
-                seasonResults.push(...batchRes);
-              }
-
-              let runningEpisodeNum = 1;
-              for (const res of seasonResults) {
-                if (res.status === 'fulfilled' && res.value.episodes && res.value.episodes.length > 0) {
-                  const firstEp = res.value.episodes[0];
-                  // If we are fetching an isolated sequel season (e.g. Bleach TYBW Season 17),
-                  // episode numbers within that season map directly to 1..N
-                  const isSingleSequelSeason = isFranchiseParent && seasonsToFetch.length === 1;
-                  const isAbsolute = !isSingleSequelSeason && firstEp.episode_number >= runningEpisodeNum;
-
-                  for (const tmdbEp of res.value.episodes) {
-                    const epNum = isSingleSequelSeason
-                      ? tmdbEp.episode_number
-                      : (isAbsolute ? tmdbEp.episode_number : runningEpisodeNum);
-
-                    // If expected count is known, do not import out-of-range episodes
-                    if (expectedEpisodeCount > 0 && !isOnePiece && epNum > expectedEpisodeCount) {
-                      continue;
-                    }
-
-                    const stillUrl = tmdbEp.still_path
-                      ? api.getImageUrl(tmdbEp.still_path, 'w500')
-                      : null;
-
-                    const existing = episodeMap.get(epNum);
-                    const epTitle = tmdbEp.name && !tmdbEp.name.match(/^Episode\s+\d+$/i)
-                      ? tmdbEp.name
-                      : existing?.title || `Episode ${epNum}`;
-
-                    episodeMap.set(epNum, {
-                      id: `ep-${epNum}`,
-                      season: isSingleSequelSeason ? 1 : (tmdbEp.season_number || 1),
-                      episode: epNum,
-                      title: epTitle,
-                      duration: tmdbEp.runtime ? `${tmdbEp.runtime}m` : existing?.duration || (raw.duration ? `${raw.duration}m` : '24m'),
-                      thumbnail: stillUrl || existing?.thumbnail || null,
-                      description: tmdbEp.overview || existing?.description || '',
-                    });
-                    runningEpisodeNum = Math.max(runningEpisodeNum + 1, epNum + 1);
-                  }
-                }
-              }
-            }
-          }
-        }
-      } catch (tmdbErr) {
-        console.warn('TMDB episode enrichment error:', tmdbErr);
-      }
-
-      // 3. Fallback to Jikan (MyAnimeList) for accurate titles if still generic
-      let targetCount = expectedEpisodeCount > 0
-        ? expectedEpisodeCount
-        : Math.max(fallbackCount, episodeMap.size);
-
-      if (isOnePiece) {
-        targetCount = Math.max(targetCount, 1180);
-      }
-
+      // 2. Query Jikan (MyAnimeList) API for cour-accurate episode titles when generic or missing
       const hasGenericTitles = Array.from(episodeMap.values()).some(
         (ep) => !ep.title || ep.title === `Episode ${ep.episode}`
       );
-      if (raw.idMal && (episodeMap.size < targetCount || hasGenericTitles)) {
+      if (raw.idMal && (episodeMap.size < actualEpisodeCount || hasGenericTitles)) {
         try {
           const jikanRes = await fetch(`https://api.jikan.moe/v4/anime/${raw.idMal}/episodes`);
           if (jikanRes.ok) {
@@ -1414,7 +1390,7 @@ export const anilistApi = {
               jikanJson.data || [];
             for (const jEp of jikanEpisodes) {
               const epNum = jEp.mal_id;
-              if (expectedEpisodeCount > 0 && !isOnePiece && epNum > expectedEpisodeCount) {
+              if (!isOnePiece && epNum > actualEpisodeCount) {
                 continue;
               }
 
@@ -1444,13 +1420,9 @@ export const anilistApi = {
         }
       }
 
-      // 4. Fill in any remaining episodes strictly up to targetCount
+      // 3. Fill in any remaining episodes strictly up to actualEpisodeCount
       const finalEpisodes: Episode[] = [];
-      const totalToGenerate = (!isOnePiece && expectedEpisodeCount > 0)
-        ? expectedEpisodeCount
-        : Math.max(targetCount, episodeMap.size);
-
-      for (let i = 1; i <= totalToGenerate; i++) {
+      for (let i = 1; i <= actualEpisodeCount; i++) {
         const ep = episodeMap.get(i);
         if (ep) {
           finalEpisodes.push(ep);

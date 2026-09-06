@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Check, ArrowLeft, Star, Clock, Calendar, Share2, Users, ChevronDown } from 'lucide-react';
-import { anilistApi } from '../api';
+import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles } from 'lucide-react';
+import { anilistApi, AnimeRelation } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { formatRating } from '../types';
@@ -17,6 +17,7 @@ export function AnimeDetail({ id }: { id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [cast, setCast] = useState<any[]>([]);
+  const [relations, setRelations] = useState<AnimeRelation[]>([]);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [selectedEpisode, setSelectedEpisode] = useState<number>(1);
   const [selectedChunk, setSelectedChunk] = useState<number>(0);
@@ -68,10 +69,11 @@ export function AnimeDetail({ id }: { id: string }) {
       setIsLoading(true);
       setError(null);
       try {
-        const { movie: mappedMovie } = await anilistApi.getDetails(id);
+        const { movie: mappedMovie, relations: fetchedRelations } = await anilistApi.getDetails(id);
         if (!isMounted) return;
 
         setMovie(mappedMovie);
+        setRelations(fetchedRelations || []);
 
         // Fetch characters / cast
         try {
@@ -86,7 +88,7 @@ export function AnimeDetail({ id }: { id: string }) {
         // Fetch real episodes via AniList API
         let episodesData: any[] = [];
         try {
-          const anilistEpisodes = await anilistApi.getEpisodes(id, mappedMovie.episodeCount || 12);
+          const anilistEpisodes = await anilistApi.getEpisodes(id, mappedMovie.episodeCount || 0);
           if (anilistEpisodes && anilistEpisodes.length > 0) {
             episodesData = anilistEpisodes.map((ep) => ({
               id: `ep-${ep.episode}`,
@@ -100,44 +102,42 @@ export function AnimeDetail({ id }: { id: string }) {
           console.warn("AniList episodes fetch error", e);
         }
 
-          const isOnePiece =
-            String(id) === '21' ||
-            mappedMovie.title?.toLowerCase().includes('one piece');
-          const minTarget = isOnePiece ? 1180 : 12;
-          const totalCount = Math.max(mappedMovie.episodeCount || minTarget, minTarget, episodesData.length);
-          if (totalCount > episodesData.length) {
-            const existingNums = new Set(episodesData.map(e => e.number));
-            for (let i = 1; i <= totalCount; i++) {
-              if (!existingNums.has(i)) {
-                episodesData.push({
-                  id: `ep-${i}`,
-                  number: i,
-                  title: `Episode ${i}`,
-                  image: '',
-                  overview: `Episode ${i} of ${mappedMovie.title}`
-                });
-              }
-            }
-            episodesData.sort((a, b) => a.number - b.number);
-          }
-
-          setEpisodes(episodesData);
-
-          if (episodesData.length > 50) {
-            const chunks = [];
-            for (let i = 0; i < episodesData.length; i += 50) {
-              chunks.push({
-                label: `Episodes ${i + 1}-${Math.min(i + 50, episodesData.length)}`,
-                start: i,
-                end: Math.min(i + 50, episodesData.length)
+        const isOnePiece =
+          String(id) === '21' ||
+          mappedMovie.title?.toLowerCase().includes('one piece');
+        if (isOnePiece && episodesData.length < 1180) {
+          const existingNums = new Set(episodesData.map(e => e.number));
+          for (let i = 1; i <= 1180; i++) {
+            if (!existingNums.has(i)) {
+              episodesData.push({
+                id: `ep-${i}`,
+                number: i,
+                title: `Episode ${i}`,
+                image: '',
+                overview: `Episode ${i} of ${mappedMovie.title}`
               });
             }
-            setChunkOptions(chunks);
-            setSelectedChunk(0);
-          } else {
-            setChunkOptions([]);
-            setSelectedChunk(0);
           }
+          episodesData.sort((a, b) => a.number - b.number);
+        }
+
+        setEpisodes(episodesData);
+
+        if (episodesData.length > 50) {
+          const chunks = [];
+          for (let i = 0; i < episodesData.length; i += 50) {
+            chunks.push({
+              label: `Episodes ${i + 1}-${Math.min(i + 50, episodesData.length)}`,
+              start: i,
+              end: Math.min(i + 50, episodesData.length)
+            });
+          }
+          setChunkOptions(chunks);
+          setSelectedChunk(0);
+        } else {
+          setChunkOptions([]);
+          setSelectedChunk(0);
+        }
       } catch (err) {
         console.error(err);
         if (isMounted) setError('Unable to load anime details. Please try again.');
@@ -256,6 +256,13 @@ export function AnimeDetail({ id }: { id: string }) {
       </div>
     );
   }
+
+  const prequelsAndSequels = relations.filter(
+    (r) => (r.relationType === 'PREQUEL' || r.relationType === 'SEQUEL') && r.type === 'ANIME'
+  );
+  const relatedContent = relations.filter(
+    (r) => r.type === 'ANIME' && r.relationType !== 'PREQUEL' && r.relationType !== 'SEQUEL'
+  );
 
   return (
     <motion.div
@@ -447,11 +454,77 @@ export function AnimeDetail({ id }: { id: string }) {
           </div>
         )}
 
+        {/* Franchise Storyline: Prequels & Sequels */}
+        {prequelsAndSequels.length > 0 && (
+          <div className="mb-14 w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2.5">
+                <GitFork className="w-5 h-5 text-brand rotate-90" /> Franchise Storyline
+              </h3>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
+                Chronological Order
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {prequelsAndSequels.map((rel) => {
+                const isPrequel = rel.relationType === 'PREQUEL';
+                return (
+                  <button
+                    key={rel.id}
+                    onClick={() => goToDetail(rel.id, 'anime')}
+                    className="flex items-center gap-4 p-4 rounded-2xl glass border border-white/10 hover:border-brand/40 hover:bg-white/10 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-20 h-28 rounded-xl overflow-hidden shrink-0 bg-black/40 relative">
+                      <img
+                        loading="lazy"
+                        src={rel.posterUrl || undefined}
+                        alt={rel.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider mb-2 backdrop-blur-md border border-white/10 shadow-sm"
+                        style={{
+                          backgroundColor: isPrequel ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)',
+                          color: isPrequel ? '#a5b4fc' : '#6ee7b7',
+                        }}
+                      >
+                        {isPrequel ? <ArrowLeft className="w-3 h-3" /> : null}
+                        {isPrequel ? 'Prequel' : 'Sequel'}
+                        {!isPrequel ? <ArrowRight className="w-3 h-3" /> : null}
+                      </div>
+                      <h4 className="font-bold text-foreground text-sm sm:text-base line-clamp-2 group-hover:text-brand transition-colors mb-1">
+                        {rel.title}
+                      </h4>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground font-mono">
+                        {rel.year && <span>{rel.year}</span>}
+                        {rel.episodes && <span>• {rel.episodes} eps</span>}
+                        {rel.rating && (
+                          <span className="text-amber-400 flex items-center gap-0.5">
+                            <Star className="w-3 h-3 fill-current" /> {rel.rating}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Episode Selector & Grid (Full Width) */}
         <div className="mb-14 glass rounded-3xl p-6 sm:p-8 border border-white/10 w-full">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
             <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Play className="w-5 h-5 text-brand fill-current" /> Episodes
+              {episodes.length > 0 && (
+                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-white/10 text-muted-foreground">
+                  {episodes.length} {episodes.length === 1 ? 'episode' : 'episodes'}
+                </span>
+              )}
             </h3>
             {chunkOptions.length > 0 && (
               <div className="relative min-w-[220px]">
@@ -471,64 +544,135 @@ export function AnimeDetail({ id }: { id: string }) {
             )}
           </div>
 
-          <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-            {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
-              <button
-                key={ep.id}
-                onClick={() => {
-                  setSelectedEpisode(ep.number);
-                  goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
-                }}
-                className={cn(
-                  "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer",
-                  selectedEpisode === ep.number 
-                    ? "bg-brand/10 border border-brand/40 shadow-card" 
-                    : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
-                )}
-              >
-                <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
-                  <img
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                    src={ep.image || movie?.backdropUrl || movie?.posterUrl || undefined}
-                    alt={ep.title}
-                    onError={(e) => {
-                      const target = e.currentTarget;
-                      const fallback = movie?.backdropUrl || movie?.posterUrl;
-                      if (fallback && target.src !== fallback) {
-                        target.src = fallback;
-                      }
-                    }}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  {!ep.image && (
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <Play className="w-8 h-8 text-white/70 group-hover:text-brand transition-colors" />
-                    </div>
+          {episodes.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <p className="text-base font-medium">Episodes for this anime have not aired yet or are currently unavailable.</p>
+              <p className="text-xs text-muted-foreground/80 mt-1">Check back once the official broadcast begins!</p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
+              {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
+                <button
+                  key={ep.id}
+                  onClick={() => {
+                    setSelectedEpisode(ep.number);
+                    goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
+                  }}
+                  className={cn(
+                    "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer",
+                    selectedEpisode === ep.number 
+                      ? "bg-brand/10 border border-brand/40 shadow-card" 
+                      : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
                   )}
-                  <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
-                    24m
+                >
+                  <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
+                    <img
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                      src={ep.image || movie?.backdropUrl || movie?.posterUrl || undefined}
+                      alt={ep.title}
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        const fallback = movie?.backdropUrl || movie?.posterUrl;
+                        if (fallback && target.src !== fallback) {
+                          target.src = fallback;
+                        }
+                      }}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {!ep.image && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <Play className="w-8 h-8 text-white/70 group-hover:text-brand transition-colors" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
+                      24m
+                    </div>
+                    {selectedEpisode === ep.number && (
+                      <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
+                        <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
+                      </div>
+                    )}
                   </div>
-                  {selectedEpisode === ep.number && (
-                    <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
-                      <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
-                    {ep.title && !ep.title.toLowerCase().startsWith('episode')
-                      ? `${ep.number}. ${ep.title}`
-                      : ep.title || `Episode ${ep.number}`}
-                  </h4>
-                  <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                    {ep.overview || `Episode ${ep.number} of ${movie.title}`}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
+                      {ep.title && !ep.title.toLowerCase().startsWith('episode')
+                        ? `${ep.number}. ${ep.title}`
+                        : ep.title || `Episode ${ep.number}`}
+                    </h4>
+                    <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                      {ep.overview || `Episode ${ep.number} of ${movie.title}`}
+                    </p>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
+        {/* Related Content & Spin-offs */}
+        {relatedContent.length > 0 && (
+          <div className="mb-14 w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2.5">
+                <Sparkles className="w-5 h-5 text-brand" /> Related Anime & Spin-offs
+              </h3>
+              <span className="text-xs text-muted-foreground uppercase tracking-wider font-mono">
+                {relatedContent.length} {relatedContent.length === 1 ? 'title' : 'titles'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {relatedContent.slice(0, 12).map((rel) => {
+                const formatLabel =
+                  rel.relationType === 'SIDE_STORY'
+                    ? 'Side Story'
+                    : rel.relationType === 'SPIN_OFF'
+                    ? 'Spin-off'
+                    : rel.relationType === 'ALTERNATIVE'
+                    ? 'Alternative'
+                    : rel.relationType === 'PARENT'
+                    ? 'Parent Story'
+                    : rel.relationType === 'SUMMARY'
+                    ? 'Summary'
+                    : rel.format || 'Related';
+
+                return (
+                  <button
+                    key={rel.id}
+                    onClick={() => goToDetail(rel.id, 'anime')}
+                    className="flex flex-col rounded-2xl glass border border-white/10 hover:border-brand/40 overflow-hidden hover:bg-white/10 transition-all text-left group cursor-pointer"
+                  >
+                    <div className="w-full aspect-[2/3] bg-black/40 relative overflow-hidden">
+                      <img
+                        loading="lazy"
+                        src={rel.posterUrl || undefined}
+                        alt={rel.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/80 text-brand backdrop-blur border border-white/10">
+                        {formatLabel}
+                      </div>
+                    </div>
+                    <div className="p-3 flex-1 flex flex-col justify-between">
+                      <h4 className="font-bold text-foreground text-xs sm:text-sm line-clamp-2 group-hover:text-brand transition-colors mb-1">
+                        {rel.title}
+                      </h4>
+                      <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono mt-auto">
+                        <span>{rel.year || ''}</span>
+                        {rel.rating && (
+                          <span className="text-amber-400 flex items-center gap-0.5">
+                            <Star className="w-3 h-3 fill-current" /> {rel.rating}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* More Like This */}
         <div className="mt-8 space-y-10 w-full">

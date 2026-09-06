@@ -177,6 +177,46 @@ describe('anilistApi.mapAniListToInternal', () => {
     expect(result.episodeCount).toBeGreaterThanOrEqual(1180);
     expect(result.duration).toContain('episodes');
   });
+
+  it('correctly maps aired episode count for ongoing anime with planned total (e.g. Bleach TYBW Cour 4)', () => {
+    const calamityMedia = {
+      id: 185874,
+      title: {
+        romaji: 'BLEACH: Sennen Kessen-hen - Kashin-tan',
+        english: 'BLEACH: Thousand-Year Blood War - The Calamity',
+      },
+      status: 'RELEASING',
+      episodes: 10,
+      nextAiringEpisode: {
+        episode: 8,
+        airingAt: 1789221600,
+      },
+    };
+
+    const result = anilistApi.mapAniListToInternal(calamityMedia as any);
+
+    // Exactly 7 episodes have aired, episodes 8..10 must not be counted as aired
+    expect(result.episodeCount).toBe(7);
+    expect(result.duration).toBe('7 episodes');
+    expect(result.status).toBe('releasing');
+  });
+
+  it('sets episodeCount to 0 for unreleased / upcoming anime', () => {
+    const upcomingMedia = {
+      id: 999999,
+      title: {
+        english: 'Upcoming Anime Title',
+      },
+      status: 'NOT_YET_RELEASED',
+      episodes: 12,
+    };
+
+    const result = anilistApi.mapAniListToInternal(upcomingMedia as any);
+
+    expect(result.episodeCount).toBe(0);
+    expect(result.duration).toBeNull();
+    expect(result.status).toBe('upcoming');
+  });
 });
 
 describe('findMatchingSeason', () => {
