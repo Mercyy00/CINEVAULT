@@ -1404,7 +1404,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                   </div>
                 )}
                 
-                {(movie.episodeCount && movie.episodeCount <= 100 && episodes.length > 0) && (
+                {episodes.length > 0 && (
                   <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                     {episodes.map((ep: any) => (
                       <button 
@@ -1415,14 +1415,33 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                           selectedEpisode?.episode === ep.episode ? "bg-brand/10 border border-brand/30" : "border border-transparent hover:bg-white/5"
                         )}
                       >
-                        <div className="w-16 h-12 rounded bg-background/50 flex items-center justify-center shrink-0 border border-white/10 group-hover:border-brand/50 transition-colors relative">
-                          <Play className={cn("w-5 h-5 transition-colors fill-current", selectedEpisode?.episode === ep.episode ? "text-brand" : "text-muted-foreground/50 group-hover:text-brand")} />
+                        <div className="w-16 h-12 rounded overflow-hidden bg-background/50 flex items-center justify-center shrink-0 border border-white/10 group-hover:border-brand/50 transition-colors relative">
+                          {(ep.image || ep.thumbnail || movie?.backdropUrl || movie?.posterUrl) ? (
+                            <img
+                              src={ep.image || ep.thumbnail || movie?.backdropUrl || movie?.posterUrl}
+                              alt=""
+                              loading="lazy"
+                              referrerPolicy="no-referrer"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                const fallback = movie?.backdropUrl || movie?.posterUrl;
+                                if (fallback && target.src !== fallback) {
+                                  target.src = fallback;
+                                }
+                              }}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Play className={cn("w-5 h-5 transition-colors fill-current", selectedEpisode?.episode === ep.episode ? "text-brand" : "text-muted-foreground/50 group-hover:text-brand")} />
+                          )}
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className={cn("text-sm truncate font-medium", selectedEpisode?.episode === ep.episode ? "text-brand font-bold" : "text-foreground/80 group-hover:text-foreground")}>
-                            {ep.episode}. {ep.title}
+                            {ep.title && !ep.title.toLowerCase().startsWith('episode')
+                              ? `${ep.episode}. ${ep.title}`
+                              : ep.title || `Episode ${ep.episode}`}
                           </p>
-                          {ep.jp_title && <p className="text-xs text-muted-foreground truncate">{ep.jp_title}</p>}
+                          {ep.description && <p className="text-xs text-muted-foreground line-clamp-1">{ep.description}</p>}
                         </div>
                       </button>
                     ))}

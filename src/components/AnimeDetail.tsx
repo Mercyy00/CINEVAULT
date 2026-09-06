@@ -483,11 +483,23 @@ export function AnimeDetail({ id }: { id: string }) {
                 )}
               >
                 <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
-                  {ep.image ? (
-                    <img loading="lazy" src={ep.image} alt={ep.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                      <Play className="w-8 h-8" />
+                  <img
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    src={ep.image || movie?.backdropUrl || movie?.posterUrl || undefined}
+                    alt={ep.title}
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      const fallback = movie?.backdropUrl || movie?.posterUrl;
+                      if (fallback && target.src !== fallback) {
+                        target.src = fallback;
+                      }
+                    }}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  {!ep.image && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <Play className="w-8 h-8 text-white/70 group-hover:text-brand transition-colors" />
                     </div>
                   )}
                   <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
@@ -501,7 +513,9 @@ export function AnimeDetail({ id }: { id: string }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
-                    {ep.number}. {ep.title}
+                    {ep.title && !ep.title.toLowerCase().startsWith('episode')
+                      ? `${ep.number}. ${ep.title}`
+                      : ep.title || `Episode ${ep.number}`}
                   </h4>
                   <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
                     {ep.overview || `Episode ${ep.number} of ${movie.title}`}

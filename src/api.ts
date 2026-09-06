@@ -1122,41 +1122,150 @@ export const anilistApi = {
     try {
       const { movie, raw } = await anilistApi.getDetails(id);
       const streaming = raw.streamingEpisodes || [];
-      const episodes: Episode[] = [];
+      const episodeMap = new Map<number, Episode>();
 
+      // 1. Seed with AniList streamingEpisodes (Crunchyroll, VRV, etc.)
       streaming.forEach((item, idx) => {
         const match = item.title?.match(/Episode\s+(\d+)/i);
         const epNum = match ? parseInt(match[1], 10) : idx + 1;
-        episodes.push({
-          id: `ep-${epNum}`,
-          season: 1,
-          episode: epNum,
-          title: item.title || `Episode ${epNum}`,
-          duration: raw.duration ? `${raw.duration}m` : null,
-          thumbnail: item.thumbnail || null,
-          description: '',
-        });
+        if (epNum > 0) {
+          const cleanTitle = item.title
+            ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
+            : `Episode ${epNum}`;
+
+          episodeMap.set(epNum, {
+            id: `ep-${epNum}`,
+            season: 1,
+            episode: epNum,
+            title: cleanTitle,
+            duration: raw.duration ? `${raw.duration}m` : '24m',
+            thumbnail: item.thumbnail || null,
+            description: '',
+          });
+        }
       });
 
-      const targetCount = Math.max(movie.episodeCount || 0, fallbackCount, episodes.length);
-      const existing = new Set(episodes.map((e) => e.episode));
+      // 2. Enrich with TMDB TV episodes (titles, overviews, and high-res screenshot stills)
+      try {
+        const queryTitle = movie.title || raw.title?.english || raw.title?.romaji || '';
+        if (queryTitle) {
+          const searchRes = await api.searchTv(queryTitle);
+          const bestTv = searchRes.results?.find((item: any) =>
+            item.name?.toLowerCase() === queryTitle.toLowerCase() ||
+            item.original_name?.toLowerCase() === queryTitle.toLowerCase()
+          ) || searchRes.results?.[0];
 
-      for (let i = 1; i <= targetCount; i++) {
-        if (!existing.has(i)) {
-          episodes.push({
+          if (bestTv?.id) {
+            const tvDetails = await request<{ seasons?: Array<{ season_number: number; episode_count: number }> }>(
+              tmdbUrl(`/tv/${bestTv.id}`)
+            );
+            const validSeasons = (tvDetails.seasons || [])
+              .filter((s) => s.season_number > 0 && s.episode_count > 0)
+              .sort((a, b) => a.season_number - b.season_number);
+
+            if (validSeasons.length > 0) {
+              const seasonsToFetch = validSeasons.slice(0, 10);
+              const seasonResults = await Promise.allSettled(
+                seasonsToFetch.map((s) => api.getSeasonDetails(String(bestTv.id), s.season_number))
+              );
+
+              let runningEpisodeNum = 1;
+              for (const res of seasonResults) {
+                if (res.status === 'fulfilled' && res.value.episodes) {
+                  for (const tmdbEp of res.value.episodes) {
+                    const epNum = (validSeasons.length === 1 || tmdbEp.season_number === 1)
+                      ? tmdbEp.episode_number
+                      : runningEpisodeNum;
+
+                    const stillUrl = tmdbEp.still_path
+                      ? api.getImageUrl(tmdbEp.still_path, 'w500')
+                      : null;
+
+                    const existing = episodeMap.get(epNum);
+                    const epTitle = tmdbEp.name && !tmdbEp.name.match(/^Episode\s+\d+$/i)
+                      ? tmdbEp.name
+                      : existing?.title || `Episode ${epNum}`;
+
+                    episodeMap.set(epNum, {
+                      id: `ep-${epNum}`,
+                      season: tmdbEp.season_number || 1,
+                      episode: epNum,
+                      title: epTitle,
+                      duration: tmdbEp.runtime ? `${tmdbEp.runtime}m` : existing?.duration || (raw.duration ? `${raw.duration}m` : '24m'),
+                      thumbnail: stillUrl || existing?.thumbnail || null,
+                      description: tmdbEp.overview || existing?.description || '',
+                    });
+                    runningEpisodeNum++;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (tmdbErr) {
+        console.warn('TMDB episode enrichment error:', tmdbErr);
+      }
+
+      // 3. Fallback to Jikan (MyAnimeList) if any titles are still generic "Episode X"
+      const targetCount = Math.max(movie.episodeCount || 0, fallbackCount, episodeMap.size);
+      const hasGenericTitles = Array.from(episodeMap.values()).some((ep) => ep.title === `Episode ${ep.episode}`);
+      if (raw.idMal && (episodeMap.size < targetCount || hasGenericTitles)) {
+        try {
+          const jikanRes = await fetch(`https://api.jikan.moe/v4/anime/${raw.idMal}/episodes`);
+          if (jikanRes.ok) {
+            const jikanJson = await jikanRes.json();
+            const jikanEpisodes: Array<{ mal_id: number; title?: string; title_romanji?: string }> = jikanJson.data || [];
+            for (const jEp of jikanEpisodes) {
+              const epNum = jEp.mal_id;
+              const epTitle = jEp.title || jEp.title_romanji;
+              if (epTitle && epNum > 0) {
+                const existing = episodeMap.get(epNum);
+                if (existing) {
+                  if (!existing.title || existing.title === `Episode ${epNum}`) {
+                    existing.title = epTitle;
+                  }
+                } else {
+                  episodeMap.set(epNum, {
+                    id: `ep-${epNum}`,
+                    season: 1,
+                    episode: epNum,
+                    title: epTitle,
+                    duration: raw.duration ? `${raw.duration}m` : '24m',
+                    thumbnail: null,
+                    description: '',
+                  });
+                }
+              }
+            }
+          }
+        } catch {
+          // Jikan is non-blocking
+        }
+      }
+
+      // 4. Fill in any remaining episodes up to targetCount
+      const finalEpisodes: Episode[] = [];
+      const totalToGenerate = Math.max(targetCount, episodeMap.size);
+
+      for (let i = 1; i <= totalToGenerate; i++) {
+        const ep = episodeMap.get(i);
+        if (ep) {
+          finalEpisodes.push(ep);
+        } else {
+          finalEpisodes.push({
             id: `ep-${i}`,
             season: 1,
             episode: i,
             title: `Episode ${i}`,
-            duration: raw.duration ? `${raw.duration}m` : null,
+            duration: raw.duration ? `${raw.duration}m` : '24m',
             thumbnail: null,
             description: '',
           });
         }
       }
 
-      episodes.sort((a, b) => a.episode - b.episode);
-      return episodes;
+      finalEpisodes.sort((a, b) => a.episode - b.episode);
+      return finalEpisodes;
     } catch {
       return [];
     }
