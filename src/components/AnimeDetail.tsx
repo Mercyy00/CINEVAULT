@@ -23,6 +23,7 @@ export function AnimeDetail({ id }: { id: string }) {
   const [selectedChunk, setSelectedChunk] = useState<number>(0);
   const [chunkOptions, setChunkOptions] = useState<{label: string, start: number, end: number}[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isEpisodesLoading, setIsEpisodesLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
   const inWatchlist = movie ? isInWatchlist(movie.id) : false;
@@ -67,28 +68,24 @@ export function AnimeDetail({ id }: { id: string }) {
     let isMounted = true;
     const fetchDetail = async () => {
       setIsLoading(true);
+      setIsEpisodesLoading(true);
       setError(null);
       try {
-        const { movie: mappedMovie, relations: fetchedRelations } = await anilistApi.getDetails(id);
+        const { movie: mappedMovie, relations: fetchedRelations, cast: fetchedCast, raw } = await anilistApi.getDetails(id);
         if (!isMounted) return;
 
         setMovie(mappedMovie);
         setRelations(fetchedRelations || []);
+        setCast(fetchedCast || mappedMovie.cast || []);
+        // Unblock the main page immediately (<300ms)
+        setIsLoading(false);
 
-        // Fetch characters / cast
+        // Fetch episodes in the background without blocking the UI
         try {
-          const { cast: mappedCast } = await anilistApi.getCharacters(id);
-          if (isMounted) {
-            setCast(mappedCast);
-          }
-        } catch (e) {
-          console.error("Characters fetch failed", e);
-        }
+          const anilistEpisodes = await anilistApi.getEpisodes(id, mappedMovie.episodeCount || 0, raw);
+          if (!isMounted) return;
 
-        // Fetch real episodes via AniList API
-        let episodesData: any[] = [];
-        try {
-          const anilistEpisodes = await anilistApi.getEpisodes(id, mappedMovie.episodeCount || 0);
+          let episodesData: any[] = [];
           if (anilistEpisodes && anilistEpisodes.length > 0) {
             episodesData = anilistEpisodes.map((ep) => ({
               id: `ep-${ep.episode}`,
@@ -98,51 +95,57 @@ export function AnimeDetail({ id }: { id: string }) {
               overview: ep.description || `Episode ${ep.episode} of ${mappedMovie.title}`
             }));
           }
-        } catch (e) {
-          console.warn("AniList episodes fetch error", e);
-        }
 
-        const isOnePiece =
-          String(id) === '21' ||
-          mappedMovie.title?.toLowerCase().includes('one piece');
-        if (isOnePiece && episodesData.length < 1180) {
-          const existingNums = new Set(episodesData.map(e => e.number));
-          for (let i = 1; i <= 1180; i++) {
-            if (!existingNums.has(i)) {
-              episodesData.push({
-                id: `ep-${i}`,
-                number: i,
-                title: `Episode ${i}`,
-                image: '',
-                overview: `Episode ${i} of ${mappedMovie.title}`
+          const isOnePiece =
+            String(id) === '21' ||
+            mappedMovie.title?.toLowerCase().includes('one piece');
+          if (isOnePiece && episodesData.length < 1180) {
+            const existingNums = new Set(episodesData.map(e => e.number));
+            for (let i = 1; i <= 1180; i++) {
+              if (!existingNums.has(i)) {
+                episodesData.push({
+                  id: `ep-${i}`,
+                  number: i,
+                  title: `Episode ${i}`,
+                  image: '',
+                  overview: `Episode ${i} of ${mappedMovie.title}`
+                });
+              }
+            }
+            episodesData.sort((a, b) => a.number - b.number);
+          }
+
+          setEpisodes(episodesData);
+
+          if (episodesData.length > 50) {
+            const chunks = [];
+            for (let i = 0; i < episodesData.length; i += 50) {
+              chunks.push({
+                label: `Episodes ${i + 1}-${Math.min(i + 50, episodesData.length)}`,
+                start: i,
+                end: Math.min(i + 50, episodesData.length)
               });
             }
+            setChunkOptions(chunks);
+            setSelectedChunk(0);
+          } else {
+            setChunkOptions([]);
+            setSelectedChunk(0);
           }
-          episodesData.sort((a, b) => a.number - b.number);
-        }
-
-        setEpisodes(episodesData);
-
-        if (episodesData.length > 50) {
-          const chunks = [];
-          for (let i = 0; i < episodesData.length; i += 50) {
-            chunks.push({
-              label: `Episodes ${i + 1}-${Math.min(i + 50, episodesData.length)}`,
-              start: i,
-              end: Math.min(i + 50, episodesData.length)
-            });
+        } catch (e) {
+          console.warn("AniList episodes fetch error", e);
+        } finally {
+          if (isMounted) {
+            setIsEpisodesLoading(false);
           }
-          setChunkOptions(chunks);
-          setSelectedChunk(0);
-        } else {
-          setChunkOptions([]);
-          setSelectedChunk(0);
         }
       } catch (err) {
         console.error(err);
-        if (isMounted) setError('Unable to load anime details. Please try again.');
-      } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setError('Unable to load anime details. Please try again.');
+          setIsLoading(false);
+          setIsEpisodesLoading(false);
+        }
       }
     };
 
@@ -520,13 +523,17 @@ export function AnimeDetail({ id }: { id: string }) {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
             <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Play className="w-5 h-5 text-brand fill-current" /> Episodes
-              {episodes.length > 0 && (
+              {isEpisodesLoading ? (
+                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-brand/10 text-brand animate-pulse">
+                  Loading episodes...
+                </span>
+              ) : episodes.length > 0 ? (
                 <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-white/10 text-muted-foreground">
                   {episodes.length} {episodes.length === 1 ? 'episode' : 'episodes'}
                 </span>
-              )}
+              ) : null}
             </h3>
-            {chunkOptions.length > 0 && (
+            {!isEpisodesLoading && chunkOptions.length > 0 && (
               <div className="relative min-w-[220px]">
                 <select
                   value={selectedChunk}
@@ -544,7 +551,20 @@ export function AnimeDetail({ id }: { id: string }) {
             )}
           </div>
 
-          {episodes.length === 0 ? (
+          {isEpisodesLoading ? (
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="w-full flex flex-col md:flex-row gap-4 p-4 rounded-2xl bg-white/5 animate-pulse border border-white/5">
+                  <div className="w-full md:w-48 aspect-video rounded-xl bg-white/10 shrink-0 skeleton-shimmer" />
+                  <div className="flex-1 space-y-3 py-2">
+                    <div className="h-4 bg-white/10 rounded w-24 skeleton-shimmer" />
+                    <div className="h-5 bg-white/15 rounded w-2/3 skeleton-shimmer" />
+                    <div className="h-3 bg-white/5 rounded w-1/2 skeleton-shimmer" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : episodes.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <p className="text-base font-medium">Episodes for this anime have not aired yet or are currently unavailable.</p>
               <p className="text-xs text-muted-foreground/80 mt-1">Check back once the official broadcast begins!</p>

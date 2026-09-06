@@ -150,6 +150,16 @@ async function request<T>(url: string, init: RequestInit = {}, attempt = 0): Pro
   return promise;
 }
 
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 2000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function tmdbUrl(path: string, params: Record<string, string | number | undefined> = {}): string {
   const url = new URL(`${TMDB_BASE}${path}`);
   // Behind a proxy the key is attached server-side and must not appear here.
@@ -976,6 +986,13 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
       ? `${item.duration}m`
       : null;
 
+  const cast: Actor[] = (item.characters?.edges || []).slice(0, 12).map((edge) => ({
+    id: String(edge?.node?.id || Math.random()),
+    name: edge?.node?.name?.full || 'Actor',
+    character: edge?.role === 'MAIN' ? 'Main Character' : 'Supporting Character',
+    photoUrl: edge?.node?.image?.large || '',
+  }));
+
   return {
     id: String(item.id),
     title,
@@ -992,7 +1009,7 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
     posterThumbUrl,
     backdropUrl,
     servers: [],
-    cast: [],
+    cast,
     reviews: [],
     episodeCount,
     status,
@@ -1229,7 +1246,7 @@ export const anilistApi = {
 
   getDetails: async (
     id: string | number
-  ): Promise<{ movie: Movie; raw: AniListMedia; relations: AnimeRelation[] }> => {
+  ): Promise<{ movie: Movie; raw: AniListMedia; relations: AnimeRelation[]; cast: Actor[] }> => {
     const numId = typeof id === 'number' ? id : parseInt(id, 10);
     const query = `
       ${MEDIA_FIELDS_FRAGMENT}
@@ -1317,16 +1334,33 @@ export const anilistApi = {
         };
       });
 
+    const movie = mapAniListToInternal(data.Media);
+
     return {
-      movie: mapAniListToInternal(data.Media),
+      movie,
       raw: data.Media,
       relations,
+      cast: movie.cast,
     };
   },
 
-  getEpisodes: async (id: string | number, _fallbackCount = 12): Promise<Episode[]> => {
+  getEpisodes: async (
+    id: string | number,
+    _fallbackCount = 12,
+    cachedRaw?: AniListMedia
+  ): Promise<Episode[]> => {
     try {
-      const { movie, raw } = await anilistApi.getDetails(id);
+      let raw: AniListMedia;
+      let movie: Movie;
+      if (cachedRaw) {
+        raw = cachedRaw;
+        movie = mapAniListToInternal(cachedRaw);
+      } else {
+        const details = await anilistApi.getDetails(id);
+        raw = details.raw;
+        movie = details.movie;
+      }
+
       const streaming = raw.streamingEpisodes || [];
       const episodeMap = new Map<number, Episode>();
 
@@ -1386,12 +1420,13 @@ export const anilistApi = {
             raw.title?.english,
             raw.title?.romaji,
             movie.title,
-          ].filter((t): t is string => Boolean(t && t.trim()));
+          ].filter((t): t is string => Boolean(t && t.trim())).slice(0, 2);
 
           for (const cand of titleCandidates) {
-            const kitsuRes = await fetch(
+            const kitsuRes = await fetchWithTimeout(
               `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(cand)}`,
-              { headers: { Accept: 'application/vnd.api+json' } }
+              { headers: { Accept: 'application/vnd.api+json' } },
+              2000
             );
             if (!kitsuRes.ok) continue;
             const kitsuData = await kitsuRes.json();
@@ -1399,18 +1434,20 @@ export const anilistApi = {
             if (!kItem?.id) continue;
 
             const limit = Math.min(20, Math.max(1, actualEpisodeCount));
-            const epRes = await fetch(
+            const epRes = await fetchWithTimeout(
               `https://kitsu.io/api/edge/anime/${kItem.id}/episodes?page[limit]=${limit}&sort=number`,
-              { headers: { Accept: 'application/vnd.api+json' } }
+              { headers: { Accept: 'application/vnd.api+json' } },
+              2000
             );
             if (!epRes.ok) break;
             const epJson = await epRes.json();
             let kEpisodes: any[] = epJson.data || [];
 
             if (actualEpisodeCount > 20 && !isOnePiece) {
-              const p2Res = await fetch(
+              const p2Res = await fetchWithTimeout(
                 `https://kitsu.io/api/edge/anime/${kItem.id}/episodes?page[limit]=20&page[offset]=20&sort=number`,
-                { headers: { Accept: 'application/vnd.api+json' } }
+                { headers: { Accept: 'application/vnd.api+json' } },
+                2000
               );
               if (p2Res.ok) {
                 const p2Json = await p2Res.json();
@@ -1471,7 +1508,11 @@ export const anilistApi = {
       );
       if (raw.idMal && (episodeMap.size < actualEpisodeCount || hasGenericTitles)) {
         try {
-          const jikanRes = await fetch(`https://api.jikan.moe/v4/anime/${raw.idMal}/episodes`);
+          const jikanRes = await fetchWithTimeout(
+            `https://api.jikan.moe/v4/anime/${raw.idMal}/episodes`,
+            {},
+            2000
+          );
           if (jikanRes.ok) {
             const jikanJson = await jikanRes.json();
             const jikanEpisodes: Array<{ mal_id: number; title?: string; title_romanji?: string }> =
@@ -1580,7 +1621,7 @@ export const anilistApi = {
         }
       }
 
-      // 3. Fill in any remaining episodes strictly up to actualEpisodeCount
+      // 5. Fill in any remaining episodes strictly up to actualEpisodeCount
       const finalEpisodes: Episode[] = [];
       for (let i = 1; i <= actualEpisodeCount; i++) {
         const ep = episodeMap.get(i);
@@ -1607,19 +1648,22 @@ export const anilistApi = {
   },
 
   getCharacters: async (
-    id: string | number
+    id: string | number,
+    cachedRaw?: AniListMedia
   ): Promise<{
-    cast: Array<{ id: string; name: string; character: string; photoUrl: string }>;
+    cast: Actor[];
   }> => {
     try {
-      const { raw } = await anilistApi.getDetails(id);
-      const edges = raw.characters?.edges || [];
-      const cast = edges.slice(0, 12).map((edge) => ({
-        id: String(edge.node?.id || Math.random()),
-        name: edge.node?.name?.full || 'Actor',
-        character: edge.role === 'MAIN' ? 'Main Character' : 'Supporting Character',
-        photoUrl: edge.node?.image?.large || '',
-      }));
+      if (cachedRaw?.characters?.edges) {
+        const cast: Actor[] = cachedRaw.characters.edges.slice(0, 12).map((edge) => ({
+          id: String(edge?.node?.id || Math.random()),
+          name: edge?.node?.name?.full || 'Actor',
+          character: edge?.role === 'MAIN' ? 'Main Character' : 'Supporting Character',
+          photoUrl: edge?.node?.image?.large || '',
+        }));
+        return { cast };
+      }
+      const { cast } = await anilistApi.getDetails(id);
       return { cast };
     } catch {
       return { cast: [] };

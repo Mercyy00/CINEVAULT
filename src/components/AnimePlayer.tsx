@@ -201,7 +201,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const { movie: internalMovie } = await anilistApi.getDetails(id);
+        const { movie: internalMovie, raw } = await anilistApi.getDetails(id);
         if (!isMounted) return;
 
         setMovie(internalMovie);
@@ -209,7 +209,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         
         let episodesData: any[] = [];
         try {
-          const anilistEpisodes = await anilistApi.getEpisodes(id, internalMovie.episodeCount || 0);
+          const anilistEpisodes = await anilistApi.getEpisodes(id, internalMovie.episodeCount || 0, raw);
           if (anilistEpisodes && anilistEpisodes.length > 0) {
             episodesData = anilistEpisodes.map((ep) => ({
               id: `ep-${ep.episode}`,
