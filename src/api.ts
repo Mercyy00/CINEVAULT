@@ -1,7 +1,7 @@
 import type { Actor, Episode, Movie, Quality, Review, WatchProvider } from './types';
 
 /**
- * TMDB / Kitsu access layer.
+ * TMDB / AniList access layer.
  *
  * What changed and why:
  *
@@ -679,159 +679,510 @@ function mapProviders(item: TmdbItem): WatchProvider[] {
 }
 
 /* ------------------------------------------------------------------------ */
-/* Kitsu                                                                     */
+/* AniList (GraphQL)                                                        */
 /* ------------------------------------------------------------------------ */
 
-const KITSU_BASE = 'https://kitsu.io/api/edge';
-const KITSU_HEADERS = {
-  Accept: 'application/vnd.api+json',
-  'Content-Type': 'application/vnd.api+json',
-};
+const ANILIST_BASE = 'https://graphql.anilist.co';
 
-interface KitsuResource {
-  id: string;
-  type: string;
-  attributes?: Record<string, any>;
-  relationships?: Record<string, { data?: Array<{ id: string }> }>;
+export interface AniListMedia {
+  id: number;
+  title?: {
+    romaji?: string | null;
+    english?: string | null;
+    native?: string | null;
+  } | null;
+  description?: string | null;
+  startDate?: {
+    year?: number | null;
+  } | null;
+  episodes?: number | null;
+  duration?: number | null;
+  averageScore?: number | null;
+  popularity?: number | null;
+  status?: string | null;
+  genres?: string[] | null;
+  coverImage?: {
+    large?: string | null;
+    extraLarge?: string | null;
+  } | null;
+  bannerImage?: string | null;
+  trailer?: {
+    id?: string | null;
+    site?: string | null;
+  } | null;
+  streamingEpisodes?: Array<{
+    title?: string | null;
+    thumbnail?: string | null;
+    url?: string | null;
+    site?: string | null;
+  }> | null;
+  idMal?: number | null;
+  characters?: {
+    edges?: Array<{
+      role?: string | null;
+      node?: {
+        id: number;
+        name?: { full?: string | null } | null;
+        image?: { large?: string | null } | null;
+      } | null;
+    }> | null;
+  } | null;
 }
 
-export const kitsuApi = {
-  getTrending: (page = 1) =>
-    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime?sort=popularityRank&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`,
-      { headers: KITSU_HEADERS }
-    ),
+const MEDIA_FIELDS_FRAGMENT = `
+  fragment MediaFields on Media {
+    id
+    title {
+      romaji
+      english
+      native
+    }
+    description(asHtml: false)
+    startDate {
+      year
+    }
+    episodes
+    duration
+    averageScore
+    popularity
+    status
+    genres
+    coverImage {
+      large
+      extraLarge
+    }
+    bannerImage
+    idMal
+  }
+`;
 
-  /**
-   * Highest-rated anime, for the spotlight. HeroSpotlight used to build this URL
-   * inline with a raw `fetch`, bypassing the shared cache, timeout, retry and
-   * in-flight de-duplication that every other request goes through.
-   */
-  getTopRated: (limit = 5) =>
-    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime?sort=-averageRating&page[limit]=${limit}&include=categories,mappings`,
-      { headers: KITSU_HEADERS }
-    ),
+const ANILIST_GENRES = [
+  'Action',
+  'Adventure',
+  'Comedy',
+  'Drama',
+  'Ecchi',
+  'Fantasy',
+  'Horror',
+  'Mahou Shoujo',
+  'Mecha',
+  'Music',
+  'Mystery',
+  'Psychological',
+  'Romance',
+  'Sci-Fi',
+  'Slice of Life',
+  'Sports',
+  'Supernatural',
+  'Thriller',
+];
 
-  getByCategory: (slug: string, page = 1) =>
-    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime?filter[categories]=${encodeURIComponent(slug)}&sort=-averageRating&page[limit]=20&page[offset]=${(page - 1) * 20}&include=categories,mappings`,
-      { headers: KITSU_HEADERS }
-    ),
+function toAniListGenre(slug: string): string {
+  const clean = slug.trim().toLowerCase();
+  const match = ANILIST_GENRES.find((g) => g.toLowerCase() === clean);
+  if (match) return match;
+  return slug
+    .split(/[\s-]+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
 
-  search: (query: string, limit = 12, offset = 0) =>
-    request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime?filter[text]=${encodeURIComponent(query)}&page[limit]=${limit}&page[offset]=${offset}`,
-      { headers: KITSU_HEADERS }
-    ),
+function stripHtml(html?: string | null): string {
+  if (!html) return '';
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .trim();
+}
 
-  getDetails: (id: string) =>
-    request<{ data: KitsuResource; included?: KitsuResource[] }>(
-      `${KITSU_BASE}/anime/${encodeURIComponent(id)}?include=categories,mappings`,
-      { headers: KITSU_HEADERS }
-    ),
+async function gqlRequest<T>(
+  query: string,
+  variables: Record<string, any> = {},
+  attempt = 0
+): Promise<T> {
+  const cacheKey = `anilist:${query}:${JSON.stringify(variables)}`;
+  const cached = readCache<T>(cacheKey);
+  if (cached !== undefined) return cached;
 
-  /** Real episode records from Kitsu, replacing the synthesised placeholders. */
-  async getEpisodes(id: string, limit = 20, offset = 0): Promise<Episode[]> {
+  const pending = inflight.get(cacheKey);
+  if (pending) return pending as Promise<T>;
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  const promise = (async (): Promise<T> => {
     try {
-      const response = await request<{ data: KitsuResource[] }>(
-        `${KITSU_BASE}/anime/${encodeURIComponent(id)}/episodes?page[limit]=${limit}&page[offset]=${offset}&sort=number`,
-        { headers: KITSU_HEADERS }
-      );
-      return response.data.map((entry) => ({
-        id: entry.id,
-        season: entry.attributes?.seasonNumber ?? 1,
-        episode: entry.attributes?.number ?? 0,
-        title: entry.attributes?.canonicalTitle || `Episode ${entry.attributes?.number ?? ''}`.trim(),
-        duration: entry.attributes?.length ? `${entry.attributes.length}m` : null,
-        thumbnail: entry.attributes?.thumbnail?.original ?? null,
-        description: entry.attributes?.synopsis ?? '',
-      }));
+      const response = await fetch(ANILIST_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ query, variables }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        if ((response.status >= 500 || response.status === 429) && attempt < 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 600));
+          return gqlRequest<T>(query, variables, attempt + 1);
+        }
+        throw new ApiError(
+          `AniList request failed with status ${response.status}.`,
+          response.status,
+          '/graphql'
+        );
+      }
+
+      const json = (await response.json()) as {
+        data?: T;
+        errors?: Array<{ message: string; status?: number }>;
+      };
+      if (json.errors && json.errors.length > 0) {
+        throw new ApiError(
+          json.errors[0]?.message || 'GraphQL query error',
+          json.errors[0]?.status || 400,
+          '/graphql'
+        );
+      }
+
+      const data = json.data as T;
+      writeCache(cacheKey, data);
+      return data;
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        throw new ApiError('The request timed out.', 408, '/graphql');
+      }
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+      inflight.delete(cacheKey);
+    }
+  })();
+
+  inflight.set(cacheKey, promise);
+  return promise;
+}
+
+export function mapAniListToInternal(item: AniListMedia): Movie {
+  const title = item.title?.english || item.title?.romaji || 'Untitled';
+  const tagline = item.title?.native || item.title?.romaji || '';
+  const description = stripHtml(item.description);
+  const year = item.startDate?.year ?? 0;
+  const rating =
+    typeof item.averageScore === 'number' && item.averageScore > 0
+      ? Math.round(item.averageScore) / 10
+      : null;
+  const malId = item.idMal ? String(item.idMal) : '';
+  const anilistId = item.id ? String(item.id) : '';
+
+  let status = 'finished';
+  if (item.status) {
+    switch (item.status.toUpperCase()) {
+      case 'RELEASING':
+        status = 'releasing';
+        break;
+      case 'NOT_YET_RELEASED':
+        status = 'upcoming';
+        break;
+      case 'CANCELLED':
+        status = 'cancelled';
+        break;
+      case 'HIATUS':
+        status = 'hiatus';
+        break;
+      default:
+        status = 'finished';
+    }
+  }
+
+  const posterUrl = item.coverImage?.extraLarge || item.coverImage?.large || null;
+  const posterThumbUrl = item.coverImage?.large || null;
+  const backdropUrl =
+    item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || null;
+
+  return {
+    id: String(item.id),
+    title,
+    type: 'anime',
+    tagline,
+    description,
+    year,
+    duration: item.episodes
+      ? `${item.episodes} episodes`
+      : item.duration
+        ? `${item.duration}m`
+        : null,
+    rating,
+    voteCount: item.popularity ?? 0,
+    ageRating: null,
+    genres: item.genres || [],
+    posterUrl,
+    posterThumbUrl,
+    backdropUrl,
+    servers: [],
+    cast: [],
+    reviews: [],
+    episodeCount: item.episodes ?? 0,
+    status,
+    episodes: [],
+    malId,
+    anilistId,
+    runtime: item.duration ?? undefined,
+  };
+}
+
+export const anilistApi = {
+  getTrending: async (
+    page = 1,
+    perPage = 20
+  ): Promise<{ results: Movie[]; hasNextPage: boolean }> => {
+    const query = `
+      ${MEDIA_FIELDS_FRAGMENT}
+      query ($page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            total
+          }
+          media(type: ANIME, sort: TRENDING_DESC, isAdult: false) {
+            ...MediaFields
+          }
+        }
+      }
+    `;
+    const data = await gqlRequest<{
+      Page: { pageInfo: { hasNextPage: boolean }; media: AniListMedia[] };
+    }>(query, { page, perPage });
+    const media = data?.Page?.media || [];
+    return {
+      results: media.map(mapAniListToInternal),
+      hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
+    };
+  },
+
+  getTopRated: async (limit = 5): Promise<{ results: Movie[] }> => {
+    const query = `
+      ${MEDIA_FIELDS_FRAGMENT}
+      query ($perPage: Int) {
+        Page(page: 1, perPage: $perPage) {
+          media(type: ANIME, sort: SCORE_DESC, isAdult: false) {
+            ...MediaFields
+          }
+        }
+      }
+    `;
+    const data = await gqlRequest<{ Page: { media: AniListMedia[] } }>(query, {
+      perPage: limit,
+    });
+    const media = data?.Page?.media || [];
+    return {
+      results: media.map(mapAniListToInternal),
+    };
+  },
+
+  getByCategory: async (
+    slug: string,
+    page = 1,
+    perPage = 20
+  ): Promise<{ results: Movie[]; hasNextPage: boolean }> => {
+    const clean = slug.trim().toLowerCase();
+    if (clean === 'kids') {
+      const query = `
+        ${MEDIA_FIELDS_FRAGMENT}
+        query ($page: Int, $perPage: Int) {
+          Page(page: $page, perPage: $perPage) {
+            pageInfo {
+              hasNextPage
+              total
+            }
+            media(type: ANIME, tag: "Kids", sort: POPULARITY_DESC, isAdult: false) {
+              ...MediaFields
+            }
+          }
+        }
+      `;
+      const data = await gqlRequest<{
+        Page: { pageInfo: { hasNextPage: boolean }; media: AniListMedia[] };
+      }>(query, { page, perPage });
+      return {
+        results: (data?.Page?.media || []).map(mapAniListToInternal),
+        hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
+      };
+    }
+
+    if (clean === 'anime' || clean === 'all' || clean === 'trending') {
+      return anilistApi.getTrending(page, perPage);
+    }
+
+    const genre = toAniListGenre(slug);
+    const query = `
+      ${MEDIA_FIELDS_FRAGMENT}
+      query ($genre: String, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            total
+          }
+          media(type: ANIME, genre_in: [$genre], sort: POPULARITY_DESC, isAdult: false) {
+            ...MediaFields
+          }
+        }
+      }
+    `;
+    const data = await gqlRequest<{
+      Page: { pageInfo: { hasNextPage: boolean }; media: AniListMedia[] };
+    }>(query, { genre, page, perPage });
+    return {
+      results: (data?.Page?.media || []).map(mapAniListToInternal),
+      hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
+    };
+  },
+
+  search: async (
+    searchQuery: string,
+    limit = 12,
+    page = 1
+  ): Promise<{ results: Movie[]; hasNextPage: boolean }> => {
+    const query = `
+      ${MEDIA_FIELDS_FRAGMENT}
+      query ($search: String, $page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            total
+          }
+          media(type: ANIME, search: $search, isAdult: false) {
+            ...MediaFields
+          }
+        }
+      }
+    `;
+    const data = await gqlRequest<{
+      Page: { pageInfo: { hasNextPage: boolean }; media: AniListMedia[] };
+    }>(query, { search: searchQuery, page, perPage: limit });
+    return {
+      results: (data?.Page?.media || []).map(mapAniListToInternal),
+      hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
+    };
+  },
+
+  getDetails: async (
+    id: string | number
+  ): Promise<{ movie: Movie; raw: AniListMedia }> => {
+    const numId = typeof id === 'number' ? id : parseInt(id, 10);
+    const query = `
+      ${MEDIA_FIELDS_FRAGMENT}
+      query ($id: Int) {
+        Media(id: $id, type: ANIME) {
+          ...MediaFields
+          trailer {
+            id
+            site
+          }
+          streamingEpisodes {
+            title
+            thumbnail
+            url
+            site
+          }
+          characters(sort: ROLE, perPage: 12) {
+            edges {
+              role
+              node {
+                id
+                name {
+                  full
+                }
+                image {
+                  large
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    const data = await gqlRequest<{ Media: AniListMedia }>(query, { id: numId });
+    if (!data?.Media) {
+      throw new ApiError('Anime not found on AniList', 404, `/anime/${id}`);
+    }
+    return {
+      movie: mapAniListToInternal(data.Media),
+      raw: data.Media,
+    };
+  },
+
+  getEpisodes: async (id: string | number, fallbackCount = 12): Promise<Episode[]> => {
+    try {
+      const { movie, raw } = await anilistApi.getDetails(id);
+      const streaming = raw.streamingEpisodes || [];
+      const episodes: Episode[] = [];
+
+      streaming.forEach((item, idx) => {
+        const match = item.title?.match(/Episode\s+(\d+)/i);
+        const epNum = match ? parseInt(match[1], 10) : idx + 1;
+        episodes.push({
+          id: `ep-${epNum}`,
+          season: 1,
+          episode: epNum,
+          title: item.title || `Episode ${epNum}`,
+          duration: raw.duration ? `${raw.duration}m` : null,
+          thumbnail: item.thumbnail || null,
+          description: '',
+        });
+      });
+
+      const targetCount = Math.max(movie.episodeCount || 0, fallbackCount, episodes.length);
+      const existing = new Set(episodes.map((e) => e.episode));
+
+      for (let i = 1; i <= targetCount; i++) {
+        if (!existing.has(i)) {
+          episodes.push({
+            id: `ep-${i}`,
+            season: 1,
+            episode: i,
+            title: `Episode ${i}`,
+            duration: raw.duration ? `${raw.duration}m` : null,
+            thumbnail: null,
+            description: '',
+          });
+        }
+      }
+
+      episodes.sort((a, b) => a.episode - b.episode);
+      return episodes;
     } catch {
       return [];
     }
   },
 
-  getCharacters: async (id: string) => {
+  getCharacters: async (
+    id: string | number
+  ): Promise<{
+    cast: Array<{ id: string; name: string; character: string; photoUrl: string }>;
+  }> => {
     try {
-      return await request<{ data: KitsuResource[]; included?: KitsuResource[] }>(
-        `${KITSU_BASE}/anime-characters?filter[animeId]=${encodeURIComponent(id)}&include=character&page[limit]=12`,
-        { headers: KITSU_HEADERS }
-      );
+      const { raw } = await anilistApi.getDetails(id);
+      const edges = raw.characters?.edges || [];
+      const cast = edges.slice(0, 12).map((edge) => ({
+        id: String(edge.node?.id || Math.random()),
+        name: edge.node?.name?.full || 'Actor',
+        character: edge.role === 'MAIN' ? 'Main Character' : 'Supporting Character',
+        photoUrl: edge.node?.image?.large || '',
+      }));
+      return { cast };
     } catch {
-      return { data: [], included: [] };
+      return { cast: [] };
     }
   },
 
-  mapKitsuToInternal(item: KitsuResource, included: KitsuResource[] = []): Movie {
-    let genres: string[] = [];
-    let malId = '';
-
-    const categoryIds = item.relationships?.categories?.data?.map((entry) => entry.id) ?? [];
-    if (categoryIds.length && included.length) {
-      genres = included
-        .filter((entry) => entry.type === 'categories' && categoryIds.includes(entry.id))
-        .map((entry) => entry.attributes?.title)
-        .filter((title): title is string => Boolean(title));
-    }
-
-    const mappingIds = item.relationships?.mappings?.data?.map((entry) => entry.id) ?? [];
-    let anilistId = '';
-    if (mappingIds.length && included.length) {
-      const malMapping = included.find(
-        (entry) =>
-          entry.type === 'mappings' &&
-          mappingIds.includes(entry.id) &&
-          (entry.attributes?.externalSite === 'myanimelist/anime' ||
-            entry.attributes?.externalSite === 'my-anime-list/anime')
-      );
-      malId = malMapping?.attributes?.externalId ?? '';
-
-      const anilistMapping = included.find(
-        (entry) =>
-          entry.type === 'mappings' &&
-          mappingIds.includes(entry.id) &&
-          (entry.attributes?.externalSite === 'anilist/anime' ||
-            entry.attributes?.externalSite === 'anilist')
-      );
-      anilistId = anilistMapping?.attributes?.externalId ?? '';
-    }
-
-    const attributes = item.attributes ?? {};
-    const titles = attributes.titles ?? {};
-    const parsedYear = Number.parseInt(String(attributes.startDate ?? '').slice(0, 4), 10);
-
-    // Kitsu's averageRating is a 0-100 string. Absent means unrated, not 80.
-    const rawRating = Number.parseFloat(attributes.averageRating);
-    const rating = Number.isFinite(rawRating) ? Math.round(rawRating) / 10 : null;
-
-    return {
-      id: item.id,
-      title: titles.en || attributes.canonicalTitle || titles.en_jp || 'Untitled',
-      type: 'anime',
-      tagline: titles.en_jp || titles.ja_jp || attributes.canonicalTitle || '',
-      description: attributes.synopsis || '',
-      year: Number.isFinite(parsedYear) ? parsedYear : 0,
-      duration: attributes.episodeCount ? `${attributes.episodeCount} episodes` : null,
-      rating,
-      voteCount: attributes.userCount ?? 0,
-      ageRating: attributes.ageRating || null,
-      genres,
-      posterUrl: attributes.posterImage?.large ?? null,
-      posterThumbUrl: attributes.posterImage?.tiny ?? null,
-      backdropUrl: attributes.coverImage?.large ?? attributes.posterImage?.large ?? null,
-      servers: [],
-      cast: [],
-      reviews: [],
-      episodeCount: attributes.episodeCount ?? 0,
-      status: attributes.status ?? 'finished',
-      // Episodes are fetched on demand via getEpisodes(). They used to be
-      // synthesised here as up to 100 fake objects with placeholder thumbnails.
-      episodes: [],
-      malId,
-      anilistId,
-    };
-  },
+  mapAniListToInternal,
 };
 
 /**
@@ -852,7 +1203,10 @@ function cacheTrailer(key: string, value: string | null): string | null {
   return value;
 }
 
-export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'): Promise<string | null> {
+export async function getVideoTrailer(
+  id: string,
+  type: 'movie' | 'tv' | 'anime'
+): Promise<string | null> {
   const cacheKey = `${type}-${id}`;
   if (trailerCache.has(cacheKey)) {
     // Refresh recency so the eviction above is LRU rather than insertion-order.
@@ -862,15 +1216,14 @@ export async function getVideoTrailer(id: string, type: 'movie' | 'tv' | 'anime'
 
   try {
     if (type === 'anime') {
-      // 1. Try Kitsu details for youtubeVideoId
+      // 1. Try AniList details for trailer
       try {
-        const kitsuData = await kitsuApi.getDetails(id);
-        const ytId = kitsuData.data?.attributes?.youtubeVideoId;
-        if (ytId && typeof ytId === 'string' && ytId.trim()) {
-          return cacheTrailer(cacheKey, ytId.trim());
+        const { raw } = await anilistApi.getDetails(id);
+        if (raw?.trailer?.site === 'youtube' && raw.trailer.id) {
+          return cacheTrailer(cacheKey, raw.trailer.id.trim());
         }
       } catch {
-        // Suppress Kitsu fetch errors
+        // Suppress AniList fetch errors
       }
 
       // 2. Fallback to TMDB tv/movie search or videos if numeric ID
@@ -940,7 +1293,7 @@ export async function prefetchMovieDetails(type: 'movie' | 'tv' | 'anime', id: s
   activePrefetches += 1;
   try {
     if (type === 'anime') {
-      await kitsuApi.getDetails(id).catch(() => {});
+      await anilistApi.getDetails(id).catch(() => {});
     } else {
       // One request: append_to_response already carries credits, videos,
       // images, keywords, external_ids and recommendations.

@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import FocusLock from 'react-focus-lock';
 import { ArrowRight, Clock, Search, Sparkles, Star, Trash2, TrendingUp, X } from 'lucide-react';
 import { useDebounce } from 'use-debounce';
-import { api, kitsuApi, POSTER_SIZES } from '../api';
+import { api, anilistApi, POSTER_SIZES } from '../api';
 import { formatRating, type Movie } from '../types';
 import { PosterImage } from './PosterImage';
 import { readJSON, writeJSON } from '../lib/storage';
@@ -110,7 +110,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     setActiveTab('all');
 
     let tmdbResults: Movie[] = [];
-    let kitsuResults: Movie[] = [];
+    let anilistResults: Movie[] = [];
 
     const rankAndDedup = (items: Movie[], queryTerm: string): Movie[] => {
       const cleanTerm = queryTerm.toLowerCase();
@@ -138,10 +138,10 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     };
 
     let tmdbDone = false;
-    let kitsuDone = false;
+    let anilistDone = false;
 
     const finishIfDone = () => {
-      if (tmdbDone && kitsuDone && active) {
+      if (tmdbDone && anilistDone && active) {
         setSearching(false);
       }
     };
@@ -155,7 +155,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
         tmdbResults = (tmdb.results ?? [])
           .filter((item) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path))
           .map(api.mapToInternalMovie);
-        setResults(rankAndDedup([...kitsuResults, ...tmdbResults], term));
+        setResults(rankAndDedup([...anilistResults, ...tmdbResults], term));
         setSearching(false);
       })
       .catch((cause) => {
@@ -164,23 +164,21 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
         finishIfDone();
       });
 
-    // 2. Concurrently fetch Kitsu anime without blocking TMDB results
-    kitsuApi
+    // 2. Concurrently fetch AniList anime without blocking TMDB results
+    anilistApi
       .search(term, 12)
-      .then((kitsu) => {
+      .then((res) => {
         if (!active) return;
-        kitsuDone = true;
-        kitsuResults = (kitsu.data ?? []).map((item) =>
-          kitsuApi.mapKitsuToInternal(item, kitsu.included ?? [])
-        );
-        if (kitsuResults.length > 0) {
-          setResults(rankAndDedup([...kitsuResults, ...tmdbResults], term));
+        anilistDone = true;
+        anilistResults = res.results ?? [];
+        if (anilistResults.length > 0) {
+          setResults(rankAndDedup([...anilistResults, ...tmdbResults], term));
         }
         setSearching(false);
       })
       .catch((cause) => {
-        console.warn('Kitsu search failed/skipped:', cause);
-        kitsuDone = true;
+        console.warn('AniList search failed/skipped:', cause);
+        anilistDone = true;
         finishIfDone();
       });
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Play, Plus, Check, ArrowLeft, Star, Clock, Calendar, Share2, Users, ChevronDown } from 'lucide-react';
-import { kitsuApi } from '../api';
+import { anilistApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { formatRating } from '../types';
@@ -68,48 +68,37 @@ export function AnimeDetail({ id }: { id: string }) {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await kitsuApi.getDetails(id);
+        const { movie: mappedMovie } = await anilistApi.getDetails(id);
         if (!isMounted) return;
 
-        if (res && res.data) {
-          const mappedMovie = kitsuApi.mapKitsuToInternal(res.data, res.included);
-          setMovie(mappedMovie);
+        setMovie(mappedMovie);
 
-          // Fetch characters / cast
-          try {
-            const charRes = await kitsuApi.getCharacters(id);
-            if (isMounted && charRes && charRes.included) {
-              const charObjs = charRes.included.filter((i: any) => i.type === 'characters');
-              if (charObjs.length > 0) {
-                const mappedCast = charObjs.slice(0, 10).map((char: any) => ({
-                  id: char.id?.toString() || Math.random().toString(),
-                  name: char.attributes?.canonicalName || char.attributes?.name || 'Character',
-                  character: char.attributes?.otherNames?.[0] || char.attributes?.name || 'Main Cast',
-                  photoUrl: char.attributes?.image?.original || char.attributes?.image?.medium || 'https://picsum.photos/200/200'
-                }));
-                setCast(mappedCast);
-              }
-            }
-          } catch (e) {
-            console.error("Characters fetch failed", e);
+        // Fetch characters / cast
+        try {
+          const { cast: mappedCast } = await anilistApi.getCharacters(id);
+          if (isMounted) {
+            setCast(mappedCast);
           }
+        } catch (e) {
+          console.error("Characters fetch failed", e);
+        }
 
-          // Fetch real episodes via Kitsu API
-          let episodesData: any[] = [];
-          try {
-            const kitsuEpisodes = await kitsuApi.getEpisodes(id, 100);
-            if (kitsuEpisodes && kitsuEpisodes.length > 0) {
-              episodesData = kitsuEpisodes.map((ep) => ({
-                id: `ep-${ep.episode}`,
-                number: ep.episode,
-                title: ep.title || `Episode ${ep.episode}`,
-                image: ep.thumbnail || '',
-                overview: ep.description || `Episode ${ep.episode} of ${mappedMovie.title}`
-              }));
-            }
-          } catch (e) {
-            console.warn("Kitsu episodes fetch error", e);
+        // Fetch real episodes via AniList API
+        let episodesData: any[] = [];
+        try {
+          const anilistEpisodes = await anilistApi.getEpisodes(id, mappedMovie.episodeCount || 12);
+          if (anilistEpisodes && anilistEpisodes.length > 0) {
+            episodesData = anilistEpisodes.map((ep) => ({
+              id: `ep-${ep.episode}`,
+              number: ep.episode,
+              title: ep.title || `Episode ${ep.episode}`,
+              image: ep.thumbnail || '',
+              overview: ep.description || `Episode ${ep.episode} of ${mappedMovie.title}`
+            }));
           }
+        } catch (e) {
+          console.warn("AniList episodes fetch error", e);
+        }
 
           const totalCount = Math.max(mappedMovie.episodeCount || 12, episodesData.length);
           if (totalCount > episodesData.length) {
@@ -145,7 +134,6 @@ export function AnimeDetail({ id }: { id: string }) {
             setChunkOptions([]);
             setSelectedChunk(0);
           }
-        }
       } catch (err) {
         console.error(err);
         if (isMounted) setError('Unable to load anime details. Please try again.');
@@ -530,8 +518,8 @@ export function AnimeDetail({ id }: { id: string }) {
             title="More Like This" 
             fetchFn={async (page) => {
               const category = movie.genres?.[0] || 'anime';
-              const res = await kitsuApi.getByCategory(category.toLowerCase(), page);
-              return { results: res.data ? res.data.map((item: any) => kitsuApi.mapKitsuToInternal(item, res.included)) : [] };
+              const res = await anilistApi.getByCategory(category.toLowerCase(), page);
+              return { results: res.results };
             }} 
             onMovieSelect={(similarId, similarType) => {
               goToDetail(similarId, similarType);

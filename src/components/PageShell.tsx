@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import FocusLock from 'react-focus-lock';
 import { Filter, X } from 'lucide-react';
-import { api, kitsuApi } from '../api';
+import { api, anilistApi } from '../api';
 import type { Movie } from '../types';
 import { MovieCard } from './MovieCard';
 import { Hero } from './Hero';
@@ -174,20 +174,19 @@ export function PageShell({
         let more = true;
 
         if (isSearch && searchQuery) {
-          const [tmdbResponse, kitsuResponse] = await Promise.all([
+          const [tmdbResponse, anilistResponse] = await Promise.all([
             api.searchMulti(searchQuery, page).catch(() => ({ results: [], total_pages: 0 })),
-            kitsuApi.search(searchQuery, 24, (page - 1) * 24).catch(() => ({ data: [], included: [] })),
+            anilistApi.search(searchQuery, 24, page).catch(() => ({ results: [], hasNextPage: false })),
           ]);
 
           const fromTmdb: Movie[] = (tmdbResponse.results || [])
             .filter((item) => item.media_type !== 'person' && (item.poster_path || item.backdrop_path))
             .map(api.mapToInternalMovie);
 
-          const fromKitsu: Movie[] = (kitsuResponse.data || [])
-            .map((item) => kitsuApi.mapKitsuToInternal(item, kitsuResponse.included || []));
+          const fromAnilist: Movie[] = anilistResponse.results || [];
 
           // Combine both catalogues
-          const combined = [...fromKitsu, ...fromTmdb];
+          const combined = [...fromAnilist, ...fromTmdb];
 
           // Intelligently sort so titles closely matching search term come first
           const cleanTerm = searchQuery.toLowerCase().trim();
@@ -222,19 +221,16 @@ export function PageShell({
             });
           }
 
-          more = page < (tmdbResponse.total_pages ?? 1) || (kitsuResponse.data?.length ?? 0) >= 24;
+          more = page < (tmdbResponse.total_pages ?? 1) || anilistResponse.hasNextPage;
         } else if (defaultType === 'anime') {
-          // Goes through kitsuApi so anime requests get the same caching,
-          // de-duplication, timeout and retry as everything else. This used to
-          // be a bare fetch() with the URL duplicated in two branches.
+          // Goes through anilistApi so anime requests get the same caching,
+          // de-duplication, timeout and retry as everything else.
           const response =
             activePill === 'all'
-              ? await kitsuApi.getTrending(page)
-              : await kitsuApi.getByCategory(activePill, page);
-          results = response.data.map((item) =>
-            kitsuApi.mapKitsuToInternal(item, response.included ?? [])
-          );
-          more = results.length > 0;
+              ? await anilistApi.getTrending(page)
+              : await anilistApi.getByCategory(activePill, page);
+          results = response.results;
+          more = response.hasNextPage;
         } else {
           const params: Record<string, string | number> = { page };
           if (activePill !== 'all') params.with_genres = activePill;

@@ -8,7 +8,7 @@ CineVault is an open-source, client-centric entertainment platform offering a ri
 - **Animation & Transitions**: Motion (Framer Motion v12)
 - **Design System**: Tailwind CSS v4, Lucide Icons, Bricolage Grotesque & Inter typefaces
 - **Cloud Services**: Google Firebase (Authentication & Cloud Firestore)
-- **Data Providers**: TMDB API v3, Kitsu Anime API v2
+- **Data Providers**: TMDB API v3, AniList GraphQL API
 
 ## Content Schema & Structures
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle } from 'lucide-react';
-import { api, kitsuApi } from '../api';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink } from 'lucide-react';
+import { api, anilistApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
@@ -10,7 +10,7 @@ import { COMPLETION_THRESHOLD, isResumable } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
 import { goToWatch, goToDetail } from '../lib/navigation';
 
-export type AnimeServerId = 'megaplay' | 'videasy' | 'screenmirror' | 'gogoanime' | 'screenscape' | 'vidlink';
+export type AnimeServerId = 'videasy' | 'vidlink' | 'megaplay' | 'screenmirror' | 'gogoanime' | 'screenscape';
 
 interface AnimeServerOption {
   id: AnimeServerId;
@@ -30,151 +30,24 @@ function formatSeconds(totalSec: number): string {
 }
 
 const ANIME_SERVERS: AnimeServerOption[] = [
-  { id: 'megaplay', name: 'MegaPlay (Primary)', quality: '1080p', tag: 'Fast • Direct MAL • Sub/Dub' },
-  { id: 'videasy', name: 'VIDEASY 4K (AniList)', quality: '4K', tag: 'Direct AniList • 4K Sub/Dub' },
-  { id: 'screenmirror', name: 'ScreenMirror (ModiPlay)', quality: '4K', tag: 'TMDB • Hindi / Multi-Audio' },
+  { id: 'megaplay', name: 'MegaPlay (Primary)', quality: '1080p', tag: 'Direct MAL • Sub/Dub' },
+  { id: 'videasy', name: 'VIDEASY 4K', quality: '4K', tag: 'Direct AniList • 4K Sub/Dub' },
+  { id: 'vidlink', name: 'VidLink Pro (Multi)', quality: '1080p', tag: 'Direct Sync • No Cloudflare Block' },
+  { id: 'screenmirror', name: 'ScreenMirror (ModiPlay)', quality: '4K', tag: 'TMDB • Multi-Audio' },
   { id: 'gogoanime', name: 'GogoAnime (MAL)', quality: 'HD', tag: 'Direct Gogo Player' },
   { id: 'screenscape', name: 'ScreenScape 4K', quality: '4K', tag: 'TMDB • Hindi Dub • Ultra HD' },
-  { id: 'vidlink', name: 'VidLink Pro (Backup)', quality: '1080p', tag: 'MAL Sync • Live Progress' },
 ];
 
 const TRUSTED_ANIME_ORIGINS = new Set([
   ...TRUSTED_PLAYER_ORIGINS,
-  'https://megaplay.buzz',
   'https://player.videasy.to',
   'https://videasy.to',
+  'https://vidlink.pro',
+  'https://megaplay.buzz',
   'https://rozgarlelo.modiplay.xyz',
   'https://gogoanime.me.uk',
   'https://screenscape.me',
-  'https://vidlink.pro',
 ]);
-
-const anilistIdCache = new Map<string, string>();
-
-async function fetchAnilistId(
-  malId?: string | number,
-  title?: string,
-  kitsuId?: string | number,
-  knownAnilistId?: string | number
-): Promise<string | null> {
-  if (knownAnilistId && String(knownAnilistId) !== '0' && String(knownAnilistId).trim() !== '') {
-    return String(knownAnilistId).trim();
-  }
-
-  const cleanMal = malId && String(malId) !== '0' ? String(malId).trim() : '';
-  const cleanTitle = title?.trim() || '';
-  const cleanKitsu = kitsuId && String(kitsuId) !== '0' ? String(kitsuId).trim() : '';
-
-  const cacheKey = `${cleanMal}_${cleanTitle}_${cleanKitsu}`;
-  if (anilistIdCache.has(cacheKey)) {
-    return anilistIdCache.get(cacheKey)!;
-  }
-
-  // Priority 1: Check Kitsu mappings for exact AniList ID
-  if (cleanKitsu) {
-    try {
-      const res = await fetch(`https://kitsu.io/api/edge/anime/${encodeURIComponent(cleanKitsu)}/mappings`);
-      if (res.ok) {
-        const json = await res.json();
-        const mappings = json.data || [];
-        const anilistEntry = mappings.find(
-          (m: any) =>
-            m.attributes?.externalSite === 'anilist/anime' ||
-            m.attributes?.externalSite === 'anilist'
-        );
-        if (anilistEntry?.attributes?.externalId) {
-          const result = String(anilistEntry.attributes.externalId);
-          anilistIdCache.set(cacheKey, result);
-          return result;
-        }
-      }
-    } catch {
-      // Continue to AniList GraphQL
-    }
-  }
-
-  // Priority 2: Query AniList GraphQL by MAL ID (idMal)
-  const malNum = cleanMal ? parseInt(cleanMal, 10) : null;
-  if (malNum && !isNaN(malNum)) {
-    try {
-      const res = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `query ($idMal: Int) { Media (idMal: $idMal, type: ANIME) { id } }`,
-          variables: { idMal: malNum },
-        }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const anilistId = json?.data?.Media?.id;
-        if (anilistId) {
-          const result = String(anilistId);
-          anilistIdCache.set(cacheKey, result);
-          return result;
-        }
-      }
-    } catch {
-      // Fallback to title query
-    }
-  }
-
-  // Priority 3: Query AniList GraphQL by exact title
-  if (cleanTitle) {
-    try {
-      const res = await fetch('https://graphql.anilist.co', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          query: `query ($search: String) { Media (search: $search, type: ANIME) { id } }`,
-          variables: { search: cleanTitle },
-        }),
-      });
-      if (res.ok) {
-        const json = await res.json();
-        const anilistId = json?.data?.Media?.id;
-        if (anilistId) {
-          const result = String(anilistId);
-          anilistIdCache.set(cacheKey, result);
-          return result;
-        }
-      }
-    } catch {
-      // Fallback to sanitized title
-    }
-
-    // Priority 4: Query AniList GraphQL with sanitized title
-    const sanitizedTitle = cleanTitle
-      .replace(/\s*\([^)]*\)/g, '')
-      .replace(/\s*:\s*.*/g, '')
-      .trim();
-    if (sanitizedTitle && sanitizedTitle.toLowerCase() !== cleanTitle.toLowerCase()) {
-      try {
-        const res = await fetch('https://graphql.anilist.co', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            query: `query ($search: String) { Media (search: $search, type: ANIME) { id } }`,
-            variables: { search: sanitizedTitle },
-          }),
-        });
-        if (res.ok) {
-          const json = await res.json();
-          const anilistId = json?.data?.Media?.id;
-          if (anilistId) {
-            const result = String(anilistId);
-            anilistIdCache.set(cacheKey, result);
-            return result;
-          }
-        }
-      } catch {
-        // Ignore
-      }
-    }
-  }
-
-  return null;
-}
 
 interface PlaybackProgress {
   positionSeconds: number;
@@ -192,7 +65,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [language, setLanguage] = useState<'sub' | 'dub'>('sub');
-  // Default to MegaPlay (fast, verified reliable direct MAL streaming)
+  // Default to MegaPlay
   const [server, setServer] = useState<AnimeServerId>('megaplay');
   const [tmdbId, setTmdbId] = useState<string>('');
   const tmdbIdRef = useRef<string>('');
@@ -244,7 +117,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     if (serverSlowTimerRef.current) clearTimeout(serverSlowTimerRef.current);
     serverSlowTimerRef.current = setTimeout(() => {
       setIsServerSlow(true);
-    }, 12_000);
+    }, 7_000);
     setCurrentIframeSrc('about:blank');
     
     let currentTmdb = resolvedTmdbId || tmdbIdRef.current || tmdbId;
@@ -271,53 +144,42 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     }
 
     setTimeout(async () => {
-      const effectiveMalId = malId && malId !== '0' ? malId : id;
+      const targetAnilist = resolvedAnilistId || anilistIdRef.current || movie?.anilistId || id;
+      const effectiveMalId = malId && malId !== '0' ? malId : (movie?.malId || '');
       const targetTmdb = currentTmdb || tmdbIdRef.current || tmdbId;
 
-      if (srv === 'megaplay' && effectiveMalId) {
-        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
-      } else if (srv === 'videasy') {
-        const queryTitle = title || movie?.title || '';
-        let targetAnilist = resolvedAnilistId || anilistIdRef.current || movie?.anilistId;
-        if (!targetAnilist) {
-          const resolved = await fetchAnilistId(effectiveMalId, queryTitle, id, movie?.anilistId);
-          if (resolved) {
-            targetAnilist = resolved;
-            anilistIdRef.current = resolved;
-          }
-        }
-
-        if (targetAnilist) {
-          const isAnimeMovie = (movie?.episodeCount === 1 && epNum === 1) || movie?.type === 'movie';
-          const videasyUrl = isAnimeMovie
-            ? `https://player.videasy.to/anime/${targetAnilist}?color=e8852a&nextEpisode=false&episodeSelector=false`
-            : `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true`;
-          setCurrentIframeSrc(videasyUrl);
-        } else {
-          // Never use malId for VIDEASY: VIDEASY strictly requires an AniList ID.
-          // Fall back gracefully to MegaPlay (MAL) so the user does not get a broken player.
-          console.warn(`[VIDEASY] No AniList ID could be found for "${queryTitle}". Falling back to MegaPlay (MAL).`);
+      if (srv === 'megaplay') {
+        if (effectiveMalId) {
           setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+        } else {
+          setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
         }
+      } else if (srv === 'videasy') {
+        const isAnimeMovie = (movie?.episodeCount === 1 && epNum === 1) || movie?.type === 'movie';
+        const videasyUrl = isAnimeMovie
+          ? `https://player.videasy.to/anime/${targetAnilist}?color=e8852a&nextEpisode=false&episodeSelector=false`
+          : `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true`;
+        setCurrentIframeSrc(videasyUrl);
+      } else if (srv === 'vidlink') {
+        const streamId = effectiveMalId || targetAnilist || id;
+        setCurrentIframeSrc(`https://vidlink.pro/anime/${streamId}/${epNum}/${lang}`);
       } else if (srv === 'gogoanime' && effectiveMalId) {
         setCurrentIframeSrc(`https://gogoanime.me.uk/newplayer.php?mal_id=${effectiveMalId}&ep=${epNum}&category=${lang}`);
       } else if (srv === 'screenmirror') {
         if (targetTmdb) {
           setCurrentIframeSrc(`https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${targetTmdb}&s=1&e=${epNum}`);
         } else {
-          setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+          setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
         }
       } else if (srv === 'screenscape') {
         if (targetTmdb) {
           setCurrentIframeSrc(`https://screenscape.me/embed?tmdb=${targetTmdb}&type=tv&s=1&e=${epNum}&lan=hindi`);
         } else {
-          setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+          setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
         }
-      } else if (srv === 'vidlink') {
-        setCurrentIframeSrc(`https://vidlink.pro/anime/${effectiveMalId}/${epNum}/${lang}`);
       } else {
-        // Safe default: MegaPlay
-        setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
+        // Safe default: VIDEASY
+        setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
       }
       setIsServerLoading(false);
     }, 200);
@@ -339,118 +201,109 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const res = await kitsuApi.getDetails(id);
-        if (isMounted && res && res.data) {
-          const internalMovie = kitsuApi.mapKitsuToInternal(res.data, res.included);
-          setMovie(internalMovie);
-          
-          let episodesData: any[] = [];
-          try {
-            const kitsuEpisodes = await kitsuApi.getEpisodes(id, 100);
-            if (kitsuEpisodes && kitsuEpisodes.length > 0) {
-              episodesData = kitsuEpisodes.map((ep) => ({
-                id: `ep-${ep.episode}`,
-                number: ep.episode,
-                episode: ep.episode,
-                title: ep.title || `Episode ${ep.episode}`,
-                image: ep.thumbnail || '',
-                isReleased: true,
-                description: ep.description || '',
-                duration: ep.duration || '24m',
-              }));
-            }
-          } catch (e) {
-            console.warn("Kitsu episodes fetch error, fallback to generation", e);
-          }
-          
-          const totalCount = Math.max(internalMovie.episodeCount || 0, episodesData.length);
-          if (totalCount > episodesData.length) {
-            const existingNums = new Set(episodesData.map(e => e.number));
-            for (let i = 1; i <= totalCount; i++) {
-              if (!existingNums.has(i)) {
-                episodesData.push({
-                  id: `ep-${i}`,
-                  number: i,
-                  episode: i,
-                  title: `Episode ${i}`,
-                  image: '',
-                  isReleased: true,
-                  duration: '24m',
-                });
-              }
-            }
-            episodesData.sort((a, b) => a.number - b.number);
-          }
-          
-          setEpisodes(episodesData);
+        const { movie: internalMovie } = await anilistApi.getDetails(id);
+        if (!isMounted) return;
 
-          const epNum = parseInt(episode);
-          let targetEp = episodesData.find((e: any) => e.number === epNum);
-          
-          if (!targetEp) {
-             targetEp = {
-                id: `ep-${epNum}`,
-                season: 1,
-                episode: epNum,
-                number: epNum,
-                title: `Episode ${epNum}`,
-                duration: '24m',
+        setMovie(internalMovie);
+        anilistIdRef.current = internalMovie.anilistId || id;
+        
+        let episodesData: any[] = [];
+        try {
+          const anilistEpisodes = await anilistApi.getEpisodes(id, internalMovie.episodeCount || 12);
+          if (anilistEpisodes && anilistEpisodes.length > 0) {
+            episodesData = anilistEpisodes.map((ep) => ({
+              id: `ep-${ep.episode}`,
+              number: ep.episode,
+              episode: ep.episode,
+              title: ep.title || `Episode ${ep.episode}`,
+              image: ep.thumbnail || '',
+              isReleased: true,
+              description: ep.description || '',
+              duration: ep.duration || '24m',
+            }));
+          }
+        } catch (e) {
+          console.warn("AniList episodes fetch error, fallback to generation", e);
+        }
+        
+        const totalCount = Math.max(internalMovie.episodeCount || 0, episodesData.length);
+        if (totalCount > episodesData.length) {
+          const existingNums = new Set(episodesData.map(e => e.number));
+          for (let i = 1; i <= totalCount; i++) {
+            if (!existingNums.has(i)) {
+              episodesData.push({
+                id: `ep-${i}`,
+                number: i,
+                episode: i,
+                title: `Episode ${i}`,
                 image: '',
-                description: `Episode ${epNum} of ${internalMovie.title}`
-             };
-          }
-          
-          let fetchedTmdb = '';
-          try {
-            // Priority 1: Search specifically in TMDB TV catalog for exact title match
-            const tvRes = await api.searchTv(internalMovie.title);
-            if (tvRes.results && tvRes.results.length > 0) {
-              const bestTv = tvRes.results.find((item: any) => 
-                item.name?.toLowerCase() === internalMovie.title?.toLowerCase() ||
-                item.original_name?.toLowerCase() === internalMovie.title?.toLowerCase()
-              ) || tvRes.results[0];
-              if (bestTv?.id) {
-                fetchedTmdb = String(bestTv.id);
-                tmdbIdRef.current = fetchedTmdb;
-                setTmdbId(fetchedTmdb);
-              }
+                isReleased: true,
+                duration: '24m',
+              });
             }
-            // Priority 2: Fallback to multi search if not found in TV
-            if (!fetchedTmdb) {
-              const multiRes = await api.searchMulti(internalMovie.title, 1);
-              const bestMatch = multiRes.results?.find((item: any) => item.media_type === 'tv' || item.media_type === 'movie');
-              if (bestMatch?.id) {
-                fetchedTmdb = String(bestMatch.id);
-                tmdbIdRef.current = fetchedTmdb;
-                setTmdbId(fetchedTmdb);
-              }
+          }
+          episodesData.sort((a, b) => a.number - b.number);
+        }
+        
+        setEpisodes(episodesData);
+
+        const epNum = parseInt(episode) || 1;
+        let targetEp = episodesData.find((e: any) => e.number === epNum);
+        
+        if (!targetEp) {
+           targetEp = {
+              id: `ep-${epNum}`,
+              season: 1,
+              episode: epNum,
+              number: epNum,
+              title: `Episode ${epNum}`,
+              duration: '24m',
+              image: '',
+              description: `Episode ${epNum} of ${internalMovie.title}`
+           };
+        }
+        
+        let fetchedTmdb = '';
+        try {
+          // Priority 1: Search specifically in TMDB TV catalog for exact title match
+          const tvRes = await api.searchTv(internalMovie.title);
+          if (tvRes.results && tvRes.results.length > 0) {
+            const bestTv = tvRes.results.find((item: any) => 
+              item.name?.toLowerCase() === internalMovie.title?.toLowerCase() ||
+              item.original_name?.toLowerCase() === internalMovie.title?.toLowerCase()
+            ) || tvRes.results[0];
+            if (bestTv?.id) {
+              fetchedTmdb = String(bestTv.id);
+              tmdbIdRef.current = fetchedTmdb;
+              setTmdbId(fetchedTmdb);
             }
-          } catch {
-            // Non-blocking fallback
           }
+          // Priority 2: Fallback to multi search if not found in TV
+          if (!fetchedTmdb) {
+            const multiRes = await api.searchMulti(internalMovie.title, 1);
+            const bestMatch = multiRes.results?.find((item: any) => item.media_type === 'tv' || item.media_type === 'movie');
+            if (bestMatch?.id) {
+              fetchedTmdb = String(bestMatch.id);
+              tmdbIdRef.current = fetchedTmdb;
+              setTmdbId(fetchedTmdb);
+            }
+          }
+        } catch {
+          // Non-blocking fallback
+        }
 
-          // Pre-resolve AniList ID so it is instantly available for VIDEASY
-          let fetchedAnilist = internalMovie.anilistId || '';
-          if (!fetchedAnilist) {
-            fetchedAnilist = (await fetchAnilistId(internalMovie.malId, internalMovie.title, id)) || '';
-          }
-          if (fetchedAnilist) {
-            anilistIdRef.current = fetchedAnilist;
-          }
-
-          if (targetEp) {
-            setSelectedEpisode(targetEp);
-            setLanguage(language);
-            updateIframeSrc(
-              targetEp.number,
-              language,
-              server,
-              internalMovie.malId,
-              internalMovie.title,
-              fetchedTmdb,
-              fetchedAnilist
-            );
-          }
+        if (targetEp) {
+          setSelectedEpisode(targetEp);
+          setLanguage(language);
+          updateIframeSrc(
+            targetEp.number,
+            language,
+            server,
+            internalMovie.malId,
+            internalMovie.title,
+            fetchedTmdb,
+            internalMovie.anilistId || id
+          );
         }
       } catch (err) {
         console.error(err);
@@ -1030,6 +883,20 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 </span>
               </button>
 
+              {/* External Pop-out link for adblock/iframe-blocked bypass */}
+              {currentIframeSrc && currentIframeSrc !== 'about:blank' && (
+                <a
+                  href={currentIframeSrc}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all cursor-pointer shrink-0"
+                  title="Open video player in external tab (bypasses adblock/iframe embedding restrictions)"
+                >
+                  <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" />
+                  <span className="hidden sm:inline">Pop-out</span>
+                </a>
+              )}
+
               {/* Prev & Next Episode Navigation */}
               {(() => {
                 const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
@@ -1114,7 +981,6 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           )}
           allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
           allowFullScreen
-          referrerPolicy="no-referrer-when-downgrade"
           onLoad={() => {
             setIsServerLoading(false);
             setIsServerSlow(false);
@@ -1180,9 +1046,9 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           )}
         </AnimatePresence>
 
-        {/* Honest slow-server warning with 1-click fallback pills */}
+        {/* Honest slow / blocked server warning with 1-click fallback pills */}
         <AnimatePresence>
-          {isServerSlow && isServerLoading && (
+          {isServerSlow && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1196,7 +1062,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                   <span className="font-semibold text-foreground">
                     {ANIME_SERVERS.find((s) => s.id === server)?.name || 'Server'}
                   </span>{' '}
-                  is taking a while to load.
+                  slow or content blocked? Switch server or pop out:
                 </p>
               </div>
 
@@ -1225,6 +1091,26 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                     {alt.name.split(' ')[0]}
                   </button>
                 ))}
+                {currentIframeSrc && currentIframeSrc !== 'about:blank' && (
+                  <a
+                    href={currentIframeSrc}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-foreground border border-white/20 transition-all cursor-pointer flex items-center gap-1"
+                    title="Open player directly in a new tab to bypass iframe blocks"
+                  >
+                    <ExternalLink className="w-3 h-3 text-brand" />
+                    <span>Pop-out</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsServerSlow(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground px-1 py-1 cursor-pointer"
+                  title="Dismiss warning"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
               </div>
             </motion.div>
           )}

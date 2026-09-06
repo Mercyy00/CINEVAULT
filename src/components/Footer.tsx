@@ -22,7 +22,7 @@ const MODAL_DATA: Record<string, LegalModalData> = {
       },
       {
         heading: 'Metadata & Data Sources',
-        body: 'All movie and television metadata, high-resolution backdrops, posters, ratings, and cast information are provided via The Movie Database (TMDB) API. Anime metadata, episode synopses, and Japanese animation classifications are powered by the Kitsu API.',
+        body: 'All movie and television metadata, high-resolution backdrops, posters, ratings, and cast information are provided via The Movie Database (TMDB) API. Anime metadata, episode synopses, and Japanese animation classifications are powered by the AniList GraphQL API.',
       },
       {
         heading: 'Cloud & Offline Sync',
@@ -44,7 +44,7 @@ const MODAL_DATA: Record<string, LegalModalData> = {
       },
       {
         heading: '3. Third-Party Services',
-        body: 'API requests for media metadata are routed directly to TMDB and Kitsu servers under their standard public API usage guidelines. Media assets are streamed from their respective origin hosts without intermediary profiling.',
+        body: 'API requests for media metadata are routed directly to TMDB and AniList servers under their standard public API usage guidelines. Media assets are streamed from their respective origin hosts without intermediary profiling.',
       },
     ],
   },
@@ -62,7 +62,7 @@ const MODAL_DATA: Record<string, LegalModalData> = {
       },
       {
         heading: '3. API Attribution',
-        body: 'This product uses the TMDB API and Kitsu API but is not endorsed or certified by TMDB or Kitsu. By using CineVault, you agree to comply with all applicable local copyright and streaming regulations.',
+        body: 'This product uses the TMDB API and AniList API but is not endorsed or certified by TMDB or AniList. By using CineVault, you agree to comply with all applicable local copyright and streaming regulations.',
       },
     ],
   },
@@ -228,7 +228,7 @@ export function Footer() {
                 Data Attribution
               </h3>
               <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                Media data, ratings, and backdrops provided by TMDB and Kitsu.
+                Media data, ratings, and backdrops provided by TMDB and AniList.
               </p>
               <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/80">
                 <a
@@ -240,12 +240,12 @@ export function Footer() {
                   The Movie Database (TMDB) <ExternalLink className="w-3 h-3" />
                 </a>
                 <a
-                  href="https://kitsu.io/"
+                  href="https://anilist.co/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 hover:text-brand transition-colors"
                 >
-                  Kitsu Anime API <ExternalLink className="w-3 h-3" />
+                  AniList GraphQL API <ExternalLink className="w-3 h-3" />
                 </a>
               </div>
             </div>

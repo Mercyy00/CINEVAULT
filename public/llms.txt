@@ -7,7 +7,7 @@ CineVault allows users to discover trending media, explore genre collections, re
 
 ## Key Features
 - **Movie & TV Discovery**: Real-time trending, top-rated, and regional popularity feeds powered by TMDB.
-- **Anime Hub**: Extensive anime catalog, episode listings, and Japanese animation trends powered by Kitsu.
+- **Anime Hub**: Extensive anime catalog, episode listings, and Japanese animation trends powered by AniList.
 - **Personalized Watchlists**: Synchronized watchlist and watch-progress tracking with Firebase Firestore integration and local offline persistence.
 - **Dynamic Theming & Aesthetics**: Multiple custom color schemes (Crimson Premiere, Cyberpunk Neon, Golden Hour, Emerald Velvet, Midnight Slate) with instant dark/light mode toggle.
 - **Mood Finder & Surprise Me**: Curated film discovery based on user mood, genre combinations, and stochastic recommendations.
@@ -26,7 +26,7 @@ CineVault allows users to discover trending media, explore genre collections, re
 
 ## APIs & Data Sources
 - **TMDB (The Movie Database)**: Movie, television series, cast, backdrop artwork, and ratings metadata.
-- **Kitsu API**: Anime synopses, episode counts, categories, and Japanese animation metadata.
+- **AniList API**: Anime synopses, episode counts, genres, character details, and Japanese animation metadata.
 - **Firebase Auth & Firestore**: Profile synchronization, authentication, and cloud watchlist storage.
 
 ## Technical Architecture

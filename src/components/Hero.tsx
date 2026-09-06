@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion, useSpring } from 'motion/react';
 import { Play, Plus, Check, Info, Star, VolumeX, RotateCcw } from 'lucide-react';
 import { Movie, formatRating } from '../types';
-import { api, kitsuApi, BACKDROP_SIZES } from '../api';
+import { api, anilistApi, BACKDROP_SIZES } from '../api';
 import { useApp } from '../store';
 import { getDominantColor } from '../lib/colorThief';
 import { goToWatch } from '../lib/navigation';
@@ -32,10 +32,8 @@ const heroCache = new Map<HeroType, { movies: Movie[]; at: number }>();
 
 async function loadHero(type: HeroType): Promise<Movie[]> {
   if (type === 'anime') {
-    const payload = await kitsuApi.getTopRated(SLIDE_COUNT);
-    return (payload.data ?? [])
-      .map((entry) => kitsuApi.mapKitsuToInternal(entry, payload.included ?? []))
-      .filter((movie) => Boolean(movie.backdropUrl));
+    const payload = await anilistApi.getTopRated(SLIDE_COUNT);
+    return (payload.results ?? []).filter((movie) => Boolean(movie.backdropUrl));
   }
 
   const payload = await api.getTrending(type, 'day');

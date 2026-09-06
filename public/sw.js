@@ -27,9 +27,8 @@ const MEDIA_RE = /\.(mp4|webm|mkv|mov|m4v|mp3|m4a|ogg|wav|flac|m3u8|ts|mpd)$/i;
 const NEVER_CACHE_HOSTS = [
   'api.themoviedb.org',
   'image.tmdb.org',
-  'kitsu.io',
-  'media.kitsu.io',
-  'media.kitsu.app',
+  'graphql.anilist.co',
+  's4.anilist.co',
   'firestore.googleapis.com',
   'identitytoolkit.googleapis.com',
   'securetoken.googleapis.com',

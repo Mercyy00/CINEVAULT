@@ -17,7 +17,7 @@ import {
 import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
-import { api, kitsuApi } from '../api';
+import { api, anilistApi } from '../api';
 import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
@@ -96,9 +96,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         ) {
           try {
             const query = details.title || details.name || details.original_name || '';
-            const searchRes = await kitsuApi.search(query);
-            if (searchRes.data && searchRes.data.length > 0) {
-              goToDetail(searchRes.data[0].id, 'anime');
+            const searchRes = await anilistApi.search(query);
+            if (searchRes.results && searchRes.results.length > 0) {
+              goToDetail(searchRes.results[0].id, 'anime');
               return;
             }
           } catch (err) {

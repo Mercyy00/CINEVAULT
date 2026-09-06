@@ -20,7 +20,7 @@ export interface SeoConfig {
 
 const DEFAULT_TITLE = 'CineVault — Discover films, TV and anime';
 const DEFAULT_DESCRIPTION =
-  'Browse films, television and anime, build a personalized watchlist, and pick up where you left off. Metadata powered by TMDB and Kitsu.';
+  'Browse films, television and anime, build a personalized watchlist, and pick up where you left off. Metadata powered by TMDB and AniList.';
 const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SITE_URL) || 'https://cinevault.app';
 const DEFAULT_OG_IMAGE = `${BASE_URL}/logo-vault.png`;

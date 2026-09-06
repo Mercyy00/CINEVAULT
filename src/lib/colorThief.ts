@@ -143,10 +143,6 @@ export async function getDominantColor(imageUrl: string): Promise<string> {
   const cached = cache.get(key);
   if (cached) return cached;
 
-  if (key.includes('media.kitsu.app')) {
-    return '#e50914';
-  }
-
   return new Promise<string>((resolve, reject) => {
     const image = new Image();
     image.crossOrigin = 'anonymous';

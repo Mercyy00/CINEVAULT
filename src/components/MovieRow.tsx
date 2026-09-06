@@ -46,7 +46,7 @@ function isMovieLike(value: unknown): value is Movie {
   return typeof value === 'object' && value !== null && 'type' in value && 'title' in value;
 }
 
-/** Kitsu rows already hand back internal Movies; TMDB rows need mapping. */
+/** AniList rows already hand back internal Movies; TMDB rows need mapping. */
 function normalise(results: unknown[]): Movie[] {
   return results.map((item) =>
     isMovieLike(item) && item.type === 'anime' ? item : api.mapToInternalMovie(item as never)
@@ -70,7 +70,7 @@ function applyKidsFilter(items: Movie[], kidsMode: boolean): Movie[] {
 }
 
 /**
- * De-duplicates on `type + id`. Keying on `id` alone was wrong: TMDB and Kitsu
+ * De-duplicates on `type + id`. Keying on `id` alone was wrong: TMDB and AniList
  * number their catalogues independently, so a film and an anime can collide.
  */
 function dedupe(items: Movie[]): Movie[] {

@@ -9,7 +9,7 @@ import { SearchOverlay } from './components/SearchOverlay';
 import { Footer } from './components/Footer';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { AppProvider, useApp } from './store';
-import { api, kitsuApi } from './api';
+import { api, anilistApi } from './api';
 import { CinematicIntro } from './components/CinematicIntro';
 import { ContinueWatchingRow } from './components/ContinueWatchingRow';
 import { OnboardingModal } from './components/OnboardingModal';
@@ -582,12 +582,8 @@ function AppContent() {
             index={3}
             title="🎌 Kid-Friendly Anime"
             fetchFn={async (page) => {
-              const res = await kitsuApi.getByCategory('kids', page);
-              return {
-                results: (res.data ?? []).map((item) =>
-                  kitsuApi.mapKitsuToInternal(item, res.included ?? [])
-                ),
-              };
+              const res = await anilistApi.getByCategory('kids', page);
+              return { results: res.results };
             }}
             onMovieSelect={goToDetail}
           />
@@ -657,12 +653,8 @@ function AppContent() {
             title={`Because you watched ${item.title}`}
             fetchFn={async (page) => {
               if (item.media_type === 'anime') {
-                const res = await kitsuApi.getTrending(page);
-                return {
-                  results: (res.data ?? []).map((kitsuItem) =>
-                    kitsuApi.mapKitsuToInternal(kitsuItem, res.included ?? [])
-                  ),
-                };
+                const res = await anilistApi.getTrending(page);
+                return { results: res.results };
               }
               return api.getRecommendations(item.media_type, item.id, page);
             }}
@@ -677,12 +669,8 @@ function AppContent() {
             title={`Because you like ${pref.label}`}
             fetchFn={async (page) => {
               if (pref.label === 'Anime') {
-                const res = await kitsuApi.getByCategory('anime', page);
-                return {
-                  results: (res.data ?? []).map((item) =>
-                    kitsuApi.mapKitsuToInternal(item, res.included ?? [])
-                  ),
-                };
+                const res = await anilistApi.getByCategory('anime', page);
+                return { results: res.results };
               }
               return api.discover(pref.type ?? 'movie', { with_genres: pref.genres, page });
             }}
@@ -706,12 +694,8 @@ function AppContent() {
           index={tailOffset + 2}
           title="Trending anime"
           fetchFn={async (page) => {
-            const res = await kitsuApi.getTrending(page);
-            return {
-              results: (res.data ?? []).map((item) =>
-                kitsuApi.mapKitsuToInternal(item, res.included ?? [])
-              ),
-            };
+            const res = await anilistApi.getTrending(page);
+            return { results: res.results };
           }}
           onMovieSelect={goToDetail}
         />
