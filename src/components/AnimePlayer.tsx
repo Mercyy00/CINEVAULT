@@ -216,7 +216,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
               number: ep.episode,
               episode: ep.episode,
               title: ep.title || `Episode ${ep.episode}`,
-              image: ep.thumbnail || '',
+              image: ep.thumbnail || internalMovie.backdropUrl || internalMovie.posterUrl || '',
               isReleased: true,
               description: ep.description || '',
               duration: ep.duration || '24m',
@@ -238,7 +238,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 number: i,
                 episode: i,
                 title: `Episode ${i}`,
-                image: '',
+                image: internalMovie.backdropUrl || internalMovie.posterUrl || '',
                 isReleased: true,
                 duration: '24m',
               });

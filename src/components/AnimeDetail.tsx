@@ -91,7 +91,7 @@ export function AnimeDetail({ id }: { id: string }) {
               id: `ep-${ep.episode}`,
               number: ep.episode,
               title: ep.title || `Episode ${ep.episode}`,
-              image: ep.thumbnail || '',
+              image: ep.thumbnail || mappedMovie.backdropUrl || mappedMovie.posterUrl || '',
               overview: ep.description || `Episode ${ep.episode} of ${mappedMovie.title}`
             }));
           }
@@ -107,7 +107,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   id: `ep-${i}`,
                   number: i,
                   title: `Episode ${i}`,
-                  image: '',
+                  image: mappedMovie.backdropUrl || mappedMovie.posterUrl || '',
                   overview: `Episode ${i} of ${mappedMovie.title}`
                 });
               }
