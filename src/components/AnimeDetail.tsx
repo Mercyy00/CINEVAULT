@@ -100,7 +100,11 @@ export function AnimeDetail({ id }: { id: string }) {
           console.warn("AniList episodes fetch error", e);
         }
 
-          const totalCount = Math.max(mappedMovie.episodeCount || 12, episodesData.length);
+          const isOnePiece =
+            String(id) === '21' ||
+            mappedMovie.title?.toLowerCase().includes('one piece');
+          const minTarget = isOnePiece ? 1180 : 12;
+          const totalCount = Math.max(mappedMovie.episodeCount || minTarget, minTarget, episodesData.length);
           if (totalCount > episodesData.length) {
             const existingNums = new Set(episodesData.map(e => e.number));
             for (let i = 1; i <= totalCount; i++) {

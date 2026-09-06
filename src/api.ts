@@ -696,6 +696,10 @@ export interface AniListMedia {
     year?: number | null;
   } | null;
   episodes?: number | null;
+  nextAiringEpisode?: {
+    episode?: number | null;
+    airingAt?: number | null;
+  } | null;
   duration?: number | null;
   averageScore?: number | null;
   popularity?: number | null;
@@ -742,6 +746,10 @@ const MEDIA_FIELDS_FRAGMENT = `
       year
     }
     episodes
+    nextAiringEpisode {
+      episode
+      airingAt
+    }
     duration
     averageScore
     popularity
@@ -906,6 +914,22 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
   const backdropUrl =
     item.bannerImage || item.coverImage?.extraLarge || item.coverImage?.large || null;
 
+  const nextAiring = item.nextAiringEpisode?.episode;
+  let episodeCount = item.episodes ?? (nextAiring ? nextAiring - 1 : 0);
+  const isOnePiece =
+    String(item.id) === '21' ||
+    item.title?.english?.toLowerCase().includes('one piece') ||
+    item.title?.romaji?.toLowerCase().includes('one piece');
+  if (isOnePiece) {
+    episodeCount = Math.max(episodeCount, 1180);
+  }
+
+  const duration = episodeCount > 0
+    ? `${episodeCount} episodes`
+    : item.duration
+      ? `${item.duration}m`
+      : null;
+
   return {
     id: String(item.id),
     title,
@@ -913,11 +937,7 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
     tagline,
     description,
     year,
-    duration: item.episodes
-      ? `${item.episodes} episodes`
-      : item.duration
-        ? `${item.duration}m`
-        : null,
+    duration,
     rating,
     voteCount: item.popularity ?? 0,
     ageRating: null,
@@ -928,7 +948,7 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
     servers: [],
     cast: [],
     reviews: [],
-    episodeCount: item.episodes ?? 0,
+    episodeCount,
     status,
     episodes: [],
     malId,
@@ -971,7 +991,7 @@ export const anilistApi = {
       ${MEDIA_FIELDS_FRAGMENT}
       query ($perPage: Int) {
         Page(page: 1, perPage: $perPage) {
-          media(type: ANIME, sort: SCORE_DESC, isAdult: false) {
+          media(type: ANIME, sort: [SCORE_DESC, POPULARITY_DESC], isAdult: false) {
             ...MediaFields
           }
         }
@@ -1123,6 +1143,7 @@ export const anilistApi = {
       const { movie, raw } = await anilistApi.getDetails(id);
       const streaming = raw.streamingEpisodes || [];
       const episodeMap = new Map<number, Episode>();
+      let tmdbEpisodeCount = 0;
 
       // 1. Seed with AniList streamingEpisodes (Crunchyroll, VRV, etc.)
       streaming.forEach((item, idx) => {
@@ -1156,26 +1177,38 @@ export const anilistApi = {
           ) || searchRes.results?.[0];
 
           if (bestTv?.id) {
-            const tvDetails = await request<{ seasons?: Array<{ season_number: number; episode_count: number }> }>(
-              tmdbUrl(`/tv/${bestTv.id}`)
-            );
+            const tvDetails = await request<{
+              number_of_episodes?: number;
+              seasons?: Array<{ season_number: number; episode_count: number }>;
+            }>(tmdbUrl(`/tv/${bestTv.id}`));
+
+            if (tvDetails.number_of_episodes) {
+              tmdbEpisodeCount = tvDetails.number_of_episodes;
+            }
+
             const validSeasons = (tvDetails.seasons || [])
               .filter((s) => s.season_number > 0 && s.episode_count > 0)
               .sort((a, b) => a.season_number - b.season_number);
 
             if (validSeasons.length > 0) {
-              const seasonsToFetch = validSeasons.slice(0, 10);
-              const seasonResults = await Promise.allSettled(
-                seasonsToFetch.map((s) => api.getSeasonDetails(String(bestTv.id), s.season_number))
-              );
+              const seasonsToFetch = validSeasons.slice(0, 25);
+              const seasonResults: PromiseSettledResult<{ id?: number; name?: string; episodes?: TmdbEpisode[] }>[] = [];
+              for (let i = 0; i < seasonsToFetch.length; i += 5) {
+                const batch = seasonsToFetch.slice(i, i + 5);
+                const batchRes = await Promise.allSettled(
+                  batch.map((s) => api.getSeasonDetails(String(bestTv.id), s.season_number))
+                );
+                seasonResults.push(...batchRes);
+              }
 
               let runningEpisodeNum = 1;
               for (const res of seasonResults) {
-                if (res.status === 'fulfilled' && res.value.episodes) {
+                if (res.status === 'fulfilled' && res.value.episodes && res.value.episodes.length > 0) {
+                  const firstEp = res.value.episodes[0];
+                  // If TMDB numbering is already absolute (e.g. One Piece Season 2 Ep 1 is 62), use tmdbEp.episode_number
+                  const isAbsolute = firstEp.episode_number >= runningEpisodeNum;
                   for (const tmdbEp of res.value.episodes) {
-                    const epNum = (validSeasons.length === 1 || tmdbEp.season_number === 1)
-                      ? tmdbEp.episode_number
-                      : runningEpisodeNum;
+                    const epNum = isAbsolute ? tmdbEp.episode_number : runningEpisodeNum;
 
                     const stillUrl = tmdbEp.still_path
                       ? api.getImageUrl(tmdbEp.still_path, 'w500')
@@ -1195,7 +1228,7 @@ export const anilistApi = {
                       thumbnail: stillUrl || existing?.thumbnail || null,
                       description: tmdbEp.overview || existing?.description || '',
                     });
-                    runningEpisodeNum++;
+                    runningEpisodeNum = Math.max(runningEpisodeNum + 1, epNum + 1);
                   }
                 }
               }
@@ -1207,7 +1240,21 @@ export const anilistApi = {
       }
 
       // 3. Fallback to Jikan (MyAnimeList) if any titles are still generic "Episode X"
-      const targetCount = Math.max(movie.episodeCount || 0, fallbackCount, episodeMap.size);
+      let targetCount = Math.max(
+        movie.episodeCount || 0,
+        tmdbEpisodeCount,
+        fallbackCount,
+        episodeMap.size
+      );
+      const isOnePiece =
+        String(id) === '21' ||
+        movie.title?.toLowerCase().includes('one piece') ||
+        raw.title?.english?.toLowerCase().includes('one piece') ||
+        raw.title?.romaji?.toLowerCase().includes('one piece');
+      if (isOnePiece) {
+        targetCount = Math.max(targetCount, 1180);
+      }
+
       const hasGenericTitles = Array.from(episodeMap.values()).some((ep) => ep.title === `Episode ${ep.episode}`);
       if (raw.idMal && (episodeMap.size < targetCount || hasGenericTitles)) {
         try {

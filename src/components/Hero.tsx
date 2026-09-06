@@ -32,8 +32,10 @@ const heroCache = new Map<HeroType, { movies: Movie[]; at: number }>();
 
 async function loadHero(type: HeroType): Promise<Movie[]> {
   if (type === 'anime') {
-    const payload = await anilistApi.getTopRated(SLIDE_COUNT);
-    return (payload.results ?? []).filter((movie) => Boolean(movie.backdropUrl));
+    const payload = await anilistApi.getTrending(1, 20);
+    return (payload.results ?? [])
+      .filter((movie) => Boolean(movie.backdropUrl))
+      .slice(0, SLIDE_COUNT);
   }
 
   const payload = await api.getTrending(type, 'day');

@@ -227,6 +227,20 @@ function AppContent() {
     return () => window.removeEventListener('trigger-reset', handleReset);
   }, []);
 
+  // Warm up the anime trending catalogue in idle time so clicking the Anime tab renders instantly
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => {
+          anilistApi.getTrending(1, 20).catch(() => {});
+        });
+      } else {
+        anilistApi.getTrending(1, 20).catch(() => {});
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (ROUTE_SEO[currentRoute]) {
       updateSeoMetadata(ROUTE_SEO[currentRoute]);

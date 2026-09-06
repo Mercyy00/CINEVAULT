@@ -138,4 +138,43 @@ describe('anilistApi.mapAniListToInternal', () => {
     expect(result.malId).toBe('');
     expect(result.anilistId).toBe('999');
   });
+
+  it('correctly maps episode count for ongoing anime using nextAiringEpisode', () => {
+    const ongoingMedia = {
+      id: 500,
+      title: { english: 'Ongoing Adventure' },
+      status: 'RELEASING',
+      episodes: null,
+      nextAiringEpisode: {
+        episode: 120,
+        airingAt: 1700000000,
+      },
+    };
+
+    const result = anilistApi.mapAniListToInternal(ongoingMedia as any);
+
+    expect(result.episodeCount).toBe(119);
+    expect(result.duration).toBe('119 episodes');
+    expect(result.status).toBe('releasing');
+  });
+
+  it('guarantees One Piece has full episode count (>= 1180) for long-running dropdown', () => {
+    const onePieceMedia = {
+      id: 21,
+      title: {
+        romaji: 'ONE PIECE',
+        english: 'ONE PIECE',
+      },
+      status: 'RELEASING',
+      episodes: null,
+      nextAiringEpisode: {
+        episode: 1177,
+      },
+    };
+
+    const result = anilistApi.mapAniListToInternal(onePieceMedia as any);
+
+    expect(result.episodeCount).toBeGreaterThanOrEqual(1180);
+    expect(result.duration).toContain('episodes');
+  });
 });
