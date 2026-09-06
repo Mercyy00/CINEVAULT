@@ -1377,7 +1377,95 @@ export const anilistApi = {
         }
       });
 
-      // 2. Query Jikan (MyAnimeList) API for cour-accurate episode titles when generic or missing
+      // 2. Enrich with Kitsu (high-res anime episode stills and titles scoped to anime cours)
+      const needsThumbnails = Array.from(episodeMap.values()).some((ep) => !ep.thumbnail);
+      const isMissingEps = episodeMap.size < actualEpisodeCount;
+      if (needsThumbnails || isMissingEps) {
+        try {
+          const titleCandidates = [
+            raw.title?.english,
+            raw.title?.romaji,
+            movie.title,
+          ].filter((t): t is string => Boolean(t && t.trim()));
+
+          for (const cand of titleCandidates) {
+            const kitsuRes = await fetch(
+              `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(cand)}`,
+              { headers: { Accept: 'application/vnd.api+json' } }
+            );
+            if (!kitsuRes.ok) continue;
+            const kitsuData = await kitsuRes.json();
+            const kItem = kitsuData.data?.[0];
+            if (!kItem?.id) continue;
+
+            const limit = Math.min(20, Math.max(1, actualEpisodeCount));
+            const epRes = await fetch(
+              `https://kitsu.io/api/edge/anime/${kItem.id}/episodes?page[limit]=${limit}&sort=number`,
+              { headers: { Accept: 'application/vnd.api+json' } }
+            );
+            if (!epRes.ok) break;
+            const epJson = await epRes.json();
+            let kEpisodes: any[] = epJson.data || [];
+
+            if (actualEpisodeCount > 20 && !isOnePiece) {
+              const p2Res = await fetch(
+                `https://kitsu.io/api/edge/anime/${kItem.id}/episodes?page[limit]=20&page[offset]=20&sort=number`,
+                { headers: { Accept: 'application/vnd.api+json' } }
+              );
+              if (p2Res.ok) {
+                const p2Json = await p2Res.json();
+                kEpisodes = kEpisodes.concat(p2Json.data || []);
+              }
+            }
+
+            for (const kEp of kEpisodes) {
+              const epNum = kEp.attributes?.number;
+              if (typeof epNum !== 'number' || epNum < 1) continue;
+              if (!isOnePiece && epNum > actualEpisodeCount) continue;
+
+              const epTitle =
+                kEp.attributes?.canonicalTitle ||
+                kEp.attributes?.titles?.en_us ||
+                kEp.attributes?.titles?.en ||
+                kEp.attributes?.titles?.en_jp;
+              const epThumb =
+                kEp.attributes?.thumbnail?.original ||
+                kEp.attributes?.thumbnail?.medium ||
+                null;
+              const epDesc = kEp.attributes?.synopsis || '';
+
+              const existing = episodeMap.get(epNum);
+              if (existing) {
+                if (!existing.thumbnail && epThumb) {
+                  existing.thumbnail = epThumb;
+                }
+                if (epTitle && (!existing.title || existing.title === `Episode ${epNum}`)) {
+                  existing.title = epTitle;
+                }
+                if (!existing.description && epDesc) {
+                  existing.description = epDesc;
+                }
+              } else {
+                episodeMap.set(epNum, {
+                  id: `ep-${epNum}`,
+                  season: 1,
+                  episode: epNum,
+                  title: epTitle || `Episode ${epNum}`,
+                  duration: raw.duration ? `${raw.duration}m` : '24m',
+                  thumbnail: epThumb,
+                  description: epDesc,
+                });
+              }
+            }
+
+            if (kEpisodes.length > 0) break;
+          }
+        } catch {
+          // Kitsu is non-blocking
+        }
+      }
+
+      // 3. Fallback to Jikan (MyAnimeList) API for cour-accurate episode titles when generic or missing
       const hasGenericTitles = Array.from(episodeMap.values()).some(
         (ep) => !ep.title || ep.title === `Episode ${ep.episode}`
       );
@@ -1417,6 +1505,78 @@ export const anilistApi = {
           }
         } catch {
           // Jikan is non-blocking
+        }
+      }
+
+      // 4. Safe TMDB Stills Enrichment (for standalone anime or matched seasons that still lack thumbnails)
+      const stillNeedsThumbnails = Array.from(episodeMap.values()).some((ep) => !ep.thumbnail);
+      if (stillNeedsThumbnails && !isOnePiece) {
+        try {
+          const queryTitle = movie.title || raw.title?.english || raw.title?.romaji || '';
+          if (queryTitle) {
+            const searchRes = await api.searchTv(queryTitle);
+            const bestTv = searchRes.results?.find(
+              (item: any) =>
+                item.name?.toLowerCase() === queryTitle.toLowerCase() ||
+                item.original_name?.toLowerCase() === queryTitle.toLowerCase()
+            ) || searchRes.results?.[0];
+
+            if (bestTv?.id) {
+              const tvDetails = await request<{
+                number_of_episodes?: number;
+                first_air_date?: string;
+                seasons?: Array<{ season_number: number; name?: string; episode_count: number; air_date?: string }>;
+              }>(tmdbUrl(`/tv/${bestTv.id}`));
+
+              const validSeasons = (tvDetails.seasons || [])
+                .filter((s) => s.season_number > 0 && s.episode_count > 0)
+                .sort((a, b) => a.season_number - b.season_number);
+
+              let seasonToFetch: number | null = null;
+              if (validSeasons.length === 1) {
+                seasonToFetch = validSeasons[0].season_number;
+              } else if (validSeasons.length > 1) {
+                const matched = findMatchingSeason(
+                  validSeasons,
+                  [raw.title?.english, raw.title?.romaji, movie.title].filter(Boolean) as string[],
+                  raw.startDate?.year || movie.year || undefined,
+                  actualEpisodeCount
+                );
+                if (matched) {
+                  seasonToFetch = matched.season_number;
+                }
+              }
+
+              if (seasonToFetch !== null) {
+                const seasonData = await api.getSeasonDetails(String(bestTv.id), seasonToFetch);
+                if (seasonData?.episodes) {
+                  for (const tmdbEp of seasonData.episodes) {
+                    const epNum = tmdbEp.episode_number;
+                    if (epNum > 0 && epNum <= actualEpisodeCount) {
+                      const existing = episodeMap.get(epNum);
+                      if (existing) {
+                        if (!existing.thumbnail && tmdbEp.still_path) {
+                          existing.thumbnail = api.getImageUrl(tmdbEp.still_path, 'w500');
+                        }
+                        if (
+                          (!existing.title || existing.title === `Episode ${epNum}`) &&
+                          tmdbEp.name &&
+                          !tmdbEp.name.match(/^Episode\s+\d+$/i)
+                        ) {
+                          existing.title = tmdbEp.name;
+                        }
+                        if (!existing.description && tmdbEp.overview) {
+                          existing.description = tmdbEp.overview;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // TMDB enrichment is non-blocking
         }
       }
 
