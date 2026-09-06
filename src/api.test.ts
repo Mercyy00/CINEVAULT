@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { api, anilistApi, TmdbItem } from './api';
+import { api, anilistApi, findMatchingSeason, TmdbItem } from './api';
 
 describe('api.mapToInternalMovie', () => {
   it('maps a full TMDB payload correctly', () => {
@@ -176,5 +176,68 @@ describe('anilistApi.mapAniListToInternal', () => {
 
     expect(result.episodeCount).toBeGreaterThanOrEqual(1180);
     expect(result.duration).toContain('episodes');
+  });
+});
+
+describe('findMatchingSeason', () => {
+  const mockBleachSeasons = [
+    { season_number: 1, name: 'Season 1: Substitute', episode_count: 20 },
+    { season_number: 2, name: 'Season 2: Entry', episode_count: 21 },
+    { season_number: 16, name: 'Season 16: The Lost Agent', episode_count: 24 },
+    { season_number: 17, name: 'Thousand-Year Blood War', episode_count: 13, air_date: '2022-10-11' },
+    { season_number: 18, name: 'The Separation', episode_count: 13, air_date: '2023-07-08' },
+    { season_number: 19, name: 'The Conflict', episode_count: 14, air_date: '2024-10-05' },
+  ];
+
+  it('matches Bleach Thousand-Year Blood War by subtitle', () => {
+    const matched = findMatchingSeason(
+      mockBleachSeasons,
+      ['BLEACH: Thousand-Year Blood War', 'BLEACH: Sennen Kessen-hen'],
+      2022,
+      13
+    );
+    expect(matched).not.toBeNull();
+    expect(matched?.season_number).toBe(17);
+    expect(matched?.name).toBe('Thousand-Year Blood War');
+  });
+
+  it('matches Bleach The Separation by subtitle', () => {
+    const matched = findMatchingSeason(
+      mockBleachSeasons,
+      ['BLEACH: Thousand-Year Blood War - The Separation'],
+      2023,
+      13
+    );
+    expect(matched).not.toBeNull();
+    expect(matched?.season_number).toBe(18);
+  });
+
+  const mockDemonSlayerSeasons = [
+    { season_number: 1, name: 'Tanjiro Kamado, Unwavering Resolve Arc', episode_count: 26 },
+    { season_number: 2, name: 'Mugen Train Arc', episode_count: 7 },
+    { season_number: 3, name: 'Entertainment District Arc', episode_count: 11 },
+    { season_number: 4, name: 'Swordsmith Village Arc', episode_count: 11 },
+    { season_number: 5, name: 'Hashira Training Arc', episode_count: 8, air_date: '2024-05-12' },
+  ];
+
+  it('matches Demon Slayer Hashira Training Arc by arc name', () => {
+    const matched = findMatchingSeason(
+      mockDemonSlayerSeasons,
+      ['Kimetsu no Yaiba: Hashira Geiko-hen', 'Demon Slayer: Kimetsu no Yaiba Hashira Training Arc'],
+      2024,
+      8
+    );
+    expect(matched).not.toBeNull();
+    expect(matched?.season_number).toBe(5);
+  });
+
+  it('returns null when no seasons match an unrelated anime title', () => {
+    const matched = findMatchingSeason(
+      mockBleachSeasons,
+      ['Chainsaw Man'],
+      2022,
+      12
+    );
+    expect(matched).toBeNull();
   });
 });

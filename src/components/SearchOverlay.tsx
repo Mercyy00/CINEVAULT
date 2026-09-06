@@ -112,9 +112,36 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     let tmdbResults: Movie[] = [];
     let anilistResults: Movie[] = [];
 
+    const normalizeForComparison = (str: string): string => {
+      return str
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .trim();
+    };
+
     const rankAndDedup = (items: Movie[], queryTerm: string): Movie[] => {
       const cleanTerm = queryTerm.toLowerCase();
-      const sorted = [...items].sort((a, b) => {
+
+      // Collect normalized titles of all dedicated anime results
+      const animeTitles = new Set<string>();
+      for (const item of items) {
+        if (item.type === 'anime' && item.title) {
+          animeTitles.add(normalizeForComparison(item.title));
+        }
+      }
+
+      // Filter out TMDB TV duplicate cards when a dedicated AniList Anime exists for the title
+      const dedupedItems = items.filter((item) => {
+        if (item.type === 'tv' && item.title) {
+          const norm = normalizeForComparison(item.title);
+          if (animeTitles.has(norm)) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      const sorted = [...dedupedItems].sort((a, b) => {
         const aTitle = a.title.toLowerCase();
         const bTitle = b.title.toLowerCase();
         const aExact = aTitle === cleanTerm;
@@ -125,6 +152,9 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
         const bStarts = bTitle.startsWith(cleanTerm);
         if (aStarts && !bStarts) return -1;
         if (!aStarts && bStarts) return 1;
+        // Prioritize dedicated anime entries
+        if (a.type === 'anime' && b.type !== 'anime') return -1;
+        if (a.type !== 'anime' && b.type === 'anime') return 1;
         return 0;
       });
 

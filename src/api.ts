@@ -957,6 +957,95 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
   };
 }
 
+/**
+ * Searches TMDB seasons for a specific sequel/cour season belonging to a franchise.
+ * E.g., Bleach TYBW in Bleach (Season 17), Demon Slayer Swordsmith Village (Season 4).
+ */
+export function findMatchingSeason(
+  seasons: Array<{ season_number: number; name?: string; episode_count?: number; air_date?: string }>,
+  titleStrings: string[],
+  releaseYear?: number,
+  expectedEps?: number
+): { season_number: number; name?: string; episode_count: number } | null {
+  const valid = seasons.filter(
+    (s): s is { season_number: number; name?: string; episode_count: number; air_date?: string } =>
+      (s.season_number ?? 0) > 0 && (s.episode_count ?? 0) > 0
+  );
+  if (valid.length === 0) return null;
+
+  const genericMainTitles = new Set([
+    'bleach', 'naruto', 'one piece', 'gintama', 'dragon ball', 'boruto',
+    'fairy tail', 'black clover', 'jojo', 'jojos bizarre adventure',
+    'attack on titan', 'shingeki no kyojin', 'demon slayer', 'kimetsu no yaiba',
+    'my hero academia', 'boku no hero academia', 'jujutsu kaisen',
+    'sword art online', 'haikyuu', 'haikyu'
+  ]);
+
+  // Clean season names helper (removes "Season X:" prefix and "Arc" suffix)
+  const cleanSeason = (name?: string) => {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .replace(/^season\s+\d+\s*[:\-]?\s*/i, '')
+      .replace(/\s*arc$/i, '')
+      .trim();
+  };
+
+  // 1. Try matching season name with specific subtitle phrases / arc names
+  // Check from most specific (deepest subtitle) to broader franchise title
+  for (const str of titleStrings) {
+    if (!str) continue;
+    const parts = str
+      .split(/[:\-\u2013\u2014(]/)
+      .map((p) => p.replace(/[)\]]/g, '').trim().toLowerCase())
+      .filter((p) => p.length > 2 && !genericMainTitles.has(p))
+      .reverse(); // Most specific subtitle first (e.g. "The Separation" before "Thousand-Year Blood War")
+
+    for (const part of parts) {
+      const matches = valid.filter((s) => {
+        const sName = (s.name || '').toLowerCase().trim();
+        const sClean = cleanSeason(s.name);
+
+        if (sName && sName.includes(part)) return true;
+        if (sClean.length >= 4 && !sClean.startsWith('season') && !sClean.startsWith('special')) {
+          if (part.includes(sClean)) return true;
+        }
+        return false;
+      });
+
+      if (matches.length === 1) {
+        return matches[0];
+      } else if (matches.length > 1) {
+        // If multiple seasons match (e.g. Part 1 vs Part 2 of an arc), disambiguate by release year or episode count
+        if (releaseYear) {
+          const yearMatch = matches.find((s) => s.air_date?.startsWith(String(releaseYear)));
+          if (yearMatch) return yearMatch;
+        }
+        if (expectedEps) {
+          const countMatch = matches.find((s) => Math.abs(s.episode_count - expectedEps) <= 2);
+          if (countMatch) return countMatch;
+        }
+        return matches[0];
+      }
+    }
+  }
+
+  // 2. Try matching by season number in title (e.g. "Season 2", "2nd Season", "Part 2")
+  for (const str of titleStrings) {
+    if (!str) continue;
+    const sMatch = str.match(/season\s+(\d+)|(\d+)(?:nd|rd|th|st)\s+season|part\s+(\d+)/i);
+    const num = sMatch ? parseInt(sMatch[1] || sMatch[2] || sMatch[3], 10) : null;
+    if (num) {
+      const match = valid.find(
+        (s) => s.season_number === num || s.name?.toLowerCase().includes(`season ${num}`)
+      );
+      if (match) return match;
+    }
+  }
+
+  return null;
+}
+
 export const anilistApi = {
   getTrending: async (
     page = 1,
@@ -1143,13 +1232,30 @@ export const anilistApi = {
       const { movie, raw } = await anilistApi.getDetails(id);
       const streaming = raw.streamingEpisodes || [];
       const episodeMap = new Map<number, Episode>();
-      let tmdbEpisodeCount = 0;
+
+      const isOnePiece =
+        String(id) === '21' ||
+        movie.title?.toLowerCase().includes('one piece') ||
+        raw.title?.english?.toLowerCase().includes('one piece') ||
+        raw.title?.romaji?.toLowerCase().includes('one piece');
+
+      const nextAiring = raw.nextAiringEpisode?.episode;
+      const releasingCount = nextAiring ? nextAiring - 1 : 0;
+      let expectedEpisodeCount = movie.episodeCount || raw.episodes || releasingCount;
+      if (isOnePiece) {
+        expectedEpisodeCount = Math.max(expectedEpisodeCount, 1180);
+      }
 
       // 1. Seed with AniList streamingEpisodes (Crunchyroll, VRV, etc.)
       streaming.forEach((item, idx) => {
         const match = item.title?.match(/Episode\s+(\d+)/i);
         const epNum = match ? parseInt(match[1], 10) : idx + 1;
         if (epNum > 0) {
+          // If expected episode count is known, do not seed out-of-range episodes
+          if (expectedEpisodeCount > 0 && !isOnePiece && epNum > expectedEpisodeCount) {
+            return;
+          }
+
           const cleanTitle = item.title
             ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
             : `Episode ${epNum}`;
@@ -1169,6 +1275,12 @@ export const anilistApi = {
       // 2. Enrich with TMDB TV episodes (titles, overviews, and high-res screenshot stills)
       try {
         const queryTitle = movie.title || raw.title?.english || raw.title?.romaji || '';
+        const titleCandidates = [
+          raw.title?.english,
+          raw.title?.romaji,
+          movie.title,
+        ].filter((t): t is string => Boolean(t && t.trim()));
+
         if (queryTitle) {
           const searchRes = await api.searchTv(queryTitle);
           const bestTv = searchRes.results?.find((item: any) =>
@@ -1179,19 +1291,51 @@ export const anilistApi = {
           if (bestTv?.id) {
             const tvDetails = await request<{
               number_of_episodes?: number;
-              seasons?: Array<{ season_number: number; episode_count: number }>;
+              first_air_date?: string;
+              seasons?: Array<{ season_number: number; name?: string; episode_count: number; air_date?: string }>;
             }>(tmdbUrl(`/tv/${bestTv.id}`));
-
-            if (tvDetails.number_of_episodes) {
-              tmdbEpisodeCount = tvDetails.number_of_episodes;
-            }
 
             const validSeasons = (tvDetails.seasons || [])
               .filter((s) => s.season_number > 0 && s.episode_count > 0)
               .sort((a, b) => a.season_number - b.season_number);
 
-            if (validSeasons.length > 0) {
-              const seasonsToFetch = validSeasons.slice(0, 25);
+            const tmdbTotalEps = tvDetails.number_of_episodes || 0;
+            const tmdbAirYear = tvDetails.first_air_date
+              ? parseInt(tvDetails.first_air_date.slice(0, 4), 10)
+              : null;
+            const animeYear = raw.startDate?.year || movie.year || 0;
+
+            // Check if TMDB returned a parent franchise show rather than this specific anime release
+            const isFranchiseParent =
+              !isOnePiece &&
+              expectedEpisodeCount > 0 &&
+              validSeasons.length > 1 &&
+              (tmdbTotalEps > expectedEpisodeCount * 2 + 5 ||
+                Boolean(tmdbAirYear && animeYear && Math.abs(tmdbAirYear - animeYear) > 2));
+
+            let seasonsToFetch: Array<{ season_number: number; episode_count: number }> = [];
+
+            if (isFranchiseParent) {
+              // Locate the specific sequel/cour season inside the parent franchise
+              const matchedSeason = findMatchingSeason(
+                validSeasons,
+                titleCandidates,
+                animeYear,
+                expectedEpisodeCount
+              );
+
+              if (matchedSeason) {
+                seasonsToFetch = [matchedSeason];
+              } else {
+                // If it's a parent franchise show and no season matches, do NOT import unrelated episodes!
+                seasonsToFetch = [];
+              }
+            } else if (validSeasons.length > 0) {
+              // Direct match (standalone anime or continuous series like One Piece)
+              seasonsToFetch = validSeasons.slice(0, 25);
+            }
+
+            if (seasonsToFetch.length > 0) {
               const seasonResults: PromiseSettledResult<{ id?: number; name?: string; episodes?: TmdbEpisode[] }>[] = [];
               for (let i = 0; i < seasonsToFetch.length; i += 5) {
                 const batch = seasonsToFetch.slice(i, i + 5);
@@ -1205,10 +1349,20 @@ export const anilistApi = {
               for (const res of seasonResults) {
                 if (res.status === 'fulfilled' && res.value.episodes && res.value.episodes.length > 0) {
                   const firstEp = res.value.episodes[0];
-                  // If TMDB numbering is already absolute (e.g. One Piece Season 2 Ep 1 is 62), use tmdbEp.episode_number
-                  const isAbsolute = firstEp.episode_number >= runningEpisodeNum;
+                  // If we are fetching an isolated sequel season (e.g. Bleach TYBW Season 17),
+                  // episode numbers within that season map directly to 1..N
+                  const isSingleSequelSeason = isFranchiseParent && seasonsToFetch.length === 1;
+                  const isAbsolute = !isSingleSequelSeason && firstEp.episode_number >= runningEpisodeNum;
+
                   for (const tmdbEp of res.value.episodes) {
-                    const epNum = isAbsolute ? tmdbEp.episode_number : runningEpisodeNum;
+                    const epNum = isSingleSequelSeason
+                      ? tmdbEp.episode_number
+                      : (isAbsolute ? tmdbEp.episode_number : runningEpisodeNum);
+
+                    // If expected count is known, do not import out-of-range episodes
+                    if (expectedEpisodeCount > 0 && !isOnePiece && epNum > expectedEpisodeCount) {
+                      continue;
+                    }
 
                     const stillUrl = tmdbEp.still_path
                       ? api.getImageUrl(tmdbEp.still_path, 'w500')
@@ -1221,7 +1375,7 @@ export const anilistApi = {
 
                     episodeMap.set(epNum, {
                       id: `ep-${epNum}`,
-                      season: tmdbEp.season_number || 1,
+                      season: isSingleSequelSeason ? 1 : (tmdbEp.season_number || 1),
                       episode: epNum,
                       title: epTitle,
                       duration: tmdbEp.runtime ? `${tmdbEp.runtime}m` : existing?.duration || (raw.duration ? `${raw.duration}m` : '24m'),
@@ -1239,31 +1393,31 @@ export const anilistApi = {
         console.warn('TMDB episode enrichment error:', tmdbErr);
       }
 
-      // 3. Fallback to Jikan (MyAnimeList) if any titles are still generic "Episode X"
-      let targetCount = Math.max(
-        movie.episodeCount || 0,
-        tmdbEpisodeCount,
-        fallbackCount,
-        episodeMap.size
-      );
-      const isOnePiece =
-        String(id) === '21' ||
-        movie.title?.toLowerCase().includes('one piece') ||
-        raw.title?.english?.toLowerCase().includes('one piece') ||
-        raw.title?.romaji?.toLowerCase().includes('one piece');
+      // 3. Fallback to Jikan (MyAnimeList) for accurate titles if still generic
+      let targetCount = expectedEpisodeCount > 0
+        ? expectedEpisodeCount
+        : Math.max(fallbackCount, episodeMap.size);
+
       if (isOnePiece) {
         targetCount = Math.max(targetCount, 1180);
       }
 
-      const hasGenericTitles = Array.from(episodeMap.values()).some((ep) => ep.title === `Episode ${ep.episode}`);
+      const hasGenericTitles = Array.from(episodeMap.values()).some(
+        (ep) => !ep.title || ep.title === `Episode ${ep.episode}`
+      );
       if (raw.idMal && (episodeMap.size < targetCount || hasGenericTitles)) {
         try {
           const jikanRes = await fetch(`https://api.jikan.moe/v4/anime/${raw.idMal}/episodes`);
           if (jikanRes.ok) {
             const jikanJson = await jikanRes.json();
-            const jikanEpisodes: Array<{ mal_id: number; title?: string; title_romanji?: string }> = jikanJson.data || [];
+            const jikanEpisodes: Array<{ mal_id: number; title?: string; title_romanji?: string }> =
+              jikanJson.data || [];
             for (const jEp of jikanEpisodes) {
               const epNum = jEp.mal_id;
+              if (expectedEpisodeCount > 0 && !isOnePiece && epNum > expectedEpisodeCount) {
+                continue;
+              }
+
               const epTitle = jEp.title || jEp.title_romanji;
               if (epTitle && epNum > 0) {
                 const existing = episodeMap.get(epNum);
@@ -1290,9 +1444,11 @@ export const anilistApi = {
         }
       }
 
-      // 4. Fill in any remaining episodes up to targetCount
+      // 4. Fill in any remaining episodes strictly up to targetCount
       const finalEpisodes: Episode[] = [];
-      const totalToGenerate = Math.max(targetCount, episodeMap.size);
+      const totalToGenerate = (!isOnePiece && expectedEpisodeCount > 0)
+        ? expectedEpisodeCount
+        : Math.max(targetCount, episodeMap.size);
 
       for (let i = 1; i <= totalToGenerate; i++) {
         const ep = episodeMap.get(i);
