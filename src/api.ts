@@ -1391,9 +1391,27 @@ export const anilistApi = {
       }
 
       // 1. Seed with AniList streamingEpisodes (Crunchyroll, VRV, etc.)
+      // Detect series-level numbering for sequel cours (e.g., Cour 2 eps numbered 14-26)
+      // and remap to cour-local numbers (1-13)
+      const rawEpNums: number[] = [];
+      for (const item of streaming) {
+        const match = item.title?.match(/Episode\s+(\d+)/i);
+        if (match) rawEpNums.push(parseInt(match[1], 10));
+      }
+      // Compute offset: if ALL parsed numbers exceed actualEpisodeCount, they use series numbering
+      let streamingOffset = 0;
+      if (
+        rawEpNums.length > 0 &&
+        actualEpisodeCount > 0 &&
+        rawEpNums.every((n) => n > actualEpisodeCount)
+      ) {
+        streamingOffset = Math.min(...rawEpNums) - 1; // e.g., min=14 → offset=13 → ep14 becomes ep1
+      }
+
       streaming.forEach((item, idx) => {
         const match = item.title?.match(/Episode\s+(\d+)/i);
-        const epNum = match ? parseInt(match[1], 10) : idx + 1;
+        const rawNum = match ? parseInt(match[1], 10) : idx + 1;
+        const epNum = rawNum - streamingOffset;
         if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
           const cleanTitle = item.title
             ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
@@ -1559,9 +1577,12 @@ export const anilistApi = {
                   );
                   if (matched) {
                     seasonsToFetch = [matched.season_number];
-                  } else {
+                  } else if (actualEpisodeCount >= 100) {
+                    // Only fall back to first 3 seasons for long-running shows (100+ eps)
+                    // Short cours (like TYBW 13-ep parts) should NOT pull random early seasons
                     seasonsToFetch = validSeasons.slice(0, 3).map((s) => s.season_number);
                   }
+                  // else: seasonsToFetch stays empty → skip TMDB season enrichment for this cour
                 }
 
                 let currentOffset = 0;
@@ -1639,22 +1660,96 @@ export const anilistApi = {
               raw.title?.english,
               raw.title?.romaji,
               movie.title,
-            ].filter((t): t is string => Boolean(t && t.trim())).slice(0, 2);
+            ].filter((t): t is string => Boolean(t && t.trim())).slice(0, 3);
+
+            const anilistYear = raw.startDate?.year || movie.year || 0;
+
+            // Extract cour subtitle for validation (e.g., "The Separation", "The Conflict", "The Calamity")
+            // Split on common delimiters and take the last meaningful part
+            const courSubtitles: string[] = [];
+            for (const t of titleCandidates) {
+              const parts = t.split(/[:\-\u2013\u2014]/).map((p) => p.trim().toLowerCase()).filter((p) => p.length > 3);
+              if (parts.length > 1) {
+                // Last part is most specific (e.g., "the calamity" from "BLEACH: Thousand-Year Blood War - The Calamity")
+                courSubtitles.push(parts[parts.length - 1]);
+                if (parts.length > 2) courSubtitles.push(parts[parts.length - 2]);
+              }
+            }
+
+            let kitsuVerified = false;
 
             for (const cand of titleCandidates) {
               const kitsuRes = await fetchWithTimeout(
-                `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(cand)}`,
+                `https://kitsu.io/api/edge/anime?filter[text]=${encodeURIComponent(cand)}&page[limit]=5`,
                 { headers: { Accept: 'application/vnd.api+json' } },
-                2000
+                3000
               );
               if (!kitsuRes.ok) continue;
               const kitsuData = await kitsuRes.json();
-              const kItem = kitsuData.data?.[0];
-              if (!kItem?.id) continue;
+              const kitsuResults: any[] = kitsuData.data || [];
+              if (kitsuResults.length === 0) continue;
+
+              // Find the best matching Kitsu entry for this specific cour
+              let bestKitsu: any = null;
+              let bestScore = -1;
+
+              for (const kItem of kitsuResults) {
+                if (!kItem?.id) continue;
+                const kAttrs = kItem.attributes || {};
+                const kEpCount = kAttrs.episodeCount || 0;
+                const kYear = kAttrs.startDate ? parseInt(kAttrs.startDate.substring(0, 4), 10) : 0;
+                const kTitles = [
+                  kAttrs.canonicalTitle,
+                  kAttrs.titles?.en,
+                  kAttrs.titles?.en_us,
+                  kAttrs.titles?.en_jp,
+                  kAttrs.titles?.ja_jp,
+                ].filter(Boolean).map((s: string) => s.toLowerCase());
+
+                let score = 0;
+
+                // Episode count match (within ±3): strong signal
+                if (kEpCount > 0 && Math.abs(kEpCount - actualEpisodeCount) <= 3) {
+                  score += 30;
+                } else if (kEpCount > 0 && Math.abs(kEpCount - actualEpisodeCount) > 10) {
+                  score -= 20; // Very different count, probably wrong entry
+                }
+
+                // Year match: strong signal
+                if (kYear > 0 && anilistYear > 0) {
+                  if (kYear === anilistYear) score += 25;
+                  else if (Math.abs(kYear - anilistYear) === 1) score += 10;
+                  else if (Math.abs(kYear - anilistYear) > 2) score -= 15;
+                }
+
+                // Cour subtitle match: strongest signal for multi-cour franchises
+                if (courSubtitles.length > 0) {
+                  const hasSubtitleMatch = courSubtitles.some((sub) =>
+                    kTitles.some((kt: string) => kt.includes(sub))
+                  );
+                  if (hasSubtitleMatch) {
+                    score += 40; // Subtitle match is the most reliable signal
+                  } else {
+                    // If we have a specific subtitle but Kitsu entry doesn't have it,
+                    // this is likely the wrong cour
+                    score -= 10;
+                  }
+                }
+
+                if (score > bestScore) {
+                  bestScore = score;
+                  bestKitsu = kItem;
+                }
+              }
+
+              // Only accept if we have a reasonable confidence score
+              // For multi-cour anime with subtitles, we need at least a subtitle or year+count match
+              if (!bestKitsu || (courSubtitles.length > 0 && bestScore < 10)) continue;
+              kitsuVerified = bestScore >= 20;
 
               const limit = Math.min(20, Math.max(1, actualEpisodeCount));
               const epRes = await fetchWithTimeout(
-                `https://kitsu.io/api/edge/anime/${kItem.id}/episodes?page[limit]=${limit}&sort=number`,
+                `https://kitsu.io/api/edge/anime/${bestKitsu.id}/episodes?page[limit]=${limit}&sort=number`,
                 { headers: { Accept: 'application/vnd.api+json' } },
                 2000
               );
@@ -1664,7 +1759,7 @@ export const anilistApi = {
 
               if (actualEpisodeCount > 20 && !isOnePiece) {
                 const p2Res = await fetchWithTimeout(
-                  `https://kitsu.io/api/edge/anime/${kItem.id}/episodes?page[limit]=20&page[offset]=20&sort=number`,
+                  `https://kitsu.io/api/edge/anime/${bestKitsu.id}/episodes?page[limit]=20&page[offset]=20&sort=number`,
                   { headers: { Accept: 'application/vnd.api+json' } },
                   2000
                 );
@@ -1697,7 +1792,13 @@ export const anilistApi = {
                   if (!existing.thumbnail && epThumb) {
                     existing.thumbnail = epThumb;
                   }
-                  if (epTitle && (!existing.title || existing.title === `Episode ${epNum}` || (!isOnePiece && actualEpisodeCount <= 50))) {
+                  // Only overwrite title if:
+                  // - Existing title is generic ("Episode X")
+                  // - OR the Kitsu entry was verified to match this specific cour
+                  if (
+                    epTitle &&
+                    (!existing.title || existing.title === `Episode ${epNum}` || kitsuVerified)
+                  ) {
                     existing.title = epTitle;
                   }
                   if (!existing.description && epDesc) {

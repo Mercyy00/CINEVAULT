@@ -92,9 +92,21 @@ export function AnimeDetail({ id }: { id: string }) {
         const fallbackImg = mappedMovie.backdropUrl || mappedMovie.posterUrl || '';
 
         const seededMap = new Map<number, any>();
+        // Detect series-level numbering for sequel cours (e.g., Cour 2 eps numbered 14-26)
+        const parsedNums: number[] = [];
+        for (const item of streaming) {
+          const m = item.title?.match(/Episode\s+(\d+)/i);
+          if (m) parsedNums.push(parseInt(m[1], 10));
+        }
+        let seedOffset = 0;
+        if (parsedNums.length > 0 && actualCount > 0 && parsedNums.every((n) => n > actualCount)) {
+          seedOffset = Math.min(...parsedNums) - 1;
+        }
+
         streaming.forEach((item, idx) => {
           const match = item.title?.match(/Episode\s+(\d+)/i);
-          const epNum = match ? parseInt(match[1], 10) : idx + 1;
+          const rawNum = match ? parseInt(match[1], 10) : idx + 1;
+          const epNum = rawNum - seedOffset;
           if (epNum > 0 && (isOnePiece || epNum <= actualCount)) {
             const cleanTitle = item.title
               ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
