@@ -100,6 +100,7 @@ export interface UserProfile {
   showSpoilers: boolean;
   autoPlayNext: boolean;
   reducedMotion: boolean;
+  displayMode?: 'auto' | 'mobile' | 'desktop';
 }
 
 export interface ProfileItem {
@@ -123,6 +124,7 @@ export interface Toast {
 export type AuthStatus = 'loading' | 'signed-in' | 'signed-out';
 
 interface AppContextType {
+  isMobileView: boolean;
   watchlist: WatchlistItem[];
   addToWatchlist: (movie: Movie) => void;
   removeFromWatchlist: (movieId: string) => void;
@@ -248,7 +250,15 @@ export function sanitizeUserPreferences(raw: unknown): UserPreference[] {
     } else if (typeof item === 'object') {
       const rawLabel = (item as any).label;
       const rawName = (item as any).name;
-      const rawGenres = String((item as any).genres || (item as any).id || '');
+      
+      let rawGenres = '';
+      if (typeof (item as any).genres === 'string' || typeof (item as any).genres === 'number') {
+        rawGenres = String((item as any).genres);
+      } else if ((item as any).genres && typeof (item as any).genres === 'object') {
+        rawGenres = String((item as any).genres.id || (item as any).genres.genres || '');
+      } else if (typeof (item as any).id === 'string' || typeof (item as any).id === 'number') {
+        rawGenres = String((item as any).id);
+      }
       
       const label =
         typeof rawLabel === 'string' && rawLabel.trim() && rawLabel !== 'undefined'
@@ -317,6 +327,7 @@ function buildDefaultProfile(uid: string): UserProfile {
     showSpoilers: false,
     autoPlayNext: true,
     reducedMotion: false,
+    displayMode: 'auto',
   };
 }
 
@@ -432,6 +443,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [profiles, activeProfileId]);
 
   const isKidsMode = Boolean(activeProfile.isKids);
+
+  const [isMobileScreen, setIsMobileScreen] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
+
+  useEffect(() => {
+    const checkScreen = () => {
+      setIsMobileScreen(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', checkScreen);
+    return () => window.removeEventListener('resize', checkScreen);
+  }, []);
+
+  const isMobileView = useMemo(() => {
+    if (userProfile.displayMode === 'mobile') return true;
+    if (userProfile.displayMode === 'desktop') return false;
+    return isMobileScreen;
+  }, [userProfile.displayMode, isMobileScreen]);
 
   useEffect(() => {
     writeJSON(StorageKeys.profiles, profiles);
@@ -1121,6 +1150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * context re-rendered on any state change anywhere in the app. */
   const value = useMemo<AppContextType>(
     () => ({
+      isMobileView,
       watchlist,
       addToWatchlist,
       removeFromWatchlist,
@@ -1178,6 +1208,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAuthModalMode,
     }),
     [
+      isMobileView,
       watchlist,
       addToWatchlist,
       removeFromWatchlist,

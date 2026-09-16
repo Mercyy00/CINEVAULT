@@ -12,9 +12,10 @@ import { PosterImage } from './PosterImage';
 import { Breadcrumbs } from './Breadcrumbs';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 import { navigate, goToWatch, goToDetail } from '../lib/navigation';
+import { triggerHaptic } from '../lib/mobile';
 
 export function AnimeDetail({ id }: { id: string }) {
-  const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor } = useApp();
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor, showToast } = useApp();
   const [movie, setMovie] = useState<Movie | null>(null);
   const [cast, setCast] = useState<any[]>([]);
   const [relations, setRelations] = useState<AnimeRelation[]>([]);
@@ -29,6 +30,7 @@ export function AnimeDetail({ id }: { id: string }) {
   const inWatchlist = movie ? isInWatchlist(movie.id) : false;
   const progressItem = continueWatching.find(i => i.id.toString() === id);
   const hasProgress = progressItem && (progressItem.progress_percentage || 0) > 0;
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   useEffect(() => {
     if (movie) {
@@ -225,6 +227,7 @@ export function AnimeDetail({ id }: { id: string }) {
 
   const handleWatchlistToggle = (e: React.MouseEvent) => {
     if (!movie) return;
+    triggerHaptic('medium');
     if (inWatchlist) {
       removeFromWatchlist(movie.id);
     } else {
@@ -251,6 +254,7 @@ export function AnimeDetail({ id }: { id: string }) {
 
   const handleShare = async () => {
     if (!movie) return;
+    triggerHaptic('selection');
     const shareData = {
       title: `CineVault: ${movie.title}`,
       text: `Watch ${movie.title} on CineVault!`,
@@ -259,11 +263,14 @@ export function AnimeDetail({ id }: { id: string }) {
     if (navigator.share) {
       try {
         await navigator.share(shareData);
+        triggerHaptic('success');
       } catch (e) {
         console.error("Share failed", e);
       }
     } else {
       navigator.clipboard.writeText(window.location.href);
+      showToast('Link copied to clipboard!');
+      triggerHaptic('success');
     }
   };
 
@@ -382,13 +389,57 @@ export function AnimeDetail({ id }: { id: string }) {
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" /> Back
         </motion.button>
 
+        {/* Mobile Header: Side-by-side poster + primary metadata */}
+        <div className="flex sm:hidden items-start gap-4 mb-5">
+          <div className="w-28 aspect-[2/3] rounded-xl overflow-hidden border border-white/15 relative shadow-card shrink-0">
+            <PosterImage
+              src={movie.posterUrl}
+              title={movie.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-display font-black text-foreground mb-2 leading-tight drop-shadow-md">
+              {movie.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/80 mb-2.5">
+              <div className="flex items-center gap-1 text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20 font-mono font-bold">
+                <Star className="w-3 h-3 fill-current" />
+                <span>{formatRating(movie.rating)}</span>
+              </div>
+              <span className="font-mono">{movie.year || '—'}</span>
+              {movie.duration && (
+                <>
+                  <span>•</span>
+                  <span>{movie.duration}</span>
+                </>
+              )}
+              {movie.ageRating && (
+                <span className="px-1.5 py-0.2 border border-white/20 rounded text-[10px] font-mono">
+                  {movie.ageRating}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {movie.genres?.slice(0, 3).map((g) => (
+                <span
+                  key={g}
+                  className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-foreground/70 text-[10px] font-mono"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 mb-16">
-          {/* Poster */}
+          {/* Desktop Poster */}
           <motion.div 
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="w-full max-w-[320px] mx-auto lg:mx-0 shrink-0 relative group"
+            className="hidden sm:block w-full max-w-[320px] mx-auto lg:mx-0 shrink-0 relative group"
             style={{ perspective: 1000 }}
           >
             <motion.div 
@@ -411,18 +462,18 @@ export function AnimeDetail({ id }: { id: string }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex-1 pt-8 lg:pt-0"
           >
-            <h1 className="text-4xl md:text-6xl font-display font-bold text-foreground mb-4 leading-tight drop-shadow-lg">
+            <h1 className="hidden sm:block text-4xl md:text-6xl font-display font-bold text-foreground mb-4 leading-tight drop-shadow-lg">
               {movie.title}
             </h1>
 
             {movie.tagline && (
-              <p className="text-xl md:text-2xl font-display italic text-foreground/80 mb-6">
+              <p className="text-sm sm:text-2xl font-display italic text-foreground/80 mb-6">
                 "{movie.tagline}"
               </p>
             )}
 
             {/* Metadata Badges */}
-            <div className="flex flex-wrap items-center gap-4 text-sm font-medium text-foreground/80 mb-8">
+            <div className="hidden sm:flex flex-wrap items-center gap-4 text-sm font-medium text-foreground/80 mb-8">
               <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">
                 <Star className="w-4 h-4 fill-current" />
                 <span className="ml-1 font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
@@ -437,19 +488,34 @@ export function AnimeDetail({ id }: { id: string }) {
               ))}
             </div>
 
-            <p className="text-base sm:text-lg text-muted-foreground mb-8 leading-relaxed max-w-4xl">
-              {movie.description}
-            </p>
+            {/* Collapsible Overview */}
+            <div className="mb-8">
+              <p className={cn(
+                "text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-4xl",
+                !showFullDesc && "line-clamp-3 sm:line-clamp-none"
+              )}>
+                {movie.description}
+              </p>
+              {movie.description && movie.description.length > 180 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullDesc(!showFullDesc)}
+                  className="sm:hidden text-xs text-brand font-semibold mt-1.5 cursor-pointer block hover:underline"
+                >
+                  {showFullDesc ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mb-12">
               {hasProgress ? (
                 <>
                   <button 
                     onClick={() => {
                       goToWatch(id, 'anime', undefined, progressItem?.episode_number || selectedEpisode, movie.malId || '0');
                     }}
-                    className="px-6 py-3 bg-brand hover:bg-brand/90 text-background font-bold rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-sm sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 active:scale-95 cursor-pointer"
                   >
                     <Play className="w-5 h-5 fill-current" />
                     Continue Ep {progressItem?.episode_number || selectedEpisode}
@@ -458,7 +524,7 @@ export function AnimeDetail({ id }: { id: string }) {
                     onClick={() => {
                       goToWatch(id, 'anime', undefined, 1, movie.malId || '0');
                     }}
-                    className="px-6 py-3 glass hover:bg-white/15 text-foreground font-bold rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 cursor-pointer"
+                    className="w-full sm:w-auto px-6 py-3 glass hover:bg-white/15 text-foreground font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 cursor-pointer"
                   >
                     <Play className="w-4 h-4" />
                     Watch From Ep 1
@@ -469,32 +535,36 @@ export function AnimeDetail({ id }: { id: string }) {
                   onClick={() => {
                     goToWatch(id, 'anime', undefined, selectedEpisode, movie.malId || '0');
                   }}
-                  className="px-6 py-3 bg-brand hover:bg-brand/90 text-background font-bold rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
+                  className="w-full sm:w-auto px-6 py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-sm sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 active:scale-95 cursor-pointer"
                 >
                   <Play className="w-5 h-5 fill-current" />
                   Watch Now
                 </button>
               )}
 
-              <button 
-                onClick={handleWatchlistToggle}
-                className={cn(
-                  "px-6 py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium cursor-pointer",
-                  inWatchlist 
-                    ? "bg-white/10 border-white/20 text-foreground hover:bg-white/20" 
-                    : "glass border-white/10 text-foreground hover:bg-white/15"
-                )}
-              >
-                {inWatchlist ? <Check className="w-5 h-5 text-brand" /> : <Plus className="w-5 h-5" />}
-                {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
-              </button>
+              {/* Secondary Buttons Row */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={handleWatchlistToggle}
+                  className={cn(
+                    "flex-1 sm:flex-none px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium text-xs sm:text-base cursor-pointer active:scale-95",
+                    inWatchlist 
+                      ? "bg-white/10 border-white/20 text-foreground hover:bg-white/20" 
+                      : "glass border-white/10 text-foreground hover:bg-white/15"
+                  )}
+                >
+                  {inWatchlist ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-brand" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
+                </button>
 
-              <button 
-                onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-3 rounded-full font-medium transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 cursor-pointer"
-              >
-                <Share2 className="w-5 h-5" /> Share
-              </button>
+                <button 
+                  onClick={handleShare}
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium text-xs sm:text-base transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                >
+                  <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Share</span>
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

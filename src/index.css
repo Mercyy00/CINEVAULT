@@ -1219,3 +1219,59 @@
   background: linear-gradient(135deg, rgba(255, 149, 92, 0.7) 0%, rgba(196, 81, 34, 0.4) 50%, rgba(255, 220, 200, 0.2) 100%) !important;
   box-shadow: 0 0 30px rgba(240, 100, 40, 0.35), 0 20px 45px -10px rgba(0, 0, 0, 0.9) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Mobile Ergonomics, Touch Physics & Hardware Safe Areas
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Remove mobile WebKit tap highlight and enforce 0ms tap delay */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+/* Hardware notch / home bar safe-area insets */
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+}
+
+.safe-top {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+}
+
+.safe-left {
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+}
+
+.safe-right {
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+.safe-area-all {
+  padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+}
+
+/* Mobile momentum scroll */
+.custom-scrollbar,
+.overflow-x-auto,
+.overflow-y-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile active tap state helper */
+.tap-active:active {
+  transform: scale(0.96);
+  transition: transform 0.1s ease-out;
+}
+

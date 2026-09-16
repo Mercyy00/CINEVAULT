@@ -22,6 +22,8 @@ import { ConsentBanner } from './components/ConsentBanner';
 
 import { ROUTE_SEO, updateSeoMetadata } from './lib/seo';
 import { BackToTop } from './components/BackToTop';
+import { NetworkStatusBanner } from './components/NetworkStatusBanner';
+import { PwaInstallBanner } from './components/PwaInstallBanner';
 
 const MovieDetail = lazy(() =>
   import('./components/MovieDetail').then((m) => ({ default: m.MovieDetail }))
@@ -686,7 +688,13 @@ function AppContent() {
                 const res = await anilistApi.getByCategory('anime', page);
                 return { results: res.results };
               }
-              return api.discover(pref.type ?? 'movie', { with_genres: pref.genres, page });
+              const genreId =
+                typeof pref.genres === 'string'
+                  ? pref.genres
+                  : typeof (pref.genres as any)?.id === 'string' || typeof (pref.genres as any)?.id === 'number'
+                    ? String((pref.genres as any).id)
+                    : String((pref as any).id || '');
+              return api.discover(pref.type ?? 'movie', { with_genres: genreId, page });
             }}
             onMovieSelect={goToDetail}
           />
@@ -1113,8 +1121,11 @@ function AppContent() {
             question was never actually put to anyone. */}
         <ConsentBanner route={currentRoute} />
 
+        <NetworkStatusBanner />
+        <PwaInstallBanner />
+
         <div
-          className="fixed bottom-24 right-6 z-[200] flex flex-col gap-2"
+          className="fixed bottom-20 sm:bottom-24 inset-x-4 sm:inset-x-auto sm:right-6 z-[200] flex flex-col gap-2 items-center sm:items-end pointer-events-none"
           aria-live="polite"
           aria-atomic="true"
         >
@@ -1122,11 +1133,11 @@ function AppContent() {
             {toasts.map((toast) => (
               <motion.div
                 key={toast.id}
-                initial={{ opacity: 0, y: 20, x: 20 }}
-                animate={{ opacity: 1, y: 0, x: 0 }}
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
                 layout
-                className="glass border border-brand/30 text-foreground px-6 py-4 rounded-xl font-medium shadow-card"
+                className="glass border border-brand/30 text-foreground px-5 sm:px-6 py-3 sm:py-4 rounded-xl font-medium shadow-card pointer-events-auto text-xs sm:text-sm text-center sm:text-left"
               >
                 {toast.message}
               </motion.div>

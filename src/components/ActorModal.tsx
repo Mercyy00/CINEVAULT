@@ -85,7 +85,7 @@ export function ActorModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[110] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+      <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-6 overflow-y-auto">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -101,8 +101,11 @@ export function ActorModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 20 }}
           transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full max-w-4xl bg-[#0d0e14] border border-white/15 rounded-3xl overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,0.95)] z-10 max-h-[90vh] flex flex-col"
+          className="relative w-full max-w-4xl bg-[#0d0e14] border-t sm:border border-white/15 rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-[0_30px_90px_rgba(0,0,0,0.95)] z-10 max-h-[88vh] sm:max-h-[90vh] flex flex-col safe-bottom"
         >
+          {/* Mobile drag handle indicator */}
+          <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mt-3 -mb-1 sm:hidden shrink-0 cursor-grab" aria-hidden="true" />
+
           {/* Header Bar */}
           <div className="flex items-center justify-between p-5 sm:p-6 border-b border-white/10 shrink-0">
             <div className="flex items-center gap-3">

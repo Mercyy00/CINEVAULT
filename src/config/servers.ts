@@ -139,16 +139,28 @@ export const STREAM_SOURCES: StreamSource[] = [
         : `https://cinesrc.st/embed/movie/${id}`,
   },
   {
-    id: 'vidsync',
-    name: 'VidSync',
-    quality: 'HD',
+    id: 'vidfast',
+    name: 'VidFast Pro',
+    quality: '1080p',
     language: 'english',
     latencyMs: null,
     status: 'unknown',
     buildUrl: ({ id, season, episode }) =>
       season && episode
-        ? `https://vidsync.xyz/embed/tv/${id}/${season}/${episode}?autoPlay=true`
-        : `https://vidsync.xyz/embed/movie/${id}?autoPlay=true`,
+        ? `https://vidfast.pro/tv/${id}/${season}/${episode}?autoPlay=true`
+        : `https://vidfast.pro/movie/${id}?autoPlay=true`,
+  },
+  {
+    id: 'vidsrc-pm',
+    name: 'VidSrc PM',
+    quality: '1080p',
+    language: 'english',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode }) =>
+      season && episode
+        ? `https://vidsrc.pm/embed/tv/${id}/${season}/${episode}`
+        : `https://vidsrc.pm/embed/movie/${id}`,
   },
 ];
 
@@ -172,7 +184,8 @@ export const TRUSTED_PLAYER_ORIGINS = new Set([
   'https://videasy.net',
   'https://player.videasy.to',
   'https://videasy.to',
-  'https://vidsync.xyz',
+  'https://vidfast.pro',
+  'https://vidsrc.pm',
 ]);
 
 export function findSource(id: string | undefined): StreamSource | undefined {

@@ -76,10 +76,7 @@ export function ContinueWatchingRow() {
         onMouseLeave={handleMouseLeave}
         onMouseUp={handleMouseUp}
         onMouseMove={handleMouseMove}
-        onTouchStart={handleMouseDown}
-        onTouchEnd={handleMouseUp}
-        onTouchMove={handleMouseMove}
-        className="flex gap-4 overflow-x-auto scrollbar-none pb-4 select-none"
+        className="flex gap-4 overflow-x-auto scroll-smooth snap-x overscroll-x-contain scrollbar-none pb-4 select-none will-change-scroll"
       >
         {displayItems.map((item, idx) => (
           <motion.div

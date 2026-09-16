@@ -25,6 +25,7 @@ import { ActorModal } from './ActorModal';
 import { Breadcrumbs } from './Breadcrumbs';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 import { navigate, goToWatch, goToDetail } from '../lib/navigation';
+import { triggerHaptic } from '../lib/mobile';
 
 export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) {
   const { isInWatchlist, addToWatchlist, removeFromWatchlist, continueWatching, setAmbientColor, showToast } = useApp();
@@ -49,6 +50,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
 
   const progressItem = continueWatching.find((i) => i.id.toString() === id);
   const hasProgress = progressItem && (progressItem.progress_percentage || 0) > 0;
+  const [showFullDesc, setShowFullDesc] = useState(false);
 
   useEffect(() => {
     if (movie) {
@@ -254,6 +256,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
   const inWatchlist = isInWatchlist(movie.id);
 
   const handleWatchlistToggle = () => {
+    triggerHaptic('medium');
     if (inWatchlist) {
       removeFromWatchlist(movie.id);
     } else {
@@ -262,6 +265,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
   };
 
   const handleShare = () => {
+    triggerHaptic('selection');
     if (navigator.share) {
       navigator
         .share({
@@ -269,10 +273,12 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           text: `Check out ${movie.title} (${movie.year}) on CineVault!`,
           url: window.location.href,
         })
+        .then(() => triggerHaptic('success'))
         .catch(() => {});
     } else {
       navigator.clipboard.writeText(window.location.href);
       showToast('Link copied to clipboard!');
+      triggerHaptic('success');
     }
   };
 
@@ -322,13 +328,57 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         </motion.button>
 
         {/* ═══ HERO HEADER: POSTER + SYNOPSIS & ACTIONS ═══ */}
+        {/* Mobile Header: Side-by-side poster + primary metadata */}
+        <div className="flex sm:hidden items-start gap-4 mb-5">
+          <div className="w-28 aspect-[2/3] rounded-2xl overflow-hidden border border-white/15 relative shadow-card shrink-0">
+            <PosterImage
+              src={movie.posterUrl}
+              title={movie.title}
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-display font-black text-foreground mb-2 leading-tight drop-shadow-md">
+              {movie.title}
+            </h1>
+            <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/80 mb-2.5">
+              <div className="flex items-center gap-1 text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20 font-mono font-bold">
+                <Star className="w-3 h-3 fill-current" />
+                <span>{formatRating(movie.rating)}</span>
+              </div>
+              <span className="font-mono">{movie.year || '—'}</span>
+              {movie.duration && (
+                <>
+                  <span>•</span>
+                  <span>{movie.duration}</span>
+                </>
+              )}
+              {movie.ageRating && (
+                <span className="px-1.5 py-0.2 border border-white/20 rounded text-[10px] font-mono">
+                  {movie.ageRating}
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {movie.genres?.slice(0, 3).map((g) => (
+                <span
+                  key={g}
+                  className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-foreground/70 text-[10px] font-mono"
+                >
+                  {g}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="flex flex-col lg:flex-row gap-8 lg:gap-14 mb-14 items-start">
-          {/* Poster */}
+          {/* Desktop Poster */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="w-full max-w-[220px] sm:max-w-[280px] lg:max-w-[320px] mx-auto lg:mx-0 shrink-0 relative group"
+            className="hidden sm:block w-full max-w-[220px] sm:max-w-[280px] lg:max-w-[320px] mx-auto lg:mx-0 shrink-0 relative group"
           >
             <div className="aspect-[2/3] rounded-2xl overflow-hidden border border-white/15 relative shadow-card">
               <PosterImage
@@ -346,7 +396,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             transition={{ duration: 0.5, delay: 0.15 }}
             className="flex-1 min-w-0 w-full"
           >
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-display font-extrabold text-foreground mb-3 leading-tight drop-shadow-lg">
+            <h1 className="hidden sm:block text-3xl sm:text-5xl lg:text-6xl font-display font-extrabold text-foreground mb-3 leading-tight drop-shadow-lg">
               {movie.title}
             </h1>
 
@@ -361,12 +411,12 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             )}
 
             {movie.tagline && (
-              <p className="text-base sm:text-xl font-display italic text-foreground/80 mb-4">
+              <p className="text-sm sm:text-xl font-display italic text-foreground/80 mb-4">
                 "{movie.tagline}"
               </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-foreground/80 mb-6">
+            <div className="hidden sm:flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-foreground/80 mb-6">
               <div className="flex items-center gap-1 text-brand bg-brand/10 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full border border-brand/20">
                 <Star className="w-3.5 h-3.5 fill-current" />
                 <span className="ml-1 font-bold tracking-wide">
@@ -393,12 +443,27 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               ))}
             </div>
 
-            <p className="text-sm sm:text-base md:text-lg text-muted-foreground mb-8 leading-relaxed max-w-4xl">
-              {movie.description}
-            </p>
+            {/* Description with Mobile Read More */}
+            <div className="mb-8">
+              <p className={cn(
+                "text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-4xl",
+                !showFullDesc && "line-clamp-3 sm:line-clamp-none"
+              )}>
+                {movie.description}
+              </p>
+              {movie.description && movie.description.length > 180 && (
+                <button
+                  type="button"
+                  onClick={() => setShowFullDesc(!showFullDesc)}
+                  className="sm:hidden text-xs text-brand font-semibold mt-1.5 cursor-pointer block hover:underline"
+                >
+                  {showFullDesc ? 'Show less' : 'Read more'}
+                </button>
+              )}
+            </div>
 
             {/* Action Buttons */}
-            <div className="flex flex-wrap gap-2.5 sm:gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-4">
               {hasProgress ? (
                 <>
                   <button
@@ -410,7 +475,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                         progressItem?.episode_number || selectedEpisode
                       );
                     }}
-                    className="px-5 sm:px-7 py-3 sm:py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
+                    className="w-full sm:w-auto px-5 sm:px-7 py-3 sm:py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-sm sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 active:scale-95 cursor-pointer"
                   >
                     <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
                     Continue Playing
@@ -419,7 +484,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     onClick={() => {
                       goToWatch(id, type as any, 1, 1);
                     }}
-                    className="px-4 sm:px-6 py-2.5 sm:py-3 glass hover:bg-white/15 text-foreground font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 cursor-pointer"
+                    className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 glass hover:bg-white/15 text-foreground font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 cursor-pointer"
                   >
                     <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     Watch From Beginning
@@ -430,47 +495,52 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   onClick={() => {
                     goToWatch(id, type as any, selectedSeason, selectedEpisode);
                   }}
-                  className="px-5 sm:px-7 py-3 sm:py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 cursor-pointer"
+                  className="w-full sm:w-auto px-5 sm:px-7 py-3.5 sm:py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-sm sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 active:scale-95 cursor-pointer"
                 >
-                  <Play className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+                  <Play className="w-5 h-5 fill-current" />
                   Watch Now
                 </button>
               )}
 
-              {/* Download Button */}
-              <button
-                type="button"
-                onClick={() => handleDownload()}
-                className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border font-medium text-xs sm:text-base glass border-white/10 text-foreground hover:bg-white/15 hover:border-brand/40 cursor-pointer"
-                title={
-                  type === 'tv'
-                    ? `Download S${selectedSeason} E${selectedEpisode} via ModiPlay Server`
-                    : 'Download via ModiPlay Server'
-                }
-              >
-                <Download className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
-                <span>{type === 'tv' ? `Download (S${selectedSeason} E${selectedEpisode})` : 'Download'}</span>
-              </button>
+              {/* Secondary Buttons Row on Mobile */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Download Button */}
+                <button
+                  type="button"
+                  onClick={() => handleDownload()}
+                  className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border font-medium text-xs sm:text-base glass border-white/10 text-foreground hover:bg-white/15 hover:border-brand/40 active:scale-95 cursor-pointer"
+                  title={
+                    type === 'tv'
+                      ? `Download S${selectedSeason} E${selectedEpisode} via ModiPlay Server`
+                      : 'Download via ModiPlay Server'
+                  }
+                >
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
+                  <span>{type === 'tv' ? `Download (S${selectedSeason} E${selectedEpisode})` : 'Download'}</span>
+                </button>
 
-              <button
-                onClick={handleWatchlistToggle}
-                className={cn(
-                  'px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium text-xs sm:text-base cursor-pointer',
-                  inWatchlist
-                    ? 'bg-white/10 border-white/20 text-foreground hover:bg-white/20'
-                    : 'glass border-white/10 text-foreground hover:bg-white/15'
-                )}
-              >
-                {inWatchlist ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-brand" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
-                {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
-              </button>
+                <button
+                  onClick={handleWatchlistToggle}
+                  className={cn(
+                    'flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium text-xs sm:text-base cursor-pointer active:scale-95',
+                    inWatchlist
+                      ? 'bg-white/10 border-white/20 text-foreground hover:bg-white/20'
+                      : 'glass border-white/10 text-foreground hover:bg-white/15'
+                  )}
+                >
+                  {inWatchlist ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-brand" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
+                  {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
+                </button>
 
-              <button
-                onClick={handleShare}
-                className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium text-xs sm:text-base transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 cursor-pointer"
-              >
-                <Share2 className="w-4 h-4 sm:w-5 sm:h-5" /> Share
-              </button>
+                <button
+                  onClick={handleShare}
+                  className="px-3 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium text-xs sm:text-base transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 active:scale-95 cursor-pointer flex items-center justify-center gap-2 shrink-0"
+                  title="Share"
+                >
+                  <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Share</span>
+                </button>
+              </div>
             </div>
           </motion.div>
         </div>

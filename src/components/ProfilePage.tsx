@@ -590,6 +590,36 @@ export function ProfilePage() {
               </div>
 
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-5">
+                {/* Display Mode (Auto / Mobile / Desktop) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-foreground">Display & App View Mode</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">Adaptive responsive view, dedicated mobile app view, or desktop layout</p>
+                  </div>
+                  <div className="flex items-center gap-1 bg-input/40 p-1 rounded-xl border border-border">
+                    {(['auto', 'mobile', 'desktop'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => {
+                          updateUserProfile({ displayMode: mode });
+                          showToast(`Display mode: ${mode.toUpperCase()}`);
+                        }}
+                        className={cn(
+                          "px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-all cursor-pointer",
+                          (userProfile.displayMode || 'auto') === mode
+                            ? "bg-brand text-background font-bold shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        {mode === 'auto' ? 'Auto' : mode === 'mobile' ? 'Mobile App' : 'Desktop'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <hr className="border-border" />
+
                 {/* Auto Play Next */}
                 <div className="flex items-center justify-between gap-4">
                   <div>

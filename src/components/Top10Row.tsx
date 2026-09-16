@@ -194,7 +194,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   if (movies.length === 0) return null;
 
   const arrowClasses =
-    'absolute top-1/2 -translate-y-1/2 z-[95] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/top10:opacity-100 focus-visible:opacity-100';
+    'hidden sm:flex absolute top-1/2 -translate-y-1/2 z-[95] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0b10]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-0 group-hover/top10:opacity-100 focus-visible:opacity-100';
 
   return (
     <section className="mb-12 sm:mb-16 relative group/top10 w-full" aria-label={`Top 10 in ${regionLabel} Today`}>
@@ -223,7 +223,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
             clicks meant for the rows above and below. */}
         <ul
           {...scrollerProps}
-          className="flex gap-3 sm:gap-6 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-10 pb-14 -my-8 snap-x select-none list-none m-0 items-end will-change-scroll"
+          className="flex gap-3 sm:gap-6 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-8 sm:pt-10 pb-12 sm:pb-14 -my-6 sm:-my-8 snap-x select-none list-none m-0 items-end will-change-scroll"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;

@@ -62,6 +62,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     setAppFont, 
     showToast, 
     userProfile, 
+    updateUserProfile,
     profiles,
     activeProfile,
     switchProfile,
@@ -161,7 +162,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   return (
     <>
       {/* Top Header */}
-      <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2.5 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full">
+      <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full safe-top">
         {currentPath === '/birthday' ? (
           <a
             href="/"
@@ -727,6 +728,36 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     </a>
                   )}
                   
+                  {/* Display Mode Switcher */}
+                  <div className="px-4 py-2.5 border-t border-white/5 flex flex-col gap-1.5">
+                    <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Display Mode
+                    </span>
+                    <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/5">
+                      {(['auto', 'mobile', 'desktop'] as const).map((mode) => {
+                        const active = (userProfile.displayMode || 'auto') === mode;
+                        return (
+                          <button
+                            key={mode}
+                            type="button"
+                            onClick={() => {
+                              updateUserProfile({ displayMode: mode });
+                              showToast(`Display mode: ${mode.toUpperCase()}`);
+                            }}
+                            className={cn(
+                              "flex-1 py-1 text-[10px] font-semibold rounded-lg capitalize transition-all text-center cursor-pointer",
+                              active
+                                ? "bg-brand text-background font-bold shadow-sm"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {mode === 'auto' ? 'Auto' : mode === 'mobile' ? 'Mobile' : 'Desktop'}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
                   <button 
                     onClick={() => {
                       setShowProfile(false);
@@ -742,7 +773,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                       onClick={() => {
                         setShowProfile(false);
                         logout();
-                      }}
+                      }} 
                       className="w-full flex items-center gap-3 px-4 py-2 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors text-left border-t border-border mt-1 cursor-pointer"
                     >
                       <LogOut className="w-4 h-4" /> Sign Out
@@ -762,13 +793,13 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
         </div>
       </header>
 
-      {/* Bottom Floating Dock (Hidden on Birthday Page) */}
+      {/* Bottom Floating/Docked Navigation (Hidden on Birthday Page) */}
       {currentPath !== '/birthday' && (
         <nav
           aria-label="Main Navigation"
-          className="fixed bottom-5 sm:bottom-7 left-1/2 -translate-x-1/2 z-[100] pointer-events-auto select-none"
+          className="fixed bottom-0 inset-x-0 sm:bottom-7 sm:left-1/2 sm:-translate-x-1/2 sm:inset-x-auto z-[100] pointer-events-auto select-none safe-bottom"
         >
-          <div className="rounded-full p-1.5 sm:p-2 flex items-center gap-1 sm:gap-2 border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-3xl bg-[#0a0b10]/85 ring-1 ring-brand/30 transition-all duration-300">
+          <div className="w-full sm:w-auto px-1.5 py-1 sm:p-2 sm:rounded-full flex items-center justify-around sm:justify-start gap-0.5 sm:gap-2 border-t sm:border border-white/10 sm:border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] sm:shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-3xl bg-[#0a0b10]/95 sm:bg-[#0a0b10]/85 sm:ring-1 sm:ring-brand/30 transition-all duration-300">
             {navLinks.map((link) => {
               const isActive = link.href === '/' ? currentPath === '/' : currentPath.startsWith(link.href);
               const Icon = link.icon;
@@ -777,18 +808,20 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   key={link.name}
                   href={link.href}
                   className={cn(
-                    "relative h-11 w-11 sm:h-12 sm:w-12 rounded-full flex items-center justify-center transition-all duration-300 group cursor-pointer",
+                    "relative flex flex-col sm:flex-row items-center justify-center transition-all duration-200 group cursor-pointer tap-active",
+                    "flex-1 sm:flex-none py-1 sm:py-0 h-12 sm:h-12 w-auto sm:w-12 sm:rounded-full",
                     isActive
-                      ? "text-brand-foreground"
-                      : "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
+                      ? "text-brand sm:text-brand-foreground"
+                      : "text-white/60 hover:text-white sm:hover:bg-white/10 active:scale-95"
                   )}
                   aria-label={link.name}
                   title={link.name}
                 >
+                  {/* Desktop active pill */}
                   {isActive && (
                     <motion.div
                       layoutId="active-dock-pill"
-                      className="absolute inset-0 rounded-full bg-brand shadow-[0_0_24px_var(--theme-accent-glow,rgba(232,133,42,0.6))] ring-1 ring-brand/50"
+                      className="hidden sm:block absolute inset-0 rounded-full bg-brand shadow-[0_0_24px_var(--theme-accent-glow,rgba(232,133,42,0.6))] ring-1 ring-brand/50"
                       transition={{
                         type: "spring",
                         stiffness: 400,
@@ -796,15 +829,34 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                       }}
                     />
                   )}
+
+                  {/* Mobile top active indicator bar */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-mobile-bar"
+                      className="sm:hidden absolute top-0 inset-x-2 h-0.5 rounded-full bg-brand shadow-[0_0_8px_var(--theme-accent-glow,rgba(232,133,42,0.9))]"
+                    />
+                  )}
+
                   <Icon
                     className={cn(
                       "relative z-10 w-5 h-5 transition-transform duration-200 group-hover:scale-110",
-                      isActive ? "text-brand-foreground font-bold" : "text-white/75 group-hover:text-white"
+                      isActive ? "text-brand sm:text-brand-foreground font-bold" : "text-white/70 group-hover:text-white"
                     )}
                   />
 
-                  {/* Micro Tooltip on Hover */}
-                  <span className="absolute -top-9 opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-200 pointer-events-none px-2.5 py-1 rounded-full text-[10px] font-bold font-display uppercase tracking-wider bg-black/80 backdrop-blur-md text-white border border-white/15 shadow-xl whitespace-nowrap">
+                  {/* Micro label for mobile screens */}
+                  <span
+                    className={cn(
+                      "sm:hidden text-[9px] font-medium tracking-tight mt-0.5 leading-none transition-colors truncate max-w-[56px] text-center",
+                      isActive ? "text-brand font-bold" : "text-white/60"
+                    )}
+                  >
+                    {link.name}
+                  </span>
+
+                  {/* Micro Tooltip on Hover for desktop */}
+                  <span className="hidden sm:block absolute -top-9 opacity-0 group-hover:opacity-100 group-hover:-translate-y-1 transition-all duration-200 pointer-events-none px-2.5 py-1 rounded-full text-[10px] font-bold font-display uppercase tracking-wider bg-black/80 backdrop-blur-md text-white border border-white/15 shadow-xl whitespace-nowrap">
                     {link.name}
                   </span>
                 </a>

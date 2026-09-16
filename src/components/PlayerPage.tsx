@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Menu, Play, Signal, SkipForward, SkipBack, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, SkipForward, SkipBack, X } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -64,7 +64,7 @@ interface PlaybackProgress {
 }
 
 export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
-  const { updateContinueWatching, continueWatching, userProfile } = useApp();
+  const { updateContinueWatching, continueWatching, userProfile, isMobileView } = useApp();
 
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -80,6 +80,42 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const [embedState, setEmbedState] = useState<EmbedState>('idle');
   const [retryToken, setRetryToken] = useState(0);
   const [, setProbeUpdates] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Screen Wake Lock API to prevent mobile screens from dimming or turning off during playback
+  useEffect(() => {
+    let sentinel: any = null;
+    let active = true;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator && document.visibilityState === 'visible') {
+          sentinel = await (navigator as any).wakeLock.request('screen');
+        }
+      } catch {
+        // Silently ignore if blocked or unsupported
+      }
+    };
+
+    requestWakeLock();
+
+    const handleVisChange = () => {
+      if (active && document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisChange);
+
+    return () => {
+      active = false;
+      document.removeEventListener('visibilitychange', handleVisChange);
+      if (sentinel) {
+        sentinel.release().catch(() => {});
+        sentinel = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -639,6 +675,57 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     []
   );
 
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      const rootEl = containerRef.current || iframeRef.current;
+      if (!document.fullscreenElement) {
+        if (rootEl?.requestFullscreen) {
+          await rootEl.requestFullscreen();
+        } else if ((rootEl as any)?.webkitRequestFullscreen) {
+          await (rootEl as any).webkitRequestFullscreen();
+        }
+        try {
+          if (screen.orientation && 'lock' in screen.orientation) {
+            await (screen.orientation as any).lock('landscape').catch(() => {});
+          }
+        } catch {}
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        try {
+          if (screen.orientation && 'unlock' in screen.orientation) {
+            screen.orientation.unlock();
+          }
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const onFsChange = () => {
+      const fs = !!document.fullscreenElement;
+      setIsFullscreen(fs);
+      if (!fs) {
+        try {
+          if (screen.orientation && 'unlock' in screen.orientation) {
+            screen.orientation.unlock();
+          }
+        } catch {}
+      }
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+    };
+  }, []);
+
   const handleMouseMove = (event: React.MouseEvent) => revealControls(event.clientY);
   const handleTouchStart = (event: React.TouchEvent) =>
     revealControls(event.touches[0]?.clientY);
@@ -652,15 +739,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       if (event.key === 's' || event.key === 'S') {
         setSidebarOpen((open) => !open);
       } else if (event.key === 'f' || event.key === 'F') {
-        const rootEl = containerRef.current || iframeRef.current;
-        if (!rootEl) return;
-        if (document.fullscreenElement) {
-          void document.exitFullscreen();
-        } else {
-          rootEl.requestFullscreen().catch(() => {
-            iframeRef.current?.requestFullscreen().catch((cause) => console.error('Fullscreen denied:', cause));
-          });
-        }
+        void toggleFullscreen();
       } else if ((event.key === 'n' || event.key === 'N') && nextEpisode) {
         goToEpisode(nextEpisode);
       } else if (event.key === 'm' || event.key === 'M') {
@@ -806,112 +885,138 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 w-full h-full bg-black z-50 flex"
+      className={cn(
+        'fixed inset-0 w-full h-full z-50 flex',
+        isMobileView && !isFullscreen
+          ? 'flex-col bg-background overflow-y-auto custom-scrollbar select-none'
+          : 'bg-black overflow-hidden select-none'
+      )}
       onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
     >
-      {/* Top bar */}
-      <AnimatePresence>
-        {showControls && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -100 }}
-            transition={{ duration: 0.15 }}
-            className="absolute top-0 left-0 right-0 p-4 sm:p-6 z-40 flex items-center justify-between bg-gradient-to-b from-black/80 to-transparent pointer-events-none"
-          >
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 pointer-events-auto">
-              <button
-                type="button"
-                onClick={() => {
-                  const current = window.location.pathname;
-                  window.history.back();
-                  setTimeout(() => {
-                    if (
-                      window.location.pathname === current ||
-                      window.location.pathname.startsWith('/watch/') ||
-                      window.location.pathname.startsWith('/player/')
-                    ) {
-                      goToDetail(id, type);
-                    }
-                  }, 100);
-                }}
-                aria-label="Back"
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
-              >
-                <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                aria-label="Open episodes and sources"
-                aria-expanded={sidebarOpen}
-                className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
-              >
-                <Menu className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
-                title="Change server source"
-              >
-                <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
-                <span className="max-w-[75px] sm:max-w-[120px] truncate">{source.name}</span>
-                {source.quality && (
-                  <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
-                    {source.quality}
-                  </span>
-                )}
-              </button>
-
-              {type === 'tv' && prevEpisode && (
-                <button
-                  type="button"
-                  onClick={() => goToEpisode(prevEpisode)}
-                  className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
-                  title={`Previous: S${selectedSeason} E${prevEpisode.episode_number}`}
-                >
-                  <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
-                  <span className="hidden md:inline">Prev</span>
-                </button>
-              )}
-
-              {type === 'tv' && nextEpisode && (
-                <button
-                  type="button"
-                  onClick={() => goToEpisode(nextEpisode)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
-                  title={`Next: S${selectedSeason} E${nextEpisode.episode_number}`}
-                >
-                  <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
-                  <span className="hidden md:inline">Next Episode</span>
-                  <span className="md:hidden">Next</span>
-                </button>
-              )}
-
-              <div className="hidden lg:block min-w-0 ml-1">
-                <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">
-                  {movie.title}
-                </h1>
-                {type === 'tv' && selectedEpisode && (
-                  <p className="text-[10px] sm:text-xs text-brand tracking-wide font-medium truncate max-w-[200px] xl:max-w-[320px]">
-                    S{selectedSeason} E{selectedEpisode.episode_number}
-                    {selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Right side is intentionally empty and non-interactive so player native buttons (e.g. server download buttons) remain unblocked */}
-            <div className="w-12 h-6 pointer-events-none" aria-hidden="true" />
-          </motion.div>
+      {/* Video Stage Container */}
+      <div
+        className={cn(
+          'relative bg-black overflow-hidden select-none',
+          isMobileView && !isFullscreen
+            ? 'w-full aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
+            : 'w-full h-full flex-1'
         )}
-      </AnimatePresence>
+      >
+        {/* Top bar */}
+        <AnimatePresence>
+          {showControls && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -100 }}
+              transition={{ duration: 0.15 }}
+              className="absolute top-0 left-0 right-0 p-3 sm:p-6 z-40 flex items-center justify-between bg-gradient-to-b from-black/85 via-black/40 to-transparent pointer-events-none"
+            >
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const current = window.location.pathname;
+                    window.history.back();
+                    setTimeout(() => {
+                      if (
+                        window.location.pathname === current ||
+                        window.location.pathname.startsWith('/watch/') ||
+                        window.location.pathname.startsWith('/player/')
+                      ) {
+                        goToDetail(id, type);
+                      }
+                    }, 100);
+                  }}
+                  aria-label="Back"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
+                >
+                  <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  aria-label="Open episodes and sources"
+                  aria-expanded={sidebarOpen}
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
+                >
+                  <Menu className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                </button>
 
-      {/* Video */}
-      <div className="w-full h-full relative bg-black overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
+                  title="Change server source"
+                >
+                  <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
+                  <span className="max-w-[75px] sm:max-w-[120px] truncate">{source.name}</span>
+                  {source.quality && (
+                    <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
+                      {source.quality}
+                    </span>
+                  )}
+                </button>
+
+                {type === 'tv' && prevEpisode && (
+                  <button
+                    type="button"
+                    onClick={() => goToEpisode(prevEpisode)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
+                    title={`Previous: S${selectedSeason} E${prevEpisode.episode_number}`}
+                  >
+                    <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
+                    <span className="hidden md:inline">Prev</span>
+                  </button>
+                )}
+
+                {type === 'tv' && nextEpisode && (
+                  <button
+                    type="button"
+                    onClick={() => goToEpisode(nextEpisode)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
+                    title={`Next: S${selectedSeason} E${nextEpisode.episode_number}`}
+                  >
+                    <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
+                    <span className="hidden md:inline">Next Episode</span>
+                    <span className="md:hidden">Next</span>
+                  </button>
+                )}
+
+                <div className="hidden lg:block min-w-0 ml-1">
+                  <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">
+                    {movie.title}
+                  </h1>
+                  {type === 'tv' && selectedEpisode && (
+                    <p className="text-[10px] sm:text-xs text-brand tracking-wide font-medium truncate max-w-[200px] xl:max-w-[320px]">
+                      S{selectedSeason} E{selectedEpisode.episode_number}
+                      {selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Right side: Fullscreen toggle */}
+              <div className="flex items-center gap-2 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                >
+                  {isFullscreen ? (
+                    <Minimize className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                  ) : (
+                    <Maximize className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Dynamic Ambilight Theatre Glow */}
         {movie && (movie.backdropUrl || movie.posterUrl) && (
           <div
@@ -1130,7 +1235,132 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         </AnimatePresence>
       </div>
 
-      {/* Sidebar */}
+      {/* Mobile Portrait Mode Info & Horizontal Episode Strip */}
+      {isMobileView && !isFullscreen && (
+        <div className="p-4 space-y-4 pb-20">
+          {/* Title & metadata */}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <h1 className="text-lg font-bold text-foreground font-display line-clamp-1">
+                {movie.title}
+              </h1>
+              {(movie.rating ?? 0) > 0 && (
+                <span className="text-xs font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0">
+                  ★ {movie.rating?.toFixed(1)}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+              {type === 'tv' && selectedEpisode ? (
+                <span className="text-brand font-semibold">
+                  S{selectedSeason} E{selectedEpisode.episode_number}: {selectedEpisode.name || `Episode ${selectedEpisode.episode_number}`}
+                </span>
+              ) : (
+                <span>{movie.year > 0 ? movie.year : ''}{movie.duration ? ` • ${movie.duration}` : ''}</span>
+              )}
+              {source && (
+                <span className="text-white/40">• {source.name} ({source.quality || 'HD'})</span>
+              )}
+            </div>
+          </div>
+
+          {/* Quick actions row */}
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
+            >
+              <Signal className="w-3.5 h-3.5 text-brand" />
+              <span>Source: <strong className="text-brand">{source.name}</strong></span>
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
+            >
+              <Maximize className="w-3.5 h-3.5 text-brand" />
+              <span>Fullscreen</span>
+            </button>
+
+            {type === 'tv' && (
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
+              >
+                <Menu className="w-3.5 h-3.5 text-brand" />
+                <span>All Episodes ({episodes.length})</span>
+              </button>
+            )}
+          </div>
+
+          {/* Horizontal Episode Picker for TV Series */}
+          {type === 'tv' && episodes.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  Season {selectedSeason} Episodes
+                </span>
+                {seasons.length > 1 && (
+                  <select
+                    value={selectedSeason}
+                    onChange={(e) => goToWatch(id, 'tv', Number(e.target.value), 1)}
+                    className="bg-card border border-white/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-brand cursor-pointer"
+                  >
+                    {seasons.map((s) => (
+                      <option key={s.season_number} value={s.season_number} className="bg-background">
+                        {s.name || `Season ${s.season_number}`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Horizontal scrollable episode chips */}
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-4 px-4">
+                {episodes.map((ep) => {
+                  const isCurrent = selectedEpisode?.id === ep.id || selectedEpisode?.episode_number === ep.episode_number;
+                  return (
+                    <button
+                      key={ep.id}
+                      type="button"
+                      onClick={() => goToEpisode(ep)}
+                      className={cn(
+                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs shrink-0 transition-all cursor-pointer border',
+                        isCurrent
+                          ? 'bg-brand text-background font-bold border-brand shadow-lg shadow-brand/20'
+                          : 'bg-card border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground'
+                      )}
+                    >
+                      {isCurrent ? (
+                        <Play className="w-3 h-3 fill-current" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                      )}
+                      <span>EP {ep.episode_number}</span>
+                      {ep.name && <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.name}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Overview */}
+          {movie.description && (
+            <div className="pt-2 border-t border-white/5 space-y-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Overview</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed line-clamp-4">
+                {movie.description}
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Sidebar / Bottom Sheet */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -1139,16 +1369,25 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSidebarOpen(false)}
-              className="absolute inset-0 bg-background/60 z-50 backdrop-blur-sm"
+              className="fixed inset-0 bg-background/60 z-[65] backdrop-blur-sm"
             />
             <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'tween', duration: 0.3 }}
+              initial={isMobileView ? { y: '100%' } : { x: '-100%' }}
+              animate={isMobileView ? { y: 0 } : { x: 0 }}
+              exit={isMobileView ? { y: '100%' } : { x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               aria-label="Episodes and sources"
-              className="absolute top-0 left-0 bottom-0 w-[85vw] max-w-[340px] bg-card backdrop-blur-xl z-[60] border-r border-white/10 flex flex-col overflow-y-auto custom-scrollbar"
+              className={cn(
+                'bg-card/95 backdrop-blur-2xl z-[70] flex flex-col shadow-2xl overflow-hidden',
+                isMobileView
+                  ? 'fixed inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl border-t border-white/15 safe-bottom'
+                  : 'fixed top-0 left-0 bottom-0 w-[85vw] max-w-[340px] border-r border-white/10'
+              )}
             >
+              {/* Mobile drag handle indicator */}
+              {isMobileView && (
+                <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mt-3 mb-1 shrink-0 cursor-grab" aria-hidden="true" />
+              )}
               <div className="p-6 pb-0 flex justify-between items-start gap-3">
                 <div className="flex gap-4 min-w-0">
                   <div className="w-16 h-24 rounded overflow-hidden shrink-0">
@@ -1179,15 +1418,17 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   type="button"
                   onClick={() => setSidebarOpen(false)}
                   aria-label="Close menu"
-                  className="text-foreground/50 hover:text-foreground p-2 shrink-0"
+                  className="text-foreground/50 hover:text-foreground p-2 rounded-full hover:bg-white/5 transition-colors shrink-0 cursor-pointer"
                 >
-                  <X className="w-6 h-6" aria-hidden="true" />
+                  <X className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
                 </button>
               </div>
 
-              {/* Episodes */}
-              {type === 'tv' && seasons.length > 0 && (
-                <div className="mt-8 px-6">
+              {/* Scrollable Episodes and Sources list */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar overscroll-contain">
+                {/* Episodes */}
+                {type === 'tv' && seasons.length > 0 && (
+                  <div className="mt-6 px-6">
                   <div className="relative mb-4">
                     <label className="sr-only" htmlFor="player-season">
                       Season
@@ -1383,6 +1624,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   </ul>
                 )}
               </div>
+            </div>
             </motion.aside>
           </>
         )}

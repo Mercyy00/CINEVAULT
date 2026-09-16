@@ -354,7 +354,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
   }
 
   const arrowClasses =
-    'absolute top-1/2 -translate-y-1/2 z-[90] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-95 sm:opacity-0 sm:group-hover/row:opacity-100 focus-visible:opacity-100';
+    'hidden sm:flex absolute top-1/2 -translate-y-1/2 z-[90] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100';
 
   return (
     <section ref={sectionRef} className="mb-8 sm:mb-10 relative group/row w-full" aria-label={title}>
@@ -385,12 +385,12 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
             and below and swallowed clicks meant for them. */}
         <ul
           {...scrollerProps}
-          className="flex gap-4 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-4 sm:px-8 lg:px-12 pt-8 pb-12 -my-8 snap-x select-none list-none m-0 will-change-scroll"
+          className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-10 sm:pb-12 -my-6 sm:-my-8 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative"
+              className="snap-start flex-shrink-0 w-[140px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative"
             >
               <MovieCard
                 movie={movie}

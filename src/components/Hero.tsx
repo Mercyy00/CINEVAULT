@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion, useSpring } from 'motion/react';
 import { Play, Plus, Check, Info, Star, VolumeX, RotateCcw } from 'lucide-react';
 import { Movie, formatRating } from '../types';
@@ -175,6 +175,34 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
     [parallaxX, parallaxY, reduceMotion]
   );
 
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+
+  const handleTouchStart = (event: React.TouchEvent) => {
+    if (event.touches.length > 0) {
+      touchStartX.current = event.touches[0].clientX;
+      touchStartY.current = event.touches[0].clientY;
+      setInteracting(true);
+    }
+  };
+
+  const handleTouchEnd = (event: React.TouchEvent) => {
+    setInteracting(false);
+    if (touchStartX.current === null || touchStartY.current === null || event.changedTouches.length === 0) return;
+    const deltaX = event.changedTouches[0].clientX - touchStartX.current;
+    const deltaY = event.changedTouches[0].clientY - touchStartY.current;
+    touchStartX.current = null;
+    touchStartY.current = null;
+
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 40 && movies.length > 1) {
+      if (deltaX < 0) {
+        setIndex((previous) => (previous + 1) % movies.length);
+      } else {
+        setIndex((previous) => (previous - 1 + movies.length) % movies.length);
+      }
+    }
+  };
+
   // Fetch the spotlight set.
   useEffect(() => {
     let active = true;
@@ -344,6 +372,8 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
       onMouseLeave={() => setInteracting(false)}
       onFocusCapture={() => setInteracting(true)}
       onBlurCapture={() => setInteracting(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       aria-roledescription="carousel"
       aria-label={`${typeLabel}: ${current.title}`}
     >

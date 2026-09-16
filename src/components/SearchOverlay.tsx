@@ -9,6 +9,7 @@ import { PosterImage } from './PosterImage';
 import { readJSON, writeJSON } from '../lib/storage';
 import { navigate } from '../lib/navigation';
 import { cn } from '../lib/utils';
+import { triggerHaptic } from '../lib/mobile';
 
 interface SearchOverlayProps {
   isOpen: boolean;
@@ -263,9 +264,9 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col"
+            className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col safe-top safe-bottom"
           >
-            <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-8 flex-1 flex flex-col">
+            <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-4 sm:py-8 flex-1 flex flex-col min-h-0">
               <div className="flex items-center gap-2 sm:gap-4 border-b border-brand/30 pb-3 sm:pb-4">
                 <Search className="w-5 h-5 sm:w-8 sm:h-8 text-brand shrink-0" aria-hidden="true" />
                 <label className="sr-only" htmlFor="search-input">
@@ -297,6 +298,20 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   placeholder="Search movies, shows, anime…"
                   className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-4xl font-display text-foreground placeholder-muted-foreground/50 min-w-0"
                 />
+                {query.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('');
+                      triggerHaptic('light');
+                      inputRef.current?.focus();
+                    }}
+                    aria-label="Clear search input"
+                    className="p-1.5 text-muted-foreground hover:text-foreground bg-white/5 hover:bg-white/10 rounded-full transition-colors shrink-0"
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={onClose}
@@ -311,7 +326,14 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                 {statusMessage}
               </p>
 
-              <div className="flex-1 overflow-y-auto py-8 scrollbar-hide">
+              <div 
+                className="flex-1 overflow-y-auto py-6 sm:py-8 scrollbar-hide"
+                onScroll={() => {
+                  if (document.activeElement === inputRef.current) {
+                    inputRef.current?.blur();
+                  }
+                }}
+              >
                 {query.trim().length >= MIN_QUERY_LENGTH ? (
                   searching && results.length === 0 ? (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

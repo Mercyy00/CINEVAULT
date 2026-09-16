@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, SlidersHorizontal } from 'lucide-react';
 import { api } from '../api';
 import { cn } from '../lib/utils';
+import { triggerHaptic } from '../lib/mobile';
 
 interface FilterBarProps {
   onFilterChange: (filters: { type: string; providerId?: string; country: string; genreId?: string; language?: string; sortBy?: string }) => void;
@@ -106,7 +107,10 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   const DropdownItem = ({ active, onClick, children }: any) => (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => {
+        triggerHaptic('selection');
+        onClick();
+      }}
       className={cn(
         "w-full text-left px-3.5 py-2 text-xs sm:text-sm rounded-lg transition-all flex items-center gap-2.5 cursor-pointer",
         active ? "text-brand font-bold bg-brand/10" : "text-foreground hover:bg-white/10"
@@ -117,14 +121,14 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   );
 
   return (
-    <div className="px-4 sm:px-8 lg:px-10 py-5 flex flex-wrap items-center gap-3 sm:gap-6 border-b border-white/5 relative z-30 select-none">
-      <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mr-1">
+    <div className="px-4 sm:px-8 lg:px-10 py-3 sm:py-5 flex items-center gap-2 sm:gap-6 border-b border-white/5 relative z-30 select-none overflow-x-auto sm:overflow-visible scrollbar-none">
+      <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mr-1 shrink-0">
         <SlidersHorizontal className="w-3.5 h-3.5 text-brand" />
         <span>Filters</span>
       </div>
 
       {/* Type Filter */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -133,7 +137,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Type:</span>
           <span>{TYPES.find((t) => t.id === type)?.name}</span>
@@ -166,7 +170,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
       </div>
 
       {/* Country Filter */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -175,7 +179,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Region:</span>
           <span>{COUNTRIES.find((c) => c.code === country)?.name}</span>
@@ -208,7 +212,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
       </div>
 
       {/* Provider Filter */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -217,7 +221,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowCountry(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Network:</span>
           <span className="truncate max-w-[120px]">
@@ -269,7 +273,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
       </div>
 
       {/* Sort Filter */}
-      <div className="relative">
+      <div className="relative shrink-0">
         <button
           type="button"
           onClick={() => {
@@ -278,7 +282,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowCountry(false);
             setShowProviders(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Sort:</span>
           <span>{SORT_OPTIONS.find((s) => s.id === sortBy)?.name || 'Popularity'}</span>

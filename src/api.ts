@@ -31,7 +31,8 @@ import type { Actor, Episode, Movie, Quality, Review, WatchProvider } from './ty
 const TMDB_PROXY_URL = (import.meta.env.VITE_TMDB_PROXY_URL ?? '').replace(/\/+$/, '');
 const USING_PROXY = TMDB_PROXY_URL.length > 0;
 const TMDB_API_KEY: string = import.meta.env.VITE_TMDB_API_KEY ?? '';
-const TMDB_BASE = USING_PROXY ? TMDB_PROXY_URL : 'https://api.themoviedb.org/3';
+// Using api.tmdb.org by default as it is unblocked by regional ISPs (e.g. Jio/Airtel) that block api.themoviedb.org
+const TMDB_BASE = USING_PROXY ? TMDB_PROXY_URL : 'https://api.tmdb.org/3';
 const IMAGE_BASE = 'https://image.tmdb.org/t/p';
 
 if (import.meta.env.DEV && !USING_PROXY && !TMDB_API_KEY) {
@@ -136,6 +137,13 @@ async function request<T>(url: string, init: RequestInit = {}, attempt = 0): Pro
       writeCache(cacheKey, data);
       return data;
     } catch (error) {
+      if (attempt < 1 && url.includes('api.tmdb.org')) {
+        const fallbackUrl = url.replace('api.tmdb.org', 'api.themoviedb.org');
+        return request<T>(fallbackUrl, init, attempt + 1);
+      } else if (attempt < 1 && url.includes('api.themoviedb.org')) {
+        const fallbackUrl = url.replace('api.themoviedb.org', 'api.tmdb.org');
+        return request<T>(fallbackUrl, init, attempt + 1);
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         throw new ApiError('The request timed out.', 408, new URL(url).pathname);
       }
@@ -160,13 +168,21 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
   }
 }
 
-function tmdbUrl(path: string, params: Record<string, string | number | undefined> = {}): string {
+function tmdbUrl(path: string, params: Record<string, unknown> = {}): string {
   const url = new URL(`${TMDB_BASE}${path}`);
   // Behind a proxy the key is attached server-side and must not appear here.
   if (!USING_PROXY) url.searchParams.set('api_key', TMDB_API_KEY);
   for (const [key, value] of Object.entries(params)) {
     if (value !== undefined && value !== null && value !== '') {
-      url.searchParams.set(key, String(value));
+      if (typeof value === 'object') {
+        const obj = value as Record<string, unknown>;
+        const extracted = obj.id ?? obj.genres ?? obj.value;
+        if (extracted !== undefined && extracted !== null && extracted !== '') {
+          url.searchParams.set(key, String(extracted));
+        }
+      } else {
+        url.searchParams.set(key, String(value));
+      }
     }
   }
   return url.toString();
