@@ -91,14 +91,25 @@ export function downloadRoute(
   type: string,
   season?: number | string,
   episode?: number | string,
-  imdbId?: string
+  imdbId?: string,
+  track?: 'sub' | 'dub' | string
 ): string {
   const params = new URLSearchParams();
   params.set('id', String(id));
-  params.set('type', type === 'ani' || type === 'anime' ? 'anime' : type === 'tv' ? 'tv' : 'movie');
+  const normalizedType = type === 'ani' || type === 'anime' ? 'anime' : type === 'tv' ? 'tv' : 'movie';
+  params.set('type', normalizedType);
   if (season != null) params.set('season', String(season));
   if (episode != null) params.set('episode', String(episode));
-  if (imdbId) params.set('imdb', imdbId);
+  if (imdbId) {
+    if (normalizedType === 'anime') {
+      params.set('mal', String(imdbId));
+    } else {
+      params.set('imdb', String(imdbId));
+    }
+  }
+  if (track) {
+    params.set('track', String(track));
+  }
   return `/download?${params.toString()}`;
 }
 
@@ -107,8 +118,9 @@ export function goToDownload(
   type: string,
   season?: number | string,
   episode?: number | string,
-  imdbId?: string
+  imdbId?: string,
+  track?: 'sub' | 'dub' | string
 ): void {
-  navigate(downloadRoute(id, type, season, episode, imdbId));
+  navigate(downloadRoute(id, type, season, episode, imdbId, track));
 }
 

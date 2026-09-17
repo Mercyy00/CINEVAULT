@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles, Clapperboard, Download } from 'lucide-react';
+import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles, Clapperboard, Download, X, Search } from 'lucide-react';
 import { anilistApi, AnimeRelation } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -31,6 +31,33 @@ export function AnimeDetail({ id }: { id: string }) {
   const progressItem = continueWatching.find(i => i.id.toString() === id);
   const hasProgress = progressItem && (progressItem.progress_percentage || 0) > 0;
   const [showFullDesc, setShowFullDesc] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadTrack, setDownloadTrack] = useState<'sub' | 'dub'>('sub');
+  const [downloadSearch, setDownloadSearch] = useState('');
+
+  // Hotkeys for anime download modal (S for Sub, D for Dub, Esc to close)
+  useEffect(() => {
+    if (!showDownloadModal) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = document.activeElement?.tagName;
+      if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+
+      if (e.key === 's' || e.key === 'S') {
+        e.preventDefault();
+        setDownloadTrack('sub');
+      } else if (e.key === 'd' || e.key === 'D') {
+        e.preventDefault();
+        setDownloadTrack('dub');
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowDownloadModal(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDownloadModal]);
 
   useEffect(() => {
     if (movie) {
@@ -564,9 +591,9 @@ export function AnimeDetail({ id }: { id: string }) {
               {/* Secondary Buttons Row */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button 
-                  onClick={() => goToDownload(id, 'anime', 1, selectedEpisode, movie.malId || '0')}
+                  onClick={() => setShowDownloadModal(true)}
                   className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-base transition-all duration-300 glass border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
-                  title={`Download Episode ${selectedEpisode} High-Speed`}
+                  title="Download Episodes via ZokoAnime"
                 >
                   <Download className="w-4 h-4 sm:w-5 sm:h-5" />
                   <span>Download</span>
@@ -956,6 +983,143 @@ export function AnimeDetail({ id }: { id: string }) {
         </div>
 
       </div>
+
+      {/* Anime Download Modal (ZokoAnime) */}
+      {showDownloadModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200"
+          onClick={() => setShowDownloadModal(false)}
+        >
+          <div
+            className="bg-[#0f1117] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest text-brand bg-brand/10 px-2.5 py-0.5 rounded-full border border-brand/20">
+                    ZokoAnime High-Speed
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-bold text-foreground truncate mt-1">
+                  Download {movie.title}
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Select an episode to download in high speed via ZokoAnime
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDownloadModal(false)}
+                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Track Switcher & Filter */}
+            <div className="p-4 sm:px-6 bg-white/[0.02] border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-muted-foreground">Audio:</span>
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1">
+                  <button
+                    type="button"
+                    onClick={() => setDownloadTrack('sub')}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      downloadTrack === 'sub'
+                        ? "bg-brand text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Subtitles (S)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDownloadTrack('dub')}
+                    className={cn(
+                      "px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer",
+                      downloadTrack === 'dub'
+                        ? "bg-brand text-background shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    English Dub (D)
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Search */}
+              <div className="relative flex-1 sm:max-w-[200px]">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Filter episode..."
+                  value={downloadSearch}
+                  onChange={(e) => setDownloadSearch(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-brand/50"
+                />
+              </div>
+            </div>
+
+            {/* Episode List */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-6 space-y-2.5">
+              {episodes.length === 0 ? (
+                <div className="py-8 text-center text-muted-foreground text-xs">
+                  Loading anime episodes...
+                </div>
+              ) : (
+                episodes
+                  .filter((ep: any) => {
+                    if (!downloadSearch.trim()) return true;
+                    const query = downloadSearch.toLowerCase().trim();
+                    return (
+                      String(ep.number).includes(query) ||
+                      (ep.title && ep.title.toLowerCase().includes(query))
+                    );
+                  })
+                  .map((ep: any) => (
+                    <div
+                      key={ep.id || ep.number}
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-brand/30 hover:bg-white/10 transition-all"
+                    >
+                      <div className="min-w-0 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-xs font-mono font-bold text-brand shrink-0">
+                          {ep.number}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-foreground truncate">
+                            {ep.title && !ep.title.toLowerCase().startsWith('episode')
+                              ? ep.title
+                              : `Episode ${ep.number}`}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            ZokoAnime 1080p • {downloadTrack.toUpperCase()}
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowDownloadModal(false);
+                          goToDownload(id, 'anime', 1, ep.number, movie.malId || '0', downloadTrack);
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-brand text-background hover:bg-brand/90 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm active:scale-95 shrink-0 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5" />
+                        <span>Download</span>
+                      </button>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }
