@@ -59,6 +59,9 @@ const AdminDashboard = lazy(() =>
 const NotFoundPage = lazy(() =>
   import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
 );
+const DownloadPage = lazy(() =>
+  import('./components/DownloadPage').then((m) => ({ default: m.DownloadPage }))
+);
 
 interface HomeFilters {
   type: string;
@@ -130,6 +133,15 @@ function RouteError({ error, onRetry }: { error: Error; onRetry: () => void }) {
   );
 }
 
+interface ActiveWatchInfo {
+  type: 'movie' | 'tv' | 'ani';
+  id: string;
+  season?: string;
+  episode?: string;
+  malId?: string;
+  route: string;
+}
+
 function AppContent() {
   const [currentRoute, setCurrentRoute] = useState<string>('home');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -139,6 +151,8 @@ function AppContent() {
   const [surprisingGenre, setSurprisingGenre] = useState('');
   const [homeFilters, setHomeFilters] = useState<HomeFilters>({ type: 'movie', country: 'US' });
   const [showResetModal, setShowResetModal] = useState(false);
+  const [activeWatchInfo, setActiveWatchInfo] = useState<ActiveWatchInfo | null>(null);
+  const [lastBrowseRoute, setLastBrowseRoute] = useState<string>('home');
 
   const {
     ambientColor,
@@ -153,6 +167,8 @@ function AppContent() {
     authModalMode,
     authStatus,
     resetAllLocalData,
+    playerMode,
+    setPlayerMode,
   } = useApp();
 
   const { applyForNavigation } = useScrollRestoration();
@@ -165,6 +181,45 @@ function AppContent() {
       pauseTrack();
     }
   }, [currentRoute, pauseTrack]);
+
+  // Track active watch routes for seamless fullscreen <-> floating PiP continuity
+  useEffect(() => {
+    if (currentRoute.startsWith('watch/')) {
+      const parts = currentRoute.split('/');
+      const type = parts[1] as 'movie' | 'tv' | 'ani';
+      const id = parts[2];
+      const season = parts[3];
+      const episode = parts[4];
+      if (id) {
+        setActiveWatchInfo({
+          type,
+          id,
+          season,
+          episode,
+          malId: type === 'ani' && episode ? season : undefined,
+          route: currentRoute,
+        });
+      }
+    } else {
+      setLastBrowseRoute(currentRoute);
+      if (playerMode !== 'floating') {
+        setActiveWatchInfo(null);
+      }
+    }
+  }, [currentRoute, playerMode]);
+
+  // Listen for close floating player event
+  useEffect(() => {
+    const handleCloseFloating = () => {
+      setActiveWatchInfo(null);
+      setPlayerMode('fullscreen');
+      if (window.location.pathname.startsWith('/watch/')) {
+        navigate(lastBrowseRoute && !lastBrowseRoute.startsWith('watch/') ? lastBrowseRoute : '/');
+      }
+    };
+    window.addEventListener('close-floating-player', handleCloseFloating);
+    return () => window.removeEventListener('close-floating-player', handleCloseFloating);
+  }, [lastBrowseRoute, setPlayerMode]);
 
   const anyOverlayOpen = isSearchOpen || isMoodOpen || showResetModal || authModalOpen;
 
@@ -319,6 +374,7 @@ function AppContent() {
     if (path === '/birthday') return { route: 'birthday', query: '' };
     if (path === '/profile') return { route: 'profile', query: '' };
     if (path === '/profiles') return { route: 'profiles', query: '' };
+    if (path === '/download' || path.startsWith('/download')) return { route: 'download', query: '' };
 
     // Search: /search or /search/<term> or /search?q=<term>
     if (path === '/search' || path.startsWith('/search/')) {
@@ -884,6 +940,18 @@ function AppContent() {
           </motion.div>
         );
 
+      case 'download':
+        return (
+          <motion.div
+            key="download"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <DownloadPage />
+          </motion.div>
+        );
+
       case '404':
         return (
           <motion.div
@@ -898,25 +966,12 @@ function AppContent() {
 
       default: {
         if (route.startsWith('watch/')) {
-          const parts = route.split('/');
-          const type = parts[1] as 'movie' | 'tv' | 'ani';
-          const id = parts[2];
-          const season = parts[3];
-          const episode = parts[4];
-
-          if (!id) break;
-
-          if (type === 'ani') {
-            // #watch/ani/<id>/<episode> or #watch/ani/<id>/<malId>/<episode>
-            return (
-              <AnimePlayer
-                id={id}
-                episode={episode ?? season ?? '1'}
-                malId={episode ? season : undefined}
-              />
+          if (playerMode === 'floating') {
+            return renderRouteContent(
+              lastBrowseRoute && !lastBrowseRoute.startsWith('watch/') ? lastBrowseRoute : 'home'
             );
           }
-          return <PlayerPage type={type} id={id} season={season} episode={episode} />;
+          return <div className="w-full h-full min-h-screen bg-black" />;
         }
 
         if (route.startsWith('movie/')) {
@@ -997,7 +1052,7 @@ function AppContent() {
 
       {!introDone && <CinematicIntro onComplete={handleIntroComplete} />}
 
-      {!currentRoute.startsWith('watch/') && (
+      {(!currentRoute.startsWith('watch/') || playerMode === 'floating') && (
         <Navbar onSearchClick={() => setIsSearchOpen(true)} />
       )}
 
@@ -1020,6 +1075,26 @@ function AppContent() {
             </Suspense>
           </ErrorBoundary>
         </main>
+
+        {/* Persistent Player Host (Keeps iframe mounted across fullscreen <-> floating PiP) */}
+        {activeWatchInfo && (
+          <Suspense fallback={<RouteLoading />}>
+            {activeWatchInfo.type === 'ani' ? (
+              <AnimePlayer
+                id={activeWatchInfo.id}
+                episode={activeWatchInfo.episode ?? activeWatchInfo.season ?? '1'}
+                malId={activeWatchInfo.malId}
+              />
+            ) : (
+              <PlayerPage
+                type={activeWatchInfo.type}
+                id={activeWatchInfo.id}
+                season={activeWatchInfo.season}
+                episode={activeWatchInfo.episode}
+              />
+            )}
+          </Suspense>
+        )}
 
         <SearchOverlay
           isOpen={isSearchOpen}

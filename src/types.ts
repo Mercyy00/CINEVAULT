@@ -105,6 +105,11 @@ export interface Movie {
   status?: string;
   /** Runtime in minutes as reported upstream. */
   runtime?: number;
+  /** Upcoming episode airing schedule from AniList. */
+  nextAiringEpisode?: {
+    episode: number;
+    airingAt: number;
+  } | null;
 
   /* -- Responsive artwork ------------------------------------------------- */
   /** `srcSet` for `posterUrl`, so the browser downloads the width it needs. */

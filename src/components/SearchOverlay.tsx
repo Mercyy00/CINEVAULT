@@ -22,6 +22,13 @@ const MAX_HISTORY = 8;
 const MIN_QUERY_LENGTH = 2;
 const POPULAR_SEARCHES = ['Marvel', 'Stranger Things', 'Anime', 'Action', 'Avatar'];
 
+function normalizeTitle(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '')
+    .trim();
+}
+
 export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayProps) {
   const [query, setQuery] = useState('');
   const [debouncedQuery] = useDebounce(query, 300);
@@ -34,6 +41,16 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     readJSON<string[]>(HISTORY_KEY, [], (value) => Array.isArray(value))
   );
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const animeTitlesSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const item of results) {
+      if (item.type === 'anime' && item.title) {
+        set.add(normalizeTitle(item.title));
+      }
+    }
+    return set;
+  }, [results]);
 
   const saveToHistory = useCallback((term: string) => {
     const clean = term.trim();
@@ -113,13 +130,6 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
     let tmdbResults: Movie[] = [];
     let anilistResults: Movie[] = [];
 
-    const normalizeForComparison = (str: string): string => {
-      return str
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '')
-        .trim();
-    };
-
     const rankAndDedup = (items: Movie[], queryTerm: string): Movie[] => {
       const cleanTerm = queryTerm.toLowerCase();
 
@@ -127,15 +137,17 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
       const animeTitles = new Set<string>();
       for (const item of items) {
         if (item.type === 'anime' && item.title) {
-          animeTitles.add(normalizeForComparison(item.title));
+          animeTitles.add(normalizeTitle(item.title));
         }
       }
 
-      // Filter out TMDB TV duplicate cards when a dedicated AniList Anime exists for the title
+      // Filter out TMDB TV duplicate cards when a dedicated AniList Anime exists for the title,
+      // but PRESERVE live-action adaptations (series that do not have the Animation genre)
       const dedupedItems = items.filter((item) => {
         if (item.type === 'tv' && item.title) {
-          const norm = normalizeForComparison(item.title);
-          if (animeTitles.has(norm)) {
+          const norm = normalizeTitle(item.title);
+          const isAnimation = item.genres?.some((g) => g.toLowerCase() === 'animation');
+          if (animeTitles.has(norm) && isAnimation) {
             return false;
           }
         }
@@ -470,11 +482,11 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                                     </span>
                                   ) : movie.type === 'tv' ? (
                                     <span className="absolute top-2 left-2 bg-blue-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
-                                      TV SHOW
+                                      {animeTitlesSet.has(normalizeTitle(movie.title)) ? 'LIVE-ACTION TV' : 'TV SHOW'}
                                     </span>
                                   ) : (
                                     <span className="absolute top-2 left-2 bg-amber-500/90 backdrop-blur-md text-black px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
-                                      MOVIE
+                                      {animeTitlesSet.has(normalizeTitle(movie.title)) ? 'LIVE-ACTION MOVIE' : 'MOVIE'}
                                     </span>
                                   )}
                                 </div>

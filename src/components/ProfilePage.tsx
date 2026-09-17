@@ -678,9 +678,10 @@ export function ProfilePage() {
                     }}
                     className="bg-input/50 border border-border rounded-xl px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-brand cursor-pointer"
                   >
-                    <option value="auto" className="bg-card text-foreground">Auto (Fastest)</option>
-                    <option value="megaplay" className="bg-card text-foreground">MegaPlay (Primary)</option>
-                    <option value="anikoto" className="bg-card text-foreground">Anikoto (Server 13)</option>
+                    <option value="auto" className="bg-card text-foreground">Auto (Zoko Primary)</option>
+                    <option value="zokoanime" className="bg-card text-foreground">Zoko (Primary)</option>
+                    <option value="megaplay" className="bg-card text-foreground">MegaPlay</option>
+                    <option value="videasy" className="bg-card text-foreground">VIDEASY 4K</option>
                     <option value="vidlink" className="bg-card text-foreground">VidLink HD</option>
                   </select>
                 </div>

@@ -5,6 +5,9 @@ import { Filter, X } from 'lucide-react';
 import { api, anilistApi } from '../api';
 import type { Movie } from '../types';
 import { MovieCard } from './MovieCard';
+import { MovieRow } from './MovieRow';
+import { AnimeScheduleRow } from './AnimeScheduleRow';
+import { FEATURED_ANIME_GENRES } from '../config/animeGenres';
 import { Hero } from './Hero';
 import { Breadcrumbs } from './Breadcrumbs';
 
@@ -370,6 +373,28 @@ export function PageShell({
                 Retry
               </button>
             </div>
+          </div>
+        ) : defaultType === 'anime' && activePill === 'all' && !isSearch && filtersAreDefault(appliedFilters) ? (
+          <div className="space-y-12 pb-16">
+            <AnimeScheduleRow onMovieSelect={onMovieSelect} />
+
+            <MovieRow
+              title="Trending Now"
+              index={1}
+              fetchFn={(p) => anilistApi.getTrending(p)}
+              onMovieSelect={onMovieSelect}
+            />
+
+            {FEATURED_ANIME_GENRES.map((genre, idx) => (
+              <MovieRow
+                key={genre.slug}
+                index={idx + 2}
+                title={`${genre.label} Anime`}
+                fetchFn={(p) => anilistApi.byGenre(genre.slug, p)}
+                onMovieSelect={onMovieSelect}
+                onExploreAll={() => setActivePill(genre.slug)}
+              />
+            ))}
           </div>
         ) : loading && movies.length === 0 ? (
           <div

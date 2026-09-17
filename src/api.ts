@@ -1033,6 +1033,10 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
     malId,
     anilistId,
     runtime: item.duration ?? undefined,
+    nextAiringEpisode:
+      item.nextAiringEpisode?.airingAt && item.nextAiringEpisode?.episode
+        ? { episode: item.nextAiringEpisode.episode, airingAt: item.nextAiringEpisode.airingAt }
+        : null,
   };
 }
 
@@ -1228,6 +1232,50 @@ export const anilistApi = {
     }>(query, { genre, page, perPage });
     return {
       results: (data?.Page?.media || []).map(mapAniListToInternal),
+      hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
+    };
+  },
+
+  byGenre: async (
+    slug: string,
+    page = 1,
+    perPage = 20
+  ): Promise<{ results: Movie[]; total_pages?: number }> => {
+    const res = await anilistApi.getByCategory(slug, page, perPage);
+    return { results: res.results };
+  },
+
+  getSchedule: async (
+    page = 1,
+    perPage = 30
+  ): Promise<{ results: Movie[]; hasNextPage: boolean }> => {
+    const query = `
+      ${MEDIA_FIELDS_FRAGMENT}
+      query ($page: Int, $perPage: Int) {
+        Page(page: $page, perPage: $perPage) {
+          pageInfo {
+            hasNextPage
+            total
+          }
+          media(type: ANIME, status: RELEASING, sort: POPULARITY_DESC, isAdult: false) {
+            ...MediaFields
+          }
+        }
+      }
+    `;
+    const data = await gqlRequest<{
+      Page: { pageInfo: { hasNextPage: boolean }; media: AniListMedia[] };
+    }>(query, { page, perPage });
+    const media = (data?.Page?.media || []).filter(
+      (item) => Boolean(item.nextAiringEpisode?.airingAt && item.nextAiringEpisode?.episode)
+    );
+    // Sort upcoming episodes by nearest airing time
+    media.sort(
+      (a, b) =>
+        (a.nextAiringEpisode?.airingAt ?? Infinity) - (b.nextAiringEpisode?.airingAt ?? Infinity)
+    );
+    return {
+      results: media.map(mapAniListToInternal),
       hasNextPage: Boolean(data?.Page?.pageInfo?.hasNextPage),
     };
   },

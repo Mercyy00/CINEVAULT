@@ -70,6 +70,7 @@ export const THEMES = [
 
 export type Theme = (typeof THEMES)[number];
 export type AppFont = AppFontId;
+export type PlayerMode = 'contained' | 'fullscreen' | 'floating';
 
 const DEFAULT_THEME: Theme = 'crimson-premiere';
 const DEFAULT_FONT: AppFont = 'bricolage';
@@ -211,6 +212,8 @@ interface AppContextType {
   setAuthModalOpen: (open: boolean) => void;
   authModalMode: 'signin' | 'signup' | 'forgot';
   setAuthModalMode: (mode: 'signin' | 'signup' | 'forgot') => void;
+  playerMode: PlayerMode;
+  setPlayerMode: (mode: PlayerMode) => void;
 }
 
 /**
@@ -374,6 +377,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /** Cleared when Firebase is absent or anonymous sign-in is refused. */
   const [cloudAvailable, setCloudAvailable] = useState(true);
   const [telemetryConsent, setTelemetryConsentState] = useState<ConsentState>(getTelemetryConsent);
+  const [playerMode, setPlayerModeState] = useState<PlayerMode>(() => {
+    const saved = readString(StorageKeys.playerMode, 'contained');
+    return saved === 'floating' ? 'floating' : saved === 'fullscreen' ? 'fullscreen' : 'contained';
+  });
+
+  const setPlayerMode = useCallback((mode: PlayerMode) => {
+    setPlayerModeState(mode);
+    writeString(StorageKeys.playerMode, mode);
+  }, []);
 
   /* Read during render, persisted in an effect. The previous version called a
    * storage-*writing* helper from the render body, which React may run twice or
@@ -1206,6 +1218,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAuthModalOpen,
       authModalMode,
       setAuthModalMode,
+      playerMode,
+      setPlayerMode,
     }),
     [
       isMobileView,
@@ -1264,6 +1278,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setAuthModalOpen,
       authModalMode,
       setAuthModalMode,
+      playerMode,
+      setPlayerMode,
     ]
   );
 

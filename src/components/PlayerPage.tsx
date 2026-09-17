@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, SkipForward, SkipBack, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, PictureInPicture, Play, Signal, SkipForward, SkipBack, X, Download, Box, Star } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -15,7 +15,7 @@ import {
 import { formatDuration, type Movie } from '../types';
 import { COMPLETION_THRESHOLD, MIN_RESUME_PERCENT } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
-import { goToWatch, goToDetail } from '../lib/navigation';
+import { goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 import { StorageKeys, readString, writeString } from '../lib/storage';
 
 /**
@@ -64,7 +64,7 @@ interface PlaybackProgress {
 }
 
 export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
-  const { updateContinueWatching, continueWatching, userProfile, isMobileView } = useApp();
+  const { updateContinueWatching, continueWatching, userProfile, isMobileView, playerMode, setPlayerMode } = useApp();
 
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -781,6 +781,14 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         } catch {
           // Ignore cross-origin iframe postMessage dispatch failure
         }
+      } else if ((event.key === 'd' || event.key === 'D') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        goToDownload(id, type, selectedSeason, selectedEpisode?.episode_number);
+      } else if ((event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (isFullscreen) toggleFullscreen();
+        setPlayerMode('contained');
+      } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        setPlayerMode('fullscreen');
+        toggleFullscreen();
       } else if (event.key === 'Escape') {
         if (sidebarOpen) {
           setSidebarOpen(false);
@@ -881,31 +889,198 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   }
 
   const overlayVisible = embedState === 'loading' || !embedSrc;
+  const isContained = playerMode === 'contained' && !isFullscreen;
 
   return (
     <div
       ref={containerRef}
       className={cn(
-        'fixed inset-0 w-full h-full z-50 flex',
-        isMobileView && !isFullscreen
-          ? 'flex-col bg-background overflow-y-auto custom-scrollbar select-none'
+        playerMode === 'floating'
+          ? 'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-[290px] xs:w-[340px] sm:w-[440px] aspect-video z-[90] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/20 bg-black overflow-hidden flex flex-col group select-none transition-all duration-300'
+          : 'fixed inset-0 w-full h-full z-50 flex',
+        playerMode !== 'floating' && !isFullscreen
+          ? 'flex-col bg-[#07080b] overflow-y-auto custom-scrollbar select-none'
           : 'bg-black overflow-hidden select-none'
       )}
       onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
     >
-      {/* Video Stage Container */}
-      <div
-        className={cn(
-          'relative bg-black overflow-hidden select-none',
-          isMobileView && !isFullscreen
-            ? 'w-full aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
-            : 'w-full h-full flex-1'
+      {/* Contained Cinema Stage Top Bar Header */}
+      {isContained && (
+        <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 shrink-0 z-40">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={() => {
+                const current = window.location.pathname;
+                window.history.back();
+                setTimeout(() => {
+                  if (
+                    window.location.pathname === current ||
+                    window.location.pathname.startsWith('/watch/') ||
+                    window.location.pathname.startsWith('/player/')
+                  ) {
+                    goToDetail(id, type);
+                  }
+                }, 100);
+              }}
+              aria-label="Back to details"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
+            >
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
+                  {movie.title}
+                </h1>
+                {(movie.rating ?? 0) > 0 && (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
+                    <Star className="w-3 h-3 fill-current" /> {movie.rating?.toFixed(1)}
+                  </span>
+                )}
+              </div>
+              {type === 'tv' && selectedEpisode && (
+                <p className="text-[11px] sm:text-xs text-brand truncate font-medium">
+                  S{selectedSeason} E{selectedEpisode.episode_number}{selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right actions: Download + Mode Toggles */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => goToDownload(id, type, selectedSeason, selectedEpisode?.episode_number)}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full glass border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 transition-all text-xs sm:text-sm font-bold shadow-sm cursor-pointer"
+              title="Download movie or episode in High-Speed"
+            >
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Download</span>
+            </button>
+
+            {/* Mode Toggle Pills */}
+            <div className="flex items-center bg-card/80 border border-white/10 rounded-full p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setPlayerMode('contained')}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold bg-brand text-background shadow-md shadow-brand/20 font-bold transition-all cursor-pointer"
+                title="Theater Box Stage (ASA Square)"
+              >
+                <Box className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Theater Box</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlayerMode('fullscreen');
+                  toggleFullscreen();
+                }}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                title="Full Screen Mode (F)"
+              >
+                <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Full</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPlayerMode('floating')}
+                className="p-1.5 sm:px-2 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                title="Mini-Player / Picture-in-Picture (I)"
+              >
+                <PictureInPicture className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* Video Stage Outer Constraint */}
+      <div className={cn(
+        isContained
+          ? "w-full max-w-5xl xl:max-w-6xl mx-auto px-3 sm:px-6 py-1 shrink-0"
+          : "w-full h-full flex-1 relative flex flex-col"
+      )}>
+        {/* Video Stage Container */}
+        <div
+          className={cn(
+            'relative bg-black overflow-hidden select-none w-full',
+            playerMode === 'floating'
+              ? 'h-full'
+              : isContained
+              ? 'aspect-video rounded-2xl sm:rounded-3xl border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] ring-1 ring-white/10 group'
+              : isMobileView && !isFullscreen
+              ? 'aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
+              : 'flex-1 h-full'
+          )}
+        >
+        {/* Floating PiP Hover Controls */}
+        {playerMode === 'floating' && (
+          <div className="absolute inset-0 z-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity bg-gradient-to-t from-black/80 via-black/30 to-black/80 flex flex-col justify-between p-3 pointer-events-none">
+            <div className="flex items-center justify-between gap-2 pointer-events-auto">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate drop-shadow">{movie?.title || 'Playing'}</p>
+                {type === 'tv' && selectedEpisode && (
+                  <p className="text-[10px] text-brand truncate font-medium">
+                    S{selectedSeason} E{selectedEpisode.episode_number}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPlayerMode('fullscreen');
+                    goToWatch(id, type, selectedSeason, selectedEpisode?.episode_number);
+                  }}
+                  className="p-1.5 rounded-full bg-white/15 hover:bg-brand text-white hover:text-background transition-colors cursor-pointer"
+                  title="Expand to Fullscreen"
+                  aria-label="Expand to Fullscreen"
+                >
+                  <Maximize className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.dispatchEvent(new CustomEvent('close-floating-player'));
+                  }}
+                  className="p-1.5 rounded-full bg-white/15 hover:bg-red-500 text-white transition-colors cursor-pointer"
+                  title="Close player"
+                  aria-label="Close player"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pointer-events-auto">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-white/80">
+                {source.name} • {source.quality || 'HD'}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPlayerMode('fullscreen');
+                  goToWatch(id, type, selectedSeason, selectedEpisode?.episode_number);
+                }}
+                className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                Tap to expand
+              </button>
+            </div>
+          </div>
         )}
-      >
-        {/* Top bar */}
+
+        {/* Top bar (fullscreen only) */}
         <AnimatePresence>
-          {showControls && (
+          {showControls && playerMode !== 'floating' && (
             <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -997,14 +1172,44 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 </div>
               </div>
 
-              {/* Right side: Fullscreen toggle */}
+              {/* Right side: Download, Theater Box, Mini-Player & Fullscreen toggles */}
               <div className="flex items-center gap-2 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => goToDownload(id, type, selectedSeason, selectedEpisode?.episode_number)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-md"
+                  title="Download in High-Speed (D)"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isFullscreen) toggleFullscreen();
+                    setPlayerMode('contained');
+                  }}
+                  aria-label="Theater Box Stage"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
+                  title="Theater Box Stage (ASA Square) (T)"
+                >
+                  <Box className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlayerMode('floating')}
+                  aria-label="Floating mini player"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
+                  title="Mini Player / Picture-in-Picture (I)"
+                >
+                  <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   onClick={toggleFullscreen}
                   aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                   className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
-                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen (F)'}
                 >
                   {isFullscreen ? (
                     <Minimize className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
@@ -1234,33 +1439,71 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           )}
         </AnimatePresence>
       </div>
+      </div>
 
-      {/* Mobile Portrait Mode Info & Horizontal Episode Strip */}
-      {isMobileView && !isFullscreen && (
-        <div className="p-4 space-y-4 pb-20">
-          {/* Title & metadata */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <h1 className="text-lg font-bold text-foreground font-display line-clamp-1">
-                {movie.title}
-              </h1>
-              {(movie.rating ?? 0) > 0 && (
-                <span className="text-xs font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0">
-                  ★ {movie.rating?.toFixed(1)}
+      {/* Contained Cinema & Mobile Console Dock (Visible whenever not fullscreen or floating) */}
+      {!isFullscreen && playerMode !== 'floating' && (
+        <div className="w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 space-y-4 pb-24">
+          {/* Dedicated Streaming Servers Dock (1-click direct switcher) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-card/65 border border-white/10 backdrop-blur-xl shadow-lg space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Signal className="w-4 h-4 text-brand" />
+                <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground">
+                  Streaming Servers
+                </h2>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  ({rankedSources.length} servers)
                 </span>
-              )}
+              </div>
+              <span className="text-[11px] text-muted-foreground hidden sm:inline">
+                Click any server to switch stream immediately
+              </span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              {type === 'tv' && selectedEpisode ? (
-                <span className="text-brand font-semibold">
-                  S{selectedSeason} E{selectedEpisode.episode_number}: {selectedEpisode.name || `Episode ${selectedEpisode.episode_number}`}
-                </span>
-              ) : (
-                <span>{movie.year > 0 ? movie.year : ''}{movie.duration ? ` • ${movie.duration}` : ''}</span>
-              )}
-              {source && (
-                <span className="text-white/40">• {source.name} ({source.quality || 'HD'})</span>
-              )}
+
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
+              {rankedSources.map((s) => {
+                const isCurrent = s.id === source.id;
+                const probe = serverProbeCache.get(s.id);
+                const isFailed = failedSources.has(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleSourceChange(s)}
+                    className={cn(
+                      'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all border cursor-pointer',
+                      isCurrent
+                        ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-extrabold scale-[1.02]'
+                        : 'bg-white/5 border-white/10 text-foreground/80 hover:bg-white/10 hover:border-white/20'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'w-2 h-2 rounded-full shrink-0',
+                        isCurrent
+                          ? 'bg-background'
+                          : isFailed
+                          ? 'bg-amber-400'
+                          : probe?.reachable
+                          ? 'bg-emerald-400'
+                          : 'bg-white/40'
+                      )}
+                    />
+                    <span>{s.name}</span>
+                    {s.quality && (
+                      <span
+                        className={cn(
+                          'text-[9px] px-1 py-0.5 rounded uppercase font-mono',
+                          isCurrent ? 'bg-black/20 text-background' : 'bg-white/10 text-brand'
+                        )}
+                      >
+                        {s.quality}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1268,16 +1511,20 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
             <button
               type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
+              onClick={() => goToDownload(id, type, selectedSeason, selectedEpisode?.episode_number)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand/10 border border-brand/40 text-brand text-xs font-bold shrink-0 hover:bg-brand/20 transition-all cursor-pointer shadow-sm"
+              title="Download in High-Speed"
             >
-              <Signal className="w-3.5 h-3.5 text-brand" />
-              <span>Source: <strong className="text-brand">{source.name}</strong></span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Download in High-Speed</span>
             </button>
 
             <button
               type="button"
-              onClick={toggleFullscreen}
+              onClick={() => {
+                setPlayerMode('fullscreen');
+                toggleFullscreen();
+              }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
             >
               <Maximize className="w-3.5 h-3.5 text-brand" />
@@ -1318,30 +1565,50 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 )}
               </div>
 
-              {/* Horizontal scrollable episode chips */}
+              {/* Horizontal scrollable episode chips with direct download */}
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-4 px-4">
                 {episodes.map((ep) => {
                   const isCurrent = selectedEpisode?.id === ep.id || selectedEpisode?.episode_number === ep.episode_number;
                   return (
-                    <button
+                    <div
                       key={ep.id}
-                      type="button"
-                      onClick={() => goToEpisode(ep)}
                       className={cn(
-                        'flex items-center gap-2 px-3 py-2 rounded-xl text-xs shrink-0 transition-all cursor-pointer border',
+                        'flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-xl text-xs shrink-0 transition-all border',
                         isCurrent
                           ? 'bg-brand text-background font-bold border-brand shadow-lg shadow-brand/20'
                           : 'bg-card border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground'
                       )}
                     >
-                      {isCurrent ? (
-                        <Play className="w-3 h-3 fill-current" />
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-                      )}
-                      <span>EP {ep.episode_number}</span>
-                      {ep.name && <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.name}</span>}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => goToEpisode(ep)}
+                        className="flex items-center gap-2 cursor-pointer text-left"
+                      >
+                        {isCurrent ? (
+                          <Play className="w-3 h-3 fill-current shrink-0" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
+                        )}
+                        <span>EP {ep.episode_number}</span>
+                        {ep.name && <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.name}</span>}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToDownload(id, 'tv', selectedSeason, ep.episode_number);
+                        }}
+                        className={cn(
+                          "p-1 rounded-lg transition-colors cursor-pointer ml-1",
+                          isCurrent ? "hover:bg-black/20 text-background" : "hover:bg-white/20 text-muted-foreground hover:text-brand"
+                        )}
+                        title={`Download S${selectedSeason} E${ep.episode_number}`}
+                        aria-label={`Download S${selectedSeason} E${ep.episode_number}`}
+                      >
+                        <Download className="w-3 h-3" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1352,7 +1619,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           {movie.description && (
             <div className="pt-2 border-t border-white/5 space-y-1">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Overview</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed line-clamp-4">
+              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed max-w-4xl">
                 {movie.description}
               </p>
             </div>
@@ -1461,13 +1728,13 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                     {episodes.map((entry) => {
                       const current = selectedEpisode?.id === entry.id;
                       return (
-                        <li key={entry.id}>
+                        <li key={entry.id} className="flex items-center gap-1 group">
                           <button
                             type="button"
                             onClick={() => goToEpisode(entry)}
                             aria-current={current ? 'true' : undefined}
                             className={cn(
-                              'w-full flex items-center gap-3 p-2 rounded-xl text-left transition-colors group cursor-pointer',
+                              'flex-1 min-w-0 flex items-center gap-3 p-2 rounded-xl text-left transition-colors cursor-pointer',
                               current
                                 ? 'bg-brand/10 border border-brand/30'
                                 : 'border border-transparent hover:bg-white/5'
@@ -1508,6 +1775,18 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                                 </span>
                               ) : null}
                             </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              goToDownload(id, 'tv', selectedSeason, entry.episode_number);
+                            }}
+                            className="p-2 rounded-xl bg-white/5 hover:bg-brand/20 text-muted-foreground hover:text-brand transition-colors cursor-pointer shrink-0"
+                            title={`Download S${selectedSeason} E${entry.episode_number}`}
+                            aria-label={`Download S${selectedSeason} E${entry.episode_number}`}
+                          >
+                            <Download className="w-3.5 h-3.5" />
                           </button>
                         </li>
                       );

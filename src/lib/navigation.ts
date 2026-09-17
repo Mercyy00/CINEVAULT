@@ -86,3 +86,29 @@ export function goToHome(): void {
   navigate('/');
 }
 
+export function downloadRoute(
+  id: string | number,
+  type: string,
+  season?: number | string,
+  episode?: number | string,
+  imdbId?: string
+): string {
+  const params = new URLSearchParams();
+  params.set('id', String(id));
+  params.set('type', type === 'ani' || type === 'anime' ? 'anime' : type === 'tv' ? 'tv' : 'movie');
+  if (season != null) params.set('season', String(season));
+  if (episode != null) params.set('episode', String(episode));
+  if (imdbId) params.set('imdb', imdbId);
+  return `/download?${params.toString()}`;
+}
+
+export function goToDownload(
+  id: string | number,
+  type: string,
+  season?: number | string,
+  episode?: number | string,
+  imdbId?: string
+): void {
+  navigate(downloadRoute(id, type, season, episode, imdbId));
+}
+

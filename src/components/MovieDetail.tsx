@@ -24,7 +24,7 @@ import { PosterImage } from './PosterImage';
 import { ActorModal } from './ActorModal';
 import { Breadcrumbs } from './Breadcrumbs';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
-import { navigate, goToWatch, goToDetail } from '../lib/navigation';
+import { navigate, goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 import { triggerHaptic } from '../lib/mobile';
 
 export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) {
@@ -226,12 +226,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
     const s = targetSeason !== undefined ? targetSeason : selectedSeason;
     const e = targetEp !== undefined ? targetEp : selectedEpisode;
 
-    const downloadUrl =
-      type === 'tv'
-        ? `https://dl.modiplay.com/dl.php?id=${finalImdb}&s=${s}&e=${e}`
-        : `https://dl.modiplay.com/dl.php?id=${finalImdb}`;
-
-    window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+    goToDownload(id, type, s, e, finalImdb);
   };
 
   if (!movie) {

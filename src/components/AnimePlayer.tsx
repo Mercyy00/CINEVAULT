@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize } from 'lucide-react';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize, PictureInPicture, Download, Box, Star } from 'lucide-react';
 import { api, anilistApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -8,11 +8,11 @@ import { watchTrackingService } from '../services/watchTracking';
 import { TRUSTED_PLAYER_ORIGINS } from '../config/servers';
 import { COMPLETION_THRESHOLD, isResumable } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
-import { goToWatch, goToDetail } from '../lib/navigation';
+import { goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 
-export type AnimeServerId = 'videasy' | 'vidlink' | 'megaplay' | 'screenmirror' | 'gogoanime' | 'screenscape';
+export type AnimeServerId = 'zokoanime' | 'megaplay' | 'videasy' | 'vidlink' | 'screenmirror' | 'gogoanime' | 'screenscape';
 
-interface AnimeServerOption {
+export interface AnimeServerOption {
   id: AnimeServerId;
   name: string;
   quality: string;
@@ -29,8 +29,9 @@ function formatSeconds(totalSec: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-const ANIME_SERVERS: AnimeServerOption[] = [
-  { id: 'megaplay', name: 'MegaPlay (Primary)', quality: '1080p', tag: 'Direct MAL • Sub/Dub' },
+export const ANIME_SERVERS: AnimeServerOption[] = [
+  { id: 'zokoanime', name: 'Zoko (Primary)', quality: '1080p', tag: 'Fast • Auto-Skip • Sub/Dub' },
+  { id: 'megaplay', name: 'MegaPlay', quality: '1080p', tag: 'Direct MAL • Sub/Dub' },
   { id: 'videasy', name: 'VIDEASY 4K', quality: '4K', tag: 'Direct AniList • 4K Sub/Dub' },
   { id: 'vidlink', name: 'VidLink Pro (Multi)', quality: '1080p', tag: 'Direct Sync • No Cloudflare Block' },
   { id: 'screenmirror', name: 'ScreenMirror (ModiPlay)', quality: '4K', tag: 'TMDB • Multi-Audio' },
@@ -38,7 +39,7 @@ const ANIME_SERVERS: AnimeServerOption[] = [
   { id: 'screenscape', name: 'ScreenScape 4K', quality: '4K', tag: 'TMDB • Hindi Dub • Ultra HD' },
 ];
 
-const TRUSTED_ANIME_ORIGINS = new Set([
+export const TRUSTED_ANIME_ORIGINS = new Set([
   ...TRUSTED_PLAYER_ORIGINS,
   'https://player.videasy.to',
   'https://videasy.to',
@@ -47,7 +48,78 @@ const TRUSTED_ANIME_ORIGINS = new Set([
   'https://rozgarlelo.modiplay.xyz',
   'https://gogoanime.me.uk',
   'https://screenscape.me',
+  'https://zokoanime.video',
 ]);
+
+export interface BuildAnimeEmbedUrlOptions {
+  server: AnimeServerId;
+  episodeNumber: number;
+  language: 'sub' | 'dub';
+  malId?: string | null;
+  anilistId?: string | null;
+  tmdbId?: string | null;
+  isAnimeMovie?: boolean;
+}
+
+export function buildAnimeEmbedUrl({
+  server,
+  episodeNumber,
+  language,
+  malId,
+  anilistId,
+  tmdbId,
+  isAnimeMovie = false,
+}: BuildAnimeEmbedUrlOptions): string {
+  const effectiveMalId = malId && malId !== '0' ? String(malId) : '';
+  const targetAnilist = anilistId ? String(anilistId) : '';
+  const epNum = episodeNumber;
+  const lang = language;
+
+  switch (server) {
+    case 'zokoanime': {
+      const source = effectiveMalId ? 'mal' : 'anilist';
+      const targetId = effectiveMalId || targetAnilist;
+      const track = lang === 'dub' ? 'dub' : 'sub';
+      return `https://zokoanime.video/stream/${source}/${targetId}/${epNum}/${track}?color=e8852a&autoplay=1&asi=1&autonext=1`;
+    }
+    case 'megaplay': {
+      if (effectiveMalId) {
+        return `https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`;
+      }
+      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+    }
+    case 'videasy': {
+      if (isAnimeMovie) {
+        return `https://player.videasy.to/anime/${targetAnilist}?color=e8852a&nextEpisode=false&episodeSelector=false`;
+      }
+      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true`;
+    }
+    case 'vidlink': {
+      const streamId = effectiveMalId || targetAnilist;
+      return `https://vidlink.pro/anime/${streamId}/${epNum}/${lang}`;
+    }
+    case 'gogoanime': {
+      if (effectiveMalId) {
+        return `https://gogoanime.me.uk/newplayer.php?mal_id=${effectiveMalId}&ep=${epNum}&category=${lang}`;
+      }
+      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+    }
+    case 'screenmirror': {
+      if (tmdbId) {
+        return `https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${tmdbId}&s=1&e=${epNum}`;
+      }
+      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+    }
+    case 'screenscape': {
+      if (tmdbId) {
+        return `https://screenscape.me/embed?tmdb=${tmdbId}&type=tv&s=1&e=${epNum}&lan=hindi`;
+      }
+      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+    }
+    default:
+      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+  }
+}
 
 interface PlaybackProgress {
   positionSeconds: number;
@@ -55,8 +127,8 @@ interface PlaybackProgress {
   percentage: number;
 }
 
-export function AnimePlayer({ id, episode }: { id: string; episode: string; malId?: string }) {
-  const { updateContinueWatching, continueWatching, userProfile, isMobileView } = useApp();
+export function AnimePlayer({ id, episode, malId }: { id: string; episode: string; malId?: string }) {
+  const { updateContinueWatching, continueWatching, userProfile, isMobileView, playerMode, setPlayerMode } = useApp();
   const [movie, setMovie] = useState<any>(null);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -100,9 +172,12 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
   const [jumpError, setJumpError] = useState<string | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [language, setLanguage] = useState<'sub' | 'dub'>('sub');
-  // Default to MegaPlay
-  const [server, setServer] = useState<AnimeServerId>('megaplay');
+  const [language, setLanguage] = useState<'sub' | 'dub'>(userProfile?.audioPreference === 'dub' ? 'dub' : 'sub');
+  // Default to ZokoAnime (Primary)
+  const initialServer: AnimeServerId = (userProfile?.defaultServer && ANIME_SERVERS.some(s => s.id === userProfile.defaultServer))
+    ? (userProfile.defaultServer as AnimeServerId)
+    : 'zokoanime';
+  const [server, setServer] = useState<AnimeServerId>(initialServer);
   const [tmdbId, setTmdbId] = useState<string>('');
   const tmdbIdRef = useRef<string>('');
   const anilistIdRef = useRef<string>('');
@@ -183,40 +258,19 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
       const targetAnilist = resolvedAnilistId || anilistIdRef.current || movie?.anilistId || id;
       const effectiveMalId = malId && malId !== '0' ? malId : (movie?.malId || '');
       const targetTmdb = currentTmdb || tmdbIdRef.current || tmdbId;
+      const isAnimeMovie = (movie?.episodeCount === 1 && epNum === 1) || movie?.type === 'movie';
 
-      if (srv === 'megaplay') {
-        if (effectiveMalId) {
-          setCurrentIframeSrc(`https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`);
-        } else {
-          setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
-        }
-      } else if (srv === 'videasy') {
-        const isAnimeMovie = (movie?.episodeCount === 1 && epNum === 1) || movie?.type === 'movie';
-        const videasyUrl = isAnimeMovie
-          ? `https://player.videasy.to/anime/${targetAnilist}?color=e8852a&nextEpisode=false&episodeSelector=false`
-          : `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a&nextEpisode=true&autoplayNextEpisode=true&episodeSelector=true`;
-        setCurrentIframeSrc(videasyUrl);
-      } else if (srv === 'vidlink') {
-        const streamId = effectiveMalId || targetAnilist || id;
-        setCurrentIframeSrc(`https://vidlink.pro/anime/${streamId}/${epNum}/${lang}`);
-      } else if (srv === 'gogoanime' && effectiveMalId) {
-        setCurrentIframeSrc(`https://gogoanime.me.uk/newplayer.php?mal_id=${effectiveMalId}&ep=${epNum}&category=${lang}`);
-      } else if (srv === 'screenmirror') {
-        if (targetTmdb) {
-          setCurrentIframeSrc(`https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${targetTmdb}&s=1&e=${epNum}`);
-        } else {
-          setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
-        }
-      } else if (srv === 'screenscape') {
-        if (targetTmdb) {
-          setCurrentIframeSrc(`https://screenscape.me/embed?tmdb=${targetTmdb}&type=tv&s=1&e=${epNum}&lan=hindi`);
-        } else {
-          setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
-        }
-      } else {
-        // Safe default: VIDEASY
-        setCurrentIframeSrc(`https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`);
-      }
+      const url = buildAnimeEmbedUrl({
+        server: srv,
+        episodeNumber: epNum,
+        language: lang,
+        malId: effectiveMalId,
+        anilistId: targetAnilist,
+        tmdbId: targetTmdb,
+        isAnimeMovie,
+      });
+
+      setCurrentIframeSrc(url);
       setIsServerLoading(false);
     }, 200);
   };
@@ -655,6 +709,12 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           }
         } catch {}
       }
+      try {
+        iframeRef.current?.contentWindow?.postMessage(
+          { channel: 'zokoanime', type: 'fullscreen', active: fs },
+          'https://zokoanime.video'
+        );
+      } catch {}
     };
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
@@ -719,6 +779,14 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
         } catch {
           // Ignore cross-origin iframe postMessage dispatch failure
         }
+      } else if ((event.key === 'd' || event.key === 'D') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0');
+      } else if ((event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        if (isFullscreen) toggleFullscreen();
+        setPlayerMode('contained');
+      } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        setPlayerMode('fullscreen');
+        toggleFullscreen();
       } else if (event.key === 'Escape') {
         if (sidebarOpen) {
           setSidebarOpen(false);
@@ -751,6 +819,35 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
       if (!rawPayload || typeof rawPayload !== 'object') return;
 
       const payload = rawPayload as Record<string, any>;
+
+      // ZokoAnime dedicated event routing
+      if (payload.channel === 'zokoanime') {
+        if (payload.type === 'fullscreen') {
+          if (payload.request === 'enter' && !document.fullscreenElement) {
+            void toggleFullscreen();
+          } else if (payload.request === 'exit' && document.fullscreenElement) {
+            void toggleFullscreen();
+          }
+          return;
+        }
+
+        if (payload.type === 'ready') {
+          setIsServerLoading(false);
+          setIsServerSlow(false);
+          if (serverSlowTimerRef.current) clearTimeout(serverSlowTimerRef.current);
+          return;
+        }
+
+        if (payload.type === 'ended' && payload.auto_next) {
+          const currentIndex = episodes.findIndex((e) => e.episode === selectedEpisode?.episode);
+          if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
+            setShowNextEpisode(false);
+            const nextEpNum = episodes[currentIndex + 1]?.episode || selectedEpisode.episode + 1;
+            goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
+            return;
+          }
+        }
+      }
 
       // VidLink MEDIA_DATA unwrap for anime
       let inner = payload.data && typeof payload.data === 'object' ? payload.data : payload;
@@ -944,31 +1041,198 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
     );
   }
 
+  const isContained = playerMode === 'contained' && !isFullscreen;
+
   return (
     <div 
       ref={containerRef}
       className={cn(
-        "fixed inset-0 w-full h-full z-50 flex",
-        isMobileView && !isFullscreen
-          ? "flex-col bg-background overflow-y-auto custom-scrollbar select-none"
-          : "bg-black overflow-hidden select-none"
+        playerMode === 'floating'
+          ? 'fixed bottom-4 right-4 sm:bottom-6 sm:right-6 w-[290px] xs:w-[340px] sm:w-[440px] aspect-video z-[90] rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.8)] border border-white/20 bg-black overflow-hidden flex flex-col group select-none transition-all duration-300'
+          : 'fixed inset-0 w-full h-full z-50 flex',
+        playerMode !== 'floating' && !isFullscreen
+          ? 'flex-col bg-[#07080b] overflow-y-auto custom-scrollbar select-none'
+          : 'bg-black overflow-hidden select-none'
       )}
       onMouseMove={handlePointerMove}
       onTouchStart={handlePointerMove}
       onClick={() => handlePointerMove()}
     >
-      {/* Video Stage Container */}
-      <div
-        className={cn(
-          "relative bg-black overflow-hidden select-none",
-          isMobileView && !isFullscreen
-            ? "w-full aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl"
-            : "w-full h-full flex-1"
+      {/* Contained Cinema Stage Top Bar Header */}
+      {isContained && (
+        <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 shrink-0 z-40">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <button 
+              onClick={() => {
+                const current = window.location.pathname;
+                window.history.back();
+                setTimeout(() => {
+                  if (
+                    window.location.pathname === current ||
+                    window.location.pathname.startsWith('/watch/') ||
+                    window.location.pathname.startsWith('/player/')
+                  ) {
+                    goToDetail(id, 'anime');
+                  }
+                }, 100);
+              }}
+              aria-label="Back"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
+            >
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
+                  {movie.title}
+                </h1>
+                {(movie.rating ?? 0) > 0 && (
+                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
+                    <Star className="w-3 h-3 fill-current" /> {Number(movie.rating).toFixed(1)}
+                  </span>
+                )}
+              </div>
+              {selectedEpisode && (
+                <p className="text-[11px] sm:text-xs text-brand truncate font-medium">
+                  Episode {selectedEpisode.episode || selectedEpisode.number || episode}{selectedEpisode.title ? ` — ${selectedEpisode.title}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Right actions: Download + Mode Toggles */}
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0')}
+              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full glass border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 transition-all text-xs sm:text-sm font-bold shadow-sm cursor-pointer"
+              title="Download anime episode in High-Speed"
+            >
+              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden xs:inline">Download</span>
+            </button>
+
+            {/* Mode Toggle Pills */}
+            <div className="flex items-center bg-card/80 border border-white/10 rounded-full p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setPlayerMode('contained')}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold bg-brand text-background shadow-md shadow-brand/20 font-bold transition-all cursor-pointer"
+                title="Theater Box Stage (ASA Square)"
+              >
+                <Box className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Theater Box</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPlayerMode('fullscreen');
+                  toggleFullscreen();
+                }}
+                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                title="Full Screen Mode (F)"
+              >
+                <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden md:inline">Full</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPlayerMode('floating')}
+                className="p-1.5 sm:px-2 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                title="Mini-Player / Picture-in-Picture (I)"
+              >
+                <PictureInPicture className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              </button>
+            </div>
+          </div>
+        </header>
+      )}
+
+      {/* Video Stage Outer Constraint */}
+      <div className={cn(
+        isContained
+          ? "w-full max-w-5xl xl:max-w-6xl mx-auto px-3 sm:px-6 py-1 shrink-0"
+          : "w-full h-full flex-1 relative flex flex-col"
+      )}>
+        {/* Video Stage Container */}
+        <div
+          className={cn(
+            'relative bg-black overflow-hidden select-none w-full',
+            playerMode === 'floating'
+              ? 'h-full'
+              : isContained
+              ? 'aspect-video rounded-2xl sm:rounded-3xl border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] ring-1 ring-white/10 group'
+              : isMobileView && !isFullscreen
+              ? 'aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
+              : 'flex-1 h-full'
+          )}
+        >
+        {/* Floating PiP Hover Controls */}
+        {playerMode === 'floating' && (
+          <div className="absolute inset-0 z-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity bg-gradient-to-t from-black/80 via-black/30 to-black/80 flex flex-col justify-between p-3 pointer-events-none">
+            <div className="flex items-center justify-between gap-2 pointer-events-auto">
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate drop-shadow">{movie?.title || 'Playing'}</p>
+                {selectedEpisode && (
+                  <p className="text-[10px] text-brand truncate font-medium">
+                    Episode {selectedEpisode.episode || selectedEpisode.number || episode}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPlayerMode('fullscreen');
+                    goToWatch(id, 'anime', undefined, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0');
+                  }}
+                  className="p-1.5 rounded-full bg-white/15 hover:bg-brand text-white hover:text-background transition-colors cursor-pointer"
+                  title="Expand to Fullscreen"
+                  aria-label="Expand to Fullscreen"
+                >
+                  <Maximize className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    window.dispatchEvent(new CustomEvent('close-floating-player'));
+                  }}
+                  className="p-1.5 rounded-full bg-white/15 hover:bg-red-500 text-white transition-colors cursor-pointer"
+                  title="Close player"
+                  aria-label="Close player"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pointer-events-auto">
+              <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-white/80">
+                {ANIME_SERVERS.find(s => s.id === server)?.name.split(' ')[0] || 'Server'} • {language.toUpperCase()}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setPlayerMode('fullscreen');
+                  goToWatch(id, 'anime', undefined, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0');
+                }}
+                className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                Tap to expand
+              </button>
+            </div>
+          </div>
         )}
-      >
+
         {/* Top Bar */}
         <AnimatePresence>
-          {showControls && (
+          {showControls && playerMode !== 'floating' && (
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1090,14 +1354,44 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 </div>
               </div>
 
-              {/* Top bar right side: Fullscreen toggle */}
+              {/* Top bar right side: Download, Theater Box, Mini-Player & Fullscreen toggles */}
               <div className="flex items-center gap-2 pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all cursor-pointer shrink-0 shadow-md"
+                  title="Download in High-Speed (D)"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Download</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isFullscreen) toggleFullscreen();
+                    setPlayerMode('contained');
+                  }}
+                  aria-label="Theater Box Stage"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
+                  title="Theater Box Stage (ASA Square) (T)"
+                >
+                  <Box className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPlayerMode('floating')}
+                  aria-label="Floating mini player"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
+                  title="Mini Player / Picture-in-Picture (I)"
+                >
+                  <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+                </button>
                 <button
                   type="button"
                   onClick={toggleFullscreen}
                   aria-label={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
                   className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
-                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen (F)'}
                 >
                   {isFullscreen ? (
                     <Minimize className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -1344,78 +1638,113 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           })()}
         </AnimatePresence>
       </div>
+      </div>
 
-      {/* Mobile Portrait Mode Info & Fast Episode Strip */}
-      {isMobileView && !isFullscreen && (
-        <div className="p-4 space-y-4 pb-20">
-          {/* Title & metadata */}
-          <div>
-            <div className="flex items-center justify-between gap-2 mb-1">
-              <h1 className="text-lg font-bold text-foreground font-display line-clamp-1">
-                {movie.title}
-              </h1>
-              {(movie.rating ?? 0) > 0 && (
-                <span className="text-xs font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0">
-                  ★ {Number(movie.rating).toFixed(1)}
+      {/* Contained Cinema & Mobile Console Dock (Visible whenever not fullscreen or floating) */}
+      {!isFullscreen && playerMode !== 'floating' && (
+        <div className="w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 space-y-4 pb-24">
+          {/* Prominent Anime Streaming Servers & Sub/Dub Shelf (1-click direct switcher) */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-card/65 border border-white/10 backdrop-blur-xl shadow-lg space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Globe className="w-4 h-4 text-brand" />
+                <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground">
+                  Anime Streaming Servers
+                </h2>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  ({ANIME_SERVERS.length} servers)
                 </span>
-              )}
+              </div>
+
+              {/* Chunky Touch-Friendly Sub/Dub Switch */}
+              <div className="inline-flex bg-white/5 p-1 rounded-xl border border-white/10 shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => { if (language !== 'sub') toggleLanguage(); }}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+                    language === 'sub'
+                      ? "bg-brand text-background shadow-md shadow-brand/20"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="Subtitled (S)"
+                >
+                  <Globe className="w-3.5 h-3.5" /> SUB
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (language !== 'dub') toggleLanguage(); }}
+                  className={cn(
+                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+                    language === 'dub'
+                      ? "bg-brand text-background shadow-md shadow-brand/20"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                  title="English Dubbed (U)"
+                >
+                  <Globe className="w-3.5 h-3.5" /> DUB
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-              {selectedEpisode && (
-                <span className="text-brand font-semibold">
-                  Episode {selectedEpisode.episode}{selectedEpisode.title ? `: ${selectedEpisode.title}` : ''}
-                </span>
-              )}
-              {movie.episodeCount && (
-                <span>• {movie.episodeCount} Total Episodes</span>
-              )}
-              <span>• {ANIME_SERVERS.find(s => s.id === server)?.name}</span>
+
+            {/* Server pills with 1-click switching */}
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
+              {ANIME_SERVERS.map((s) => {
+                const isCurrent = s.id === server;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setServer(s.id)}
+                    className={cn(
+                      'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all border cursor-pointer',
+                      isCurrent
+                        ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-extrabold scale-[1.02]'
+                        : 'bg-white/5 border-white/10 text-foreground/80 hover:bg-white/10 hover:border-white/20'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'w-2 h-2 rounded-full shrink-0',
+                        isCurrent ? 'bg-background' : 'bg-emerald-400'
+                      )}
+                    />
+                    <span>{s.name}</span>
+                    {s.quality && (
+                      <span
+                        className={cn(
+                          'text-[9px] px-1 py-0.5 rounded uppercase font-mono',
+                          isCurrent ? 'bg-black/20 text-background' : 'bg-white/10 text-brand'
+                        )}
+                      >
+                        {s.quality}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {/* Quick action bar */}
           <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-            {/* Chunky Touch-Friendly Sub/Dub Switch */}
-            <div className="inline-flex bg-card p-1 rounded-xl border border-white/10 shrink-0 min-h-[44px]">
-              <button
-                type="button"
-                onClick={() => { if (language !== 'sub') toggleLanguage(); }}
-                className={cn(
-                  "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
-                  language === 'sub'
-                    ? "bg-brand text-background shadow-md shadow-brand/20"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Globe className="w-3.5 h-3.5" /> SUB
-              </button>
-              <button
-                type="button"
-                onClick={() => { if (language !== 'dub') toggleLanguage(); }}
-                className={cn(
-                  "px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
-                  language === 'dub'
-                    ? "bg-brand text-background shadow-md shadow-brand/20"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <Globe className="w-3.5 h-3.5" /> DUB
-              </button>
-            </div>
-
             <button
               type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer min-h-[44px]"
+              onClick={() => goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0')}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand/10 border border-brand/40 text-brand text-xs font-bold shrink-0 hover:bg-brand/20 transition-all cursor-pointer shadow-sm"
+              title="Download in High-Speed"
             >
-              <Globe className="w-3.5 h-3.5 text-brand" />
-              <span>Server: <strong className="text-brand">{ANIME_SERVERS.find(s => s.id === server)?.name.split(' ')[0]}</strong></span>
+              <Download className="w-3.5 h-3.5" />
+              <span>Download in High-Speed</span>
             </button>
 
             <button
               type="button"
-              onClick={toggleFullscreen}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer min-h-[44px]"
+              onClick={() => {
+                setPlayerMode('fullscreen');
+                toggleFullscreen();
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
             >
               <Maximize className="w-3.5 h-3.5 text-brand" />
               <span>Fullscreen</span>
@@ -1426,16 +1755,25 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 href={currentIframeSrc}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer min-h-[44px]"
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
                 title="Pop out video into separate tab"
               >
                 <ExternalLink className="w-3.5 h-3.5 text-brand" />
                 <span>Pop-out</span>
               </a>
             )}
+
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
+            >
+              <Menu className="w-3.5 h-3.5 text-brand" />
+              <span>All Episodes ({episodes.length})</span>
+            </button>
           </div>
 
-          {/* Horizontal Episode Picker Row */}
+          {/* Horizontal Episode Picker Row with direct download */}
           {episodes.length > 0 && (
             <div className="space-y-2 pt-1">
               <div className="flex items-center justify-between">
@@ -1451,32 +1789,52 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 </button>
               </div>
 
-              {/* Horizontal scrollable episode chips */}
+              {/* Horizontal scrollable episode chips with direct download */}
               <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-4 px-4">
                 {episodes.map((ep: any) => {
                   const isCurrent = selectedEpisode?.episode === ep.episode || selectedEpisode?.number === ep.number;
                   return (
-                    <button
+                    <div
                       key={ep.id || ep.episode}
-                      type="button"
-                      onClick={() => handleEpisodeChange(ep)}
                       className={cn(
-                        "flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs shrink-0 transition-all cursor-pointer border min-h-[40px]",
+                        "flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-xl text-xs shrink-0 transition-all border",
                         isCurrent
                           ? "bg-brand text-background font-bold border-brand shadow-lg shadow-brand/20"
                           : "bg-card border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground"
                       )}
                     >
-                      {isCurrent ? (
-                        <Play className="w-3 h-3 fill-current" />
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-                      )}
-                      <span>EP {ep.episode || ep.number}</span>
-                      {ep.title && !ep.title.toLowerCase().startsWith('episode') && (
-                        <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.title}</span>
-                      )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => handleEpisodeChange(ep)}
+                        className="flex items-center gap-2 cursor-pointer text-left"
+                      >
+                        {isCurrent ? (
+                          <Play className="w-3 h-3 fill-current shrink-0" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
+                        )}
+                        <span>EP {ep.episode || ep.number}</span>
+                        {ep.title && !ep.title.toLowerCase().startsWith('episode') && (
+                          <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.title}</span>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          goToDownload(id, 'anime', 1, ep.episode || ep.number, movie?.malId || malId || '0');
+                        }}
+                        className={cn(
+                          "p-1 rounded-lg transition-colors cursor-pointer ml-1",
+                          isCurrent ? "hover:bg-black/20 text-background" : "hover:bg-white/20 text-muted-foreground hover:text-brand"
+                        )}
+                        title={`Download Episode ${ep.episode || ep.number}`}
+                        aria-label={`Download Episode ${ep.episode || ep.number}`}
+                      >
+                        <Download className="w-3 h-3" />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
@@ -1487,7 +1845,7 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
           {movie.description && (
             <div className="pt-2 border-t border-white/5 space-y-1">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Synopsis</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed line-clamp-4">
+              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed max-w-4xl">
                 {movie.description}
               </p>
             </div>
@@ -1722,43 +2080,61 @@ export function AnimePlayer({ id, episode }: { id: string; episode: string; malI
                 {episodes.length > 0 && (
                   <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
                     {episodes.map((ep: any) => (
-                      <button 
+                      <div
                         key={ep.id}
-                        onClick={() => handleEpisodeChange(ep)}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-2 rounded-xl text-left transition-colors group cursor-pointer",
-                          selectedEpisode?.episode === ep.episode ? "bg-brand/10 border border-brand/30" : "border border-transparent hover:bg-white/5"
-                        )}
+                        className="flex items-center gap-1 group"
                       >
-                        <div className="w-16 h-12 rounded overflow-hidden bg-background/50 flex items-center justify-center shrink-0 border border-white/10 group-hover:border-brand/50 transition-colors relative">
-                          {(ep.image || ep.thumbnail || movie?.backdropUrl || movie?.posterUrl) ? (
-                            <img
-                              src={ep.image || ep.thumbnail || movie?.backdropUrl || movie?.posterUrl}
-                              alt=""
-                              loading="lazy"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => {
-                                const target = e.currentTarget;
-                                const fallback = movie?.backdropUrl || movie?.posterUrl;
-                                if (fallback && target.src !== fallback) {
-                                  target.src = fallback;
-                                }
-                              }}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <Play className={cn("w-5 h-5 transition-colors fill-current", selectedEpisode?.episode === ep.episode ? "text-brand" : "text-muted-foreground/50 group-hover:text-brand")} />
+                        <button 
+                          type="button"
+                          onClick={() => handleEpisodeChange(ep)}
+                          className={cn(
+                            "flex-1 min-w-0 flex items-center gap-3 p-2 rounded-xl text-left transition-colors cursor-pointer",
+                            selectedEpisode?.episode === ep.episode ? "bg-brand/10 border border-brand/30" : "border border-transparent hover:bg-white/5"
                           )}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className={cn("text-sm truncate font-medium", selectedEpisode?.episode === ep.episode ? "text-brand font-bold" : "text-foreground/80 group-hover:text-foreground")}>
-                            {ep.title && !ep.title.toLowerCase().startsWith('episode')
-                              ? `${ep.episode}. ${ep.title}`
-                              : ep.title || `Episode ${ep.episode}`}
-                          </p>
-                          {ep.description && <p className="text-xs text-muted-foreground line-clamp-1">{ep.description}</p>}
-                        </div>
-                      </button>
+                        >
+                          <div className="w-16 h-12 rounded overflow-hidden bg-background/50 flex items-center justify-center shrink-0 border border-white/10 group-hover:border-brand/50 transition-colors relative">
+                            {(ep.image || ep.thumbnail || movie?.backdropUrl || movie?.posterUrl) ? (
+                              <img
+                                src={ep.image || ep.thumbnail || movie?.backdropUrl || movie?.posterUrl}
+                                alt=""
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                                onError={(e) => {
+                                  const target = e.currentTarget;
+                                  const fallback = movie?.backdropUrl || movie?.posterUrl;
+                                  if (fallback && target.src !== fallback) {
+                                    target.src = fallback;
+                                  }
+                                }}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <Play className={cn("w-5 h-5 transition-colors fill-current", selectedEpisode?.episode === ep.episode ? "text-brand" : "text-muted-foreground/50 group-hover:text-brand")} />
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className={cn("text-sm truncate font-medium", selectedEpisode?.episode === ep.episode ? "text-brand font-bold" : "text-foreground/80 group-hover:text-foreground")}>
+                              {ep.title && !ep.title.toLowerCase().startsWith('episode')
+                                ? `${ep.episode}. ${ep.title}`
+                                : ep.title || `Episode ${ep.episode}`}
+                            </p>
+                            {ep.description && <p className="text-xs text-muted-foreground line-clamp-1">{ep.description}</p>}
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            goToDownload(id, 'anime', 1, ep.episode, movie?.malId || malId || '0');
+                          }}
+                          className="p-2.5 rounded-xl bg-white/5 hover:bg-brand/20 text-muted-foreground hover:text-brand transition-colors cursor-pointer shrink-0"
+                          title={`Download Episode ${ep.episode}`}
+                          aria-label={`Download Episode ${ep.episode}`}
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles } from 'lucide-react';
+import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles, Clapperboard, Download } from 'lucide-react';
 import { anilistApi, AnimeRelation } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -11,7 +11,7 @@ import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
 import { Breadcrumbs } from './Breadcrumbs';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
-import { navigate, goToWatch, goToDetail } from '../lib/navigation';
+import { navigate, goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 import { triggerHaptic } from '../lib/mobile';
 
 export function AnimeDetail({ id }: { id: string }) {
@@ -339,8 +339,21 @@ export function AnimeDetail({ id }: { id: string }) {
   const prequelsAndSequels = relations.filter(
     (r) => (r.relationType === 'PREQUEL' || r.relationType === 'SEQUEL') && r.type === 'ANIME'
   );
+
+  const liveActionAdaptations = relations.filter(
+    (r) =>
+      r.format === 'LIVE_ACTION' ||
+      r.title.toLowerCase().includes('live action') ||
+      (r.relationType === 'ADAPTATION' &&
+        (r.title.toLowerCase().includes('live') || r.format === 'TV' || r.format === 'MOVIE'))
+  );
+
   const relatedContent = relations.filter(
-    (r) => r.type === 'ANIME' && r.relationType !== 'PREQUEL' && r.relationType !== 'SEQUEL'
+    (r) =>
+      r.type === 'ANIME' &&
+      r.relationType !== 'PREQUEL' &&
+      r.relationType !== 'SEQUEL' &&
+      !liveActionAdaptations.some((la) => la.id === r.id)
   );
 
   return (
@@ -403,6 +416,9 @@ export function AnimeDetail({ id }: { id: string }) {
               {movie.title}
             </h1>
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/80 mb-2.5">
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-purple-600 to-pink-600 text-white flex items-center gap-1 shadow-sm">
+                <Sparkles className="w-2.5 h-2.5 text-pink-200" /> Anime
+              </span>
               <div className="flex items-center gap-1 text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20 font-mono font-bold">
                 <Star className="w-3 h-3 fill-current" />
                 <span>{formatRating(movie.rating)}</span>
@@ -474,6 +490,9 @@ export function AnimeDetail({ id }: { id: string }) {
 
             {/* Metadata Badges */}
             <div className="hidden sm:flex flex-wrap items-center gap-4 text-sm font-medium text-foreground/80 mb-8">
+              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-purple-600 to-pink-600 text-white flex items-center gap-1.5 shadow-md shadow-purple-950/40">
+                <Sparkles className="w-3.5 h-3.5 text-pink-200" /> Anime Series
+              </span>
               <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">
                 <Star className="w-4 h-4 fill-current" />
                 <span className="ml-1 font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
@@ -544,6 +563,15 @@ export function AnimeDetail({ id }: { id: string }) {
 
               {/* Secondary Buttons Row */}
               <div className="flex items-center gap-2 w-full sm:w-auto">
+                <button 
+                  onClick={() => goToDownload(id, 'anime', 1, selectedEpisode, movie.malId || '0')}
+                  className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-base transition-all duration-300 glass border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+                  title={`Download Episode ${selectedEpisode} High-Speed`}
+                >
+                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span>Download</span>
+                </button>
+
                 <button 
                   onClick={handleWatchlistToggle}
                   className={cn(
@@ -715,59 +743,85 @@ export function AnimeDetail({ id }: { id: string }) {
           ) : (
             <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
               {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
-                <button
+                <div
                   key={ep.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedEpisode(ep.number);
                     goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedEpisode(ep.number);
+                      goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
+                    }
+                  }}
                   className={cn(
-                    "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer",
+                    "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer items-start md:items-center justify-between",
                     selectedEpisode === ep.number 
                       ? "bg-brand/10 border border-brand/40 shadow-card" 
                       : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
                   )}
                 >
-                  <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
-                    <img
-                      loading="lazy"
-                      referrerPolicy="no-referrer"
-                      src={ep.image || movie?.backdropUrl || movie?.posterUrl || undefined}
-                      alt={ep.title}
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        const fallback = movie?.backdropUrl || movie?.posterUrl;
-                        if (fallback && target.src !== fallback) {
-                          target.src = fallback;
-                        }
-                      }}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                    {!ep.image && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <Play className="w-8 h-8 text-white/70 group-hover:text-brand transition-colors" />
+                  <div className="flex flex-col md:flex-row gap-4 flex-1 min-w-0 w-full items-start md:items-center">
+                    <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
+                      <img
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        src={ep.image || movie?.backdropUrl || movie?.posterUrl || undefined}
+                        alt={ep.title}
+                        onError={(e) => {
+                          const target = e.currentTarget;
+                          const fallback = movie?.backdropUrl || movie?.posterUrl;
+                          if (fallback && target.src !== fallback) {
+                            target.src = fallback;
+                          }
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                      {!ep.image && (
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <Play className="w-8 h-8 text-white/70 group-hover:text-brand transition-colors" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
+                        24m
                       </div>
-                    )}
-                    <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
-                      24m
+                      {selectedEpisode === ep.number && (
+                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
+                          <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
+                        </div>
+                      )}
                     </div>
-                    {selectedEpisode === ep.number && (
-                      <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
-                        <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
-                      </div>
-                    )}
+                    <div className="flex-1 min-w-0">
+                      <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
+                        {ep.title && !ep.title.toLowerCase().startsWith('episode')
+                          ? `${ep.number}. ${ep.title}`
+                          : ep.title || `Episode ${ep.number}`}
+                      </h4>
+                      <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
+                        {ep.overview || `Episode ${ep.number} of ${movie.title}`}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
-                      {ep.title && !ep.title.toLowerCase().startsWith('episode')
-                        ? `${ep.number}. ${ep.title}`
-                        : ep.title || `Episode ${ep.number}`}
-                    </h4>
-                    <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                      {ep.overview || `Episode ${ep.number} of ${movie.title}`}
-                    </p>
+
+                  <div className="flex items-center gap-2 shrink-0 self-end md:self-center mt-2 md:mt-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        goToDownload(id, 'anime', 1, ep.number, movie.malId || '0');
+                      }}
+                      className="px-3.5 py-2 rounded-xl glass border border-white/10 hover:border-brand/40 hover:bg-brand/20 text-muted-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-bold active:scale-95 cursor-pointer"
+                      title={`Download Episode ${ep.number}`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download</span>
+                    </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -833,6 +887,55 @@ export function AnimeDetail({ id }: { id: string }) {
                   </button>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Live-Action Adaptations (Disambiguated from Anime) */}
+        {liveActionAdaptations.length > 0 && (
+          <div className="mb-14 w-full">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2.5">
+                <Clapperboard className="w-5 h-5 text-amber-400" /> Live-Action Adaptations
+              </h3>
+              <span className="text-xs text-amber-400/90 uppercase tracking-wider font-mono px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                Live-Action Media
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {liveActionAdaptations.map((rel) => (
+                <button
+                  key={rel.id}
+                  onClick={() => goToDetail(rel.id, 'anime')}
+                  className="flex flex-col rounded-2xl glass border border-amber-500/20 hover:border-amber-500/50 overflow-hidden hover:bg-amber-500/5 transition-all text-left group cursor-pointer"
+                >
+                  <div className="w-full aspect-[2/3] bg-black/40 relative overflow-hidden">
+                    <img
+                      loading="lazy"
+                      src={rel.posterUrl || undefined}
+                      alt={rel.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500/90 text-black backdrop-blur font-mono shadow-sm">
+                      Live-Action
+                    </div>
+                  </div>
+                  <div className="p-3 flex-1 flex flex-col justify-between">
+                    <h4 className="font-bold text-foreground text-xs sm:text-sm line-clamp-2 group-hover:text-amber-400 transition-colors mb-1">
+                      {rel.title}
+                    </h4>
+                    <div className="flex items-center justify-between text-[11px] text-muted-foreground font-mono mt-auto">
+                      <span>{rel.year || ''}</span>
+                      {rel.rating && (
+                        <span className="text-amber-400 flex items-center gap-0.5">
+                          <Star className="w-3 h-3 fill-current" /> {rel.rating}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         )}
