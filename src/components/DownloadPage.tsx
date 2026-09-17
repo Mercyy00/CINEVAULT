@@ -298,20 +298,6 @@ export function DownloadPage() {
           </button>
 
           <div className="flex items-center gap-2">
-            {data?.mirrorUrl && (
-              <a
-                href={data.mirrorUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-xs font-semibold text-foreground hover:text-brand transition-all cursor-pointer shadow-sm"
-                title="Open download page mirror on TheOGPirateBot"
-              >
-                <ExternalLink className="w-3.5 h-3.5 text-brand" />
-                <span className="hidden sm:inline">TheOGPirateBot Mirror</span>
-                <span className="sm:hidden">Mirror</span>
-              </a>
-            )}
-
             <button
               type="button"
               onClick={() => {
@@ -873,20 +859,10 @@ export function DownloadPage() {
             </div>
 
             {/* Note & Disclaimer */}
-            <div className="mt-8 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-muted-foreground flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div className="mt-8 p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-muted-foreground">
               <p>
                 <strong>Tip:</strong> Pinned links open the release's permanent drive page. Third-party provider links rotate without notice — if one stalls, grab another quality tier.
               </p>
-              {data?.mirrorUrl && (
-                <a
-                  href={data.mirrorUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-brand hover:underline font-bold shrink-0 flex items-center gap-1 cursor-pointer"
-                >
-                  Open TheOGPirateBot Mirror <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
             </div>
           </div>
         )}
