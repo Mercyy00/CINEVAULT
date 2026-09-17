@@ -95,5 +95,20 @@ describe('animePlayback - ZokoAnime Server Integration', () => {
       anilistId: '21',
     });
     expect(vidlinkUrl).toBe('https://vidlink.pro/anime/21/3/sub');
+
+    const vidstuckUrl = buildAnimeEmbedUrl({
+      server: 'vidstuck',
+      episodeNumber: 3,
+      language: 'sub',
+      malId: '21',
+      anilistId: '21',
+    });
+    expect(vidstuckUrl).toContain('https://vidstuck.xyz/embed/anime/21/3');
+    expect(vidstuckUrl).toContain('branding=CINEVAULT');
+  });
+
+  it('includes VIDSTUCK and NxSha in trusted anime origins', () => {
+    expect(TRUSTED_ANIME_ORIGINS.has('https://vidstuck.xyz')).toBe(true);
+    expect(TRUSTED_ANIME_ORIGINS.has('https://nxsha.space')).toBe(true);
   });
 });

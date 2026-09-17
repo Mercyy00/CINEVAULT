@@ -101,11 +101,11 @@ describe('downloadService', () => {
         imdbId: 'tt22084616',
       });
 
-      expect(result.downloads.length).toBe(3);
-      // Pinned Febbox first, then 4K, then 720p
-      expect(result.downloads[0].url).toBe('https://www.febbox.com/share/zcegI2J7');
-      expect(result.downloads[1].quality).toBe('4K');
-      expect(result.downloads[2].quality).toBe('720p');
+      expect(result.downloads.length).toBe(4);
+      expect(result.nxshaDlUrl).toBe('https://nxsha.space/dl/movie/tt22084616');
+      expect(result.downloads.some((d) => d.providerCode === 'nxsha')).toBe(true);
+      // Pinned Febbox / NxSha first
+      expect(result.downloads.find((d) => d.providerCode === 'febbox')?.url).toBe('https://www.febbox.com/share/zcegI2J7');
       expect(result.mirrorUrl).toContain('theogpiratebot.vercel.app');
     } finally {
       globalThis.fetch = originalFetch;

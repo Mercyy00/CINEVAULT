@@ -67,6 +67,33 @@ export const STREAM_SOURCES: StreamSource[] = [
     },
   },
   {
+    id: 'vidstuck',
+    name: 'VIDSTUCK 4K',
+    quality: '4K',
+    language: 'multi',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode, progress }) => {
+      const startSec = progress && progress > 5 ? Math.round(progress) : null;
+      const progParam = startSec ? `&progress=${startSec}` : '';
+      return season && episode
+        ? `https://vidstuck.xyz/embed/tv/${id}/${season}/${episode}?color=e8852a&branding=CINEVAULT&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true&overlay=true${progParam}`
+        : `https://vidstuck.xyz/embed/movie/${id}?color=e8852a&branding=CINEVAULT&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true&overlay=true${progParam}`;
+    },
+  },
+  {
+    id: 'nxsha',
+    name: 'NxSha Multi-Lang',
+    quality: '4K',
+    language: 'multi',
+    latencyMs: null,
+    status: 'unknown',
+    buildUrl: ({ id, season, episode }) =>
+      season && episode
+        ? `https://nxsha.space/embed/tv/${id}/${season}/${episode}?color=orange&disable_app_ad=true`
+        : `https://nxsha.space/embed/movie/${id}?color=orange&disable_app_ad=true`,
+  },
+  {
     id: 'zxc',
     name: 'ZXC Stream',
     quality: 'HD',
@@ -186,6 +213,8 @@ export const TRUSTED_PLAYER_ORIGINS = new Set([
   'https://videasy.to',
   'https://vidfast.pro',
   'https://vidsrc.pm',
+  'https://vidstuck.xyz',
+  'https://nxsha.space',
 ]);
 
 export function findSource(id: string | undefined): StreamSource | undefined {

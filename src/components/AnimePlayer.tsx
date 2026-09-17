@@ -10,7 +10,7 @@ import { COMPLETION_THRESHOLD, isResumable } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
 import { goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 
-export type AnimeServerId = 'zokoanime' | 'megaplay' | 'videasy' | 'vidlink' | 'screenmirror' | 'gogoanime' | 'screenscape';
+export type AnimeServerId = 'zokoanime' | 'megaplay' | 'videasy' | 'vidlink' | 'vidstuck' | 'screenmirror' | 'gogoanime' | 'screenscape';
 
 export interface AnimeServerOption {
   id: AnimeServerId;
@@ -31,6 +31,7 @@ function formatSeconds(totalSec: number): string {
 
 export const ANIME_SERVERS: AnimeServerOption[] = [
   { id: 'zokoanime', name: 'Zoko (Primary)', quality: '1080p', tag: 'Fast • Auto-Skip • Sub/Dub' },
+  { id: 'vidstuck', name: 'VIDSTUCK 4K', quality: '1080p', tag: 'Fast Player • Auto-Skip • Sub/Dub Sync' },
   { id: 'megaplay', name: 'MegaPlay', quality: '1080p', tag: 'Direct MAL • Sub/Dub' },
   { id: 'videasy', name: 'VIDEASY 4K', quality: '4K', tag: 'Direct AniList • 4K Sub/Dub' },
   { id: 'vidlink', name: 'VidLink Pro (Multi)', quality: '1080p', tag: 'Direct Sync • No Cloudflare Block' },
@@ -49,6 +50,8 @@ export const TRUSTED_ANIME_ORIGINS = new Set([
   'https://gogoanime.me.uk',
   'https://screenscape.me',
   'https://zokoanime.video',
+  'https://vidstuck.xyz',
+  'https://nxsha.space',
 ]);
 
 export interface BuildAnimeEmbedUrlOptions {
@@ -97,6 +100,10 @@ export function buildAnimeEmbedUrl({
     case 'vidlink': {
       const streamId = effectiveMalId || targetAnilist;
       return `https://vidlink.pro/anime/${streamId}/${epNum}/${lang}`;
+    }
+    case 'vidstuck': {
+      const streamId = effectiveMalId || targetAnilist;
+      return `https://vidstuck.xyz/embed/anime/${streamId}/${epNum}?color=e8852a&branding=CINEVAULT&nextEpisode=true&episodeSelector=true&autoplayNextEpisode=true&overlay=true`;
     }
     case 'gogoanime': {
       if (effectiveMalId) {

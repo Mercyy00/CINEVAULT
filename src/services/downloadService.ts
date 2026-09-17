@@ -30,6 +30,7 @@ export interface DownloadResponse {
   totalSizeLabel: string;
   downloads: UnifiedDownloadLink[];
   mirrorUrl: string;
+  nxshaDlUrl?: string;
 }
 
 const PROVIDER_NAMES: Record<string, string> = {
@@ -52,6 +53,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   hdhub4u: 'HDHub4u',
   movies4u: 'Movies4u',
   moviebox: 'MovieBox',
+  nxsha: 'NxSha Multi-Source Hub',
 };
 
 /** Parse human-readable file size strings into megabytes for sorting */
@@ -172,6 +174,9 @@ export async function fetchDownloads({
     mirrorParams.set('episode', String(episode));
   }
   const mirrorUrl = `https://theogpiratebot.vercel.app/download?${mirrorParams.toString()}`;
+  const nxshaDlUrl = type === 'tv'
+    ? `https://nxsha.space/dl/tv/${imdbId || id}/${season}/${episode}`
+    : `https://nxsha.space/dl/movie/${imdbId || id}`;
 
   const path = type === 'tv' ? `tv/${id}/${season}/${episode}` : `movie/${id}`;
 
@@ -193,7 +198,22 @@ export async function fetchDownloads({
     }),
   ]);
 
-  const rawLinks: UnifiedDownloadLink[] = [];
+  const rawLinks: UnifiedDownloadLink[] = [
+    {
+      id: `nxsha-${id}-${type === 'tv' ? `${season}-${episode}` : 'movie'}`,
+      name: `${type === 'tv' ? `Episode S${season}E${episode}` : 'Movie'} Multi-Server Direct Hub`,
+      quality: '1080p',
+      qualityRaw: '1080p Multi-Server',
+      format: 'MKV',
+      size: 'Direct Cloud',
+      sizeBytes: null,
+      provider: 'NxSha Hub',
+      providerCode: 'nxsha',
+      audio: 'Multi-Audio (Hindi + English)',
+      url: nxshaDlUrl,
+      isPinned: true,
+    },
+  ];
 
   // Parse TGDL (Showbox, Febbox, Bollyflix, Fastdlserver, Jabroni)
   if (tgdlRes.status === 'fulfilled' && tgdlRes.value) {
@@ -315,6 +335,7 @@ export async function fetchDownloads({
     totalSizeLabel,
     downloads: uniqueLinks,
     mirrorUrl,
+    nxshaDlUrl,
   };
 
   try {

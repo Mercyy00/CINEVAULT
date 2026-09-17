@@ -326,6 +326,18 @@ export function DownloadPage() {
                     <HardDrive className="w-3.5 h-3.5 text-brand" />
                     Total bandwidth: <strong>{data.totalSizeLabel}</strong>
                   </span>
+                  {data.nxshaDlUrl && (
+                    <a
+                      href={data.nxshaDlUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-purple-500/10 border border-purple-500/30 text-purple-300 hover:bg-purple-500/20 transition-all font-sans font-semibold cursor-pointer"
+                      title="Open full interactive NxSha download hub"
+                    >
+                      <ExternalLink className="w-3 h-3 text-purple-400" />
+                      NxSha Direct Hub
+                    </a>
+                  )}
                 </div>
               )}
             </div>
@@ -344,7 +356,7 @@ export function DownloadPage() {
             </div>
             <div>
               <p className="text-base font-bold text-foreground">Querying High-Speed Cloud Providers...</p>
-              <p className="text-xs text-muted-foreground mt-1">Aggregating Febbox, Bollyflix, 4KHDHub, Defe, Films365, and VidGod mirrors</p>
+              <p className="text-xs text-muted-foreground mt-1">Aggregating Febbox, Bollyflix, NxSha, 4KHDHub, Defe, Films365, and VidGod mirrors</p>
             </div>
           </div>
         )}
@@ -354,9 +366,9 @@ export function DownloadPage() {
           <div className="p-8 rounded-3xl bg-card/60 border border-white/10 text-center max-w-md mx-auto my-12 space-y-4">
             <p className="text-sm text-red-400 font-semibold">{error}</p>
             <p className="text-xs text-muted-foreground">
-              Direct links may be temporarily throttled. You can open the mirror on TheOGPirateBot or retry:
+              Direct links may be temporarily throttled. You can open direct mirrors below or retry:
             </p>
-            <div className="flex items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <button
                 type="button"
                 onClick={() => window.location.reload()}
@@ -365,6 +377,17 @@ export function DownloadPage() {
                 <RefreshCw className="w-3.5 h-3.5" />
                 <span>Retry</span>
               </button>
+              {data?.nxshaDlUrl && (
+                <a
+                  href={data.nxshaDlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all cursor-pointer shadow-md shadow-purple-600/20"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open NxSha Hub</span>
+                </a>
+              )}
               {data?.mirrorUrl && (
                 <a
                   href={data.mirrorUrl}
