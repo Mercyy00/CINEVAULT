@@ -737,7 +737,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if (target?.isContentEditable) return;
 
-      if (event.key === 's' || event.key === 'S') {
+      if (event.key === 's' || event.key === 'S' || event.key === 'm' || event.key === 'M') {
         setSidebarOpen((open) => !open);
       } else if (event.key === 'f' || event.key === 'F') {
         void toggleFullscreen();
@@ -1087,6 +1087,16 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
               className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
             >
               <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open episodes and servers menu"
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
+              title="Open episodes & servers menu (M)"
+            >
+              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
             </button>
 
             <div className="min-w-0">
@@ -1860,7 +1870,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
         </div>
       )}
 
-      {/* Sidebar Menu / Bottom Sheet */}
+      {/* Left-Side Sliding Menu */}
       <AnimatePresence>
         {sidebarOpen && (
           <>
@@ -1872,42 +1882,54 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                  e.stopPropagation();
                  setSidebarOpen(false);
               }}
-              className="fixed inset-0 bg-background/60 z-[65] backdrop-blur-sm pointer-events-auto"
+              className="fixed inset-0 bg-black/75 z-[95] backdrop-blur-sm pointer-events-auto cursor-pointer"
             />
             <motion.aside
-              initial={isMobileView ? { y: '100%' } : { x: '-100%' }}
-              animate={isMobileView ? { y: 0 } : { x: 0 }}
-              exit={isMobileView ? { y: '100%' } : { x: '-100%' }}
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className={cn(
-                "bg-card/95 backdrop-blur-2xl z-[70] flex flex-col shadow-2xl overflow-hidden pointer-events-auto",
-                isMobileView
-                  ? "fixed inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl border-t border-white/15 safe-bottom"
-                  : "fixed top-0 left-0 bottom-0 w-[85vw] max-w-[340px] border-r border-white/10"
-              )}
+              className="fixed top-0 left-0 bottom-0 w-[88vw] sm:w-[380px] max-w-[420px] bg-[#0c0d14]/98 backdrop-blur-2xl border-r border-white/10 z-[100] shadow-2xl flex flex-col overflow-hidden pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Mobile drag handle */}
-              {isMobileView && (
-                <div className="w-12 h-1.5 rounded-full bg-white/25 mx-auto mt-3 mb-1 shrink-0 cursor-grab" aria-hidden="true" />
-              )}
               <div className="p-5 pb-3 flex justify-between items-start border-b border-white/10 shrink-0">
-                <div className="flex gap-4 min-w-0">
-                  <div className="w-14 h-20 sm:w-16 sm:h-24 rounded-lg overflow-hidden shrink-0">
+                <div className="flex gap-3.5 min-w-0">
+                  <div className="w-14 h-20 sm:w-16 sm:h-24 rounded-lg overflow-hidden shrink-0 shadow-md">
                     <img loading="lazy" src={movie.posterUrl || undefined} alt={movie.title} className="w-full h-full object-cover" />
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex flex-col justify-center">
                     <h2 className="text-base sm:text-lg font-bold text-foreground leading-tight mb-1 line-clamp-2">{movie.title}</h2>
                     {selectedEpisode && (
-                      <p className="text-xs sm:text-sm text-brand tracking-wide font-medium">E{selectedEpisode.episode}</p>
+                      <p className="text-xs sm:text-sm text-brand tracking-wide font-medium">Episode {selectedEpisode.episode || selectedEpisode.number || episode}</p>
+                    )}
+                    {(movie.rating ?? 0) > 0 && (
+                      <div className="flex items-center gap-1 text-[11px] font-bold text-brand mt-1">
+                        <Star className="w-3 h-3 fill-current" /> {Number(movie.rating).toFixed(1)}
+                      </div>
                     )}
                   </div>
                 </div>
                 <button onClick={(e) => {
                   e.stopPropagation();
                   setSidebarOpen(false);
-                }} className="text-foreground/50 hover:text-foreground p-2 rounded-full hover:bg-white/5 cursor-pointer shrink-0">
+                }} className="text-foreground/50 hover:text-foreground p-2 rounded-full hover:bg-white/5 cursor-pointer shrink-0 transition-colors">
                   <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                </button>
+              </div>
+
+              {/* Quick High-Speed Download Action in Left Menu */}
+              <div className="px-5 pt-3 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSidebarOpen(false);
+                    goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0');
+                  }}
+                  className="w-full py-2 px-3 rounded-xl bg-brand/15 hover:bg-brand/25 border border-brand/30 text-xs font-bold text-brand flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                  title="Download episode via ZokoAnime"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Download via ZokoAnime</span>
                 </button>
               </div>
 
