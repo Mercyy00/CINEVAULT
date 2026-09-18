@@ -1623,6 +1623,23 @@ export const anilistApi = {
         raw.title?.english?.toLowerCase().includes('one piece') ||
         raw.title?.romaji?.toLowerCase().includes('one piece');
 
+      const isBleach =
+        movie.title?.toLowerCase().includes('bleach') ||
+        raw.title?.english?.toLowerCase().includes('bleach') ||
+        raw.title?.romaji?.toLowerCase().includes('bleach');
+
+      const isTYBW =
+        isBleach &&
+        (movie.title?.toLowerCase().includes('thousand-year blood war') ||
+          movie.title?.toLowerCase().includes('sennen kessen') ||
+          movie.title?.toLowerCase().includes('tybw') ||
+          raw.title?.english?.toLowerCase().includes('thousand-year blood war') ||
+          raw.title?.romaji?.toLowerCase().includes('sennen kessen') ||
+          raw.title?.romaji?.toLowerCase().includes('ketsubetsu') ||
+          raw.title?.romaji?.toLowerCase().includes('soukoku') ||
+          raw.title?.romaji?.toLowerCase().includes('kashin') ||
+          (raw.startDate?.year && raw.startDate.year >= 2022));
+
       const nextAiring = raw.nextAiringEpisode?.episode;
       let actualEpisodeCount: number;
       if (raw.status?.toUpperCase() === 'RELEASING' && nextAiring) {
@@ -1637,6 +1654,10 @@ export const anilistApi = {
 
       if (isOnePiece) {
         actualEpisodeCount = Math.max(actualEpisodeCount, 1180);
+      }
+
+      if (isBleach && !isTYBW && (!actualEpisodeCount || actualEpisodeCount < 366)) {
+        actualEpisodeCount = 366;
       }
 
       if (actualEpisodeCount === 0) {
@@ -1666,9 +1687,13 @@ export const anilistApi = {
         const rawNum = match ? parseInt(match[1], 10) : idx + 1;
         const epNum = rawNum - streamingOffset;
         if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
-          const cleanTitle = item.title
+          let cleanTitle = item.title
             ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
             : `Episode ${epNum}`;
+
+          if (!cleanTitle || cleanTitle.toLowerCase() === 'untitled' || cleanTitle.match(/^Episode\s+\d+$/i)) {
+            cleanTitle = `Episode ${epNum}`;
+          }
 
           episodeMap.set(epNum, {
             id: `ep-${epNum}`,
@@ -1682,109 +1707,290 @@ export const anilistApi = {
         }
       });
 
+      // Ensure every episode from 1 to actualEpisodeCount exists in episodeMap
+      for (let i = 1; i <= actualEpisodeCount; i++) {
+        if (!episodeMap.has(i)) {
+          episodeMap.set(i, {
+            id: `ep-${i}`,
+            season: 1,
+            episode: i,
+            title: `Episode ${i}`,
+            duration: raw.duration ? `${raw.duration}m` : '24m',
+            thumbnail: null,
+            description: '',
+          });
+        }
+      }
+
       // 2. Concurrently enrich with TMDB and Kitsu (fastest & highest quality anime stills and titles)
       await Promise.allSettled([
         // Task A: TMDB Stills & Titles Enrichment (Absolute Groups + Multi-Season Matching)
         (async () => {
           try {
-            const queryTitles = [
-              movie.title,
-              raw.title?.english,
-              raw.title?.romaji,
-            ].filter((t): t is string => Boolean(t && t.trim()));
+            if (isBleach) {
+              if (!isTYBW) {
+                // Classic Bleach: 100% in Season 1 of TMDB ID 30984 (all 366 episodes)
+                const season1 = await api.getSeasonDetails('30984', 1);
+                if (season1?.episodes && season1.episodes.length > 0) {
+                  for (const tmdbEp of season1.episodes) {
+                    const epNum = tmdbEp.episode_number;
+                    const existing = episodeMap.get(epNum);
+                    if (existing) {
+                      if (tmdbEp.name && !tmdbEp.name.match(/^Episode\s+\d+$/i)) {
+                        existing.title = tmdbEp.name;
+                      }
+                      if (tmdbEp.still_path) {
+                        existing.thumbnail = api.getImageUrl(tmdbEp.still_path, 'w500');
+                      }
+                      if (tmdbEp.overview) {
+                        existing.description = tmdbEp.overview;
+                      }
+                    } else if (epNum <= actualEpisodeCount) {
+                      episodeMap.set(epNum, {
+                        id: `ep-${epNum}`,
+                        season: 1,
+                        episode: epNum,
+                        title: tmdbEp.name || `Episode ${epNum}`,
+                        duration: raw.duration ? `${raw.duration}m` : '24m',
+                        thumbnail: tmdbEp.still_path ? api.getImageUrl(tmdbEp.still_path, 'w500') : null,
+                        description: tmdbEp.overview || '',
+                      });
+                    }
+                  }
+                }
+              } else {
+                // Bleach: Thousand-Year Blood War: 100% in Season 2 of TMDB ID 30984 (episodes 1-50+)
+                const season2 = await api.getSeasonDetails('30984', 2);
+                if (season2?.episodes && season2.episodes.length > 0) {
+                  const combinedTitle = `${raw.title?.english || ''} ${raw.title?.romaji || ''} ${movie.title || ''}`.toLowerCase();
+                  const year = raw.startDate?.year || movie.year || 0;
+                  let offset = 0;
+                  if (combinedTitle.includes('calamity') || combinedTitle.includes('kashin') || year >= 2025) {
+                    offset = 40; // Part 4
+                  } else if (combinedTitle.includes('conflict') || combinedTitle.includes('soukoku') || year === 2024) {
+                    offset = 26; // Part 3
+                  } else if (combinedTitle.includes('separation') || combinedTitle.includes('ketsubetsu') || year === 2023) {
+                    offset = 13; // Part 2
+                  } else {
+                    offset = 0; // Part 1: The Blood Warfare (2022)
+                  }
 
-            const isBleach =
-              movie.title?.toLowerCase().includes('bleach') ||
-              raw.title?.english?.toLowerCase().includes('bleach') ||
-              raw.title?.romaji?.toLowerCase().includes('bleach');
-
-            const isTYBW =
-              isBleach &&
-              (movie.title?.toLowerCase().includes('thousand-year blood war') ||
-                movie.title?.toLowerCase().includes('sennen kessen') ||
-                movie.title?.toLowerCase().includes('tybw') ||
-                raw.title?.english?.toLowerCase().includes('thousand-year blood war') ||
-                raw.title?.romaji?.toLowerCase().includes('sennen kessen') ||
-                (raw.startDate?.year && raw.startDate.year >= 2022));
-
-            let bestTv: any = null;
-            if (isOnePiece) {
-              // Guaranteed anime ID (37854) - NEVER live-action (111110)
-              bestTv = { id: 37854, name: 'One Piece' };
-            } else if (isTYBW) {
-              // Bleach: Thousand-Year Blood War standalone TMDB entry
-              bestTv = { id: 214756, name: 'Bleach: Thousand-Year Blood War' };
-            } else if (isBleach) {
-              // Classic Bleach (2004)
-              bestTv = { id: 30984, name: 'Bleach' };
-            } else {
-              for (const q of queryTitles) {
-                const searchRes = await api.searchTv(q);
-                if (searchRes.results && searchRes.results.length > 0) {
-                  // Filter out live action adaptations (e.g. One Piece 111110)
-                  const filtered = searchRes.results.filter((item: any) => item.id !== 111110);
-                  bestTv =
-                    filtered.find(
-                      (item: any) =>
-                        item.name?.toLowerCase() === q.toLowerCase() ||
-                        item.original_name?.toLowerCase() === q.toLowerCase()
-                    ) || filtered[0];
-                  if (bestTv) break;
+                  for (let i = 1; i <= actualEpisodeCount; i++) {
+                    const targetEpNum = i + offset;
+                    const tmdbEp = season2.episodes.find((e) => e.episode_number === targetEpNum);
+                    if (tmdbEp) {
+                      const existing = episodeMap.get(i);
+                      if (existing) {
+                        if (tmdbEp.name && !tmdbEp.name.match(/^Episode\s+\d+$/i)) {
+                          existing.title = tmdbEp.name;
+                        }
+                        if (tmdbEp.still_path) {
+                          existing.thumbnail = api.getImageUrl(tmdbEp.still_path, 'w500');
+                        }
+                        if (tmdbEp.overview) {
+                          existing.description = tmdbEp.overview;
+                        }
+                      } else {
+                        episodeMap.set(i, {
+                          id: `ep-${i}`,
+                          season: 1,
+                          episode: i,
+                          title: tmdbEp.name || `Episode ${i}`,
+                          duration: raw.duration ? `${raw.duration}m` : '24m',
+                          thumbnail: tmdbEp.still_path ? api.getImageUrl(tmdbEp.still_path, 'w500') : null,
+                          description: tmdbEp.overview || '',
+                        });
+                      }
+                    }
+                  }
                 }
               }
-            }
+            } else {
+              const queryTitles = [
+                movie.title,
+                raw.title?.english,
+                raw.title?.romaji,
+              ].filter((t): t is string => Boolean(t && t.trim()));
 
-            if (bestTv?.id) {
-              let handledByGroup = false;
+              let bestTv: any = null;
+              if (isOnePiece) {
+                // Guaranteed anime ID (37854) - NEVER live-action (111110)
+                bestTv = { id: 37854, name: 'One Piece' };
+              } else {
+                for (const q of queryTitles) {
+                  const searchRes = await api.searchTv(q);
+                  if (searchRes.results && searchRes.results.length > 0) {
+                    // Filter out live action adaptations (e.g. One Piece 111110)
+                    const filtered = searchRes.results.filter((item: any) => item.id !== 111110);
+                    bestTv =
+                      filtered.find(
+                        (item: any) =>
+                          item.name?.toLowerCase() === q.toLowerCase() ||
+                          item.original_name?.toLowerCase() === q.toLowerCase()
+                      ) || filtered[0];
+                    if (bestTv) break;
+                  }
+                }
+              }
 
-              // Priority A: Check for Absolute / All Episodes group on TMDB (One Piece, Bleach, Naruto, AOT, Demon Slayer, etc.)
-              try {
-                const groupsData = await request<{
-                  results?: Array<{ id: string; name?: string; type?: number; episode_count?: number }>;
-                }>(tmdbUrl(`/tv/${bestTv.id}/episode_groups`));
+              if (bestTv?.id) {
+                let handledByGroup = false;
 
-                const absGroup = (groupsData.results || []).find(
-                  (g) =>
-                    g.type === 7 ||
-                    g.name?.toLowerCase().includes('absolute') ||
-                    g.name?.toLowerCase().includes('all episodes') ||
-                    g.name?.toLowerCase().includes('tv order') ||
-                    g.name?.toLowerCase().includes('streaming') ||
-                    g.name?.toLowerCase().includes('canon') ||
-                    g.name?.toLowerCase().includes('original air')
-                );
+                // Priority A: Check for Absolute / All Episodes group on TMDB (One Piece, Naruto, AOT, Demon Slayer, etc.)
+                try {
+                  const groupsData = await request<{
+                    results?: Array<{ id: string; name?: string; type?: number; episode_count?: number }>;
+                  }>(tmdbUrl(`/tv/${bestTv.id}/episode_groups`));
 
-                if (absGroup?.id) {
-                  const groupDetails = await request<{
-                    groups?: Array<{
-                      episodes?: Array<{
-                        episode_number: number;
-                        name?: string;
-                        still_path?: string | null;
-                        overview?: string;
+                  const absGroup = (groupsData.results || []).find(
+                    (g) =>
+                      g.type === 7 ||
+                      g.name?.toLowerCase().includes('absolute') ||
+                      g.name?.toLowerCase().includes('all episodes') ||
+                      g.name?.toLowerCase().includes('tv order') ||
+                      g.name?.toLowerCase().includes('streaming') ||
+                      g.name?.toLowerCase().includes('canon') ||
+                      g.name?.toLowerCase().includes('original air')
+                  );
+
+                  if (absGroup?.id) {
+                    const groupDetails = await request<{
+                      groups?: Array<{
+                        episodes?: Array<{
+                          episode_number: number;
+                          name?: string;
+                          still_path?: string | null;
+                          overview?: string;
+                        }>;
                       }>;
-                    }>;
-                  }>(tmdbUrl(`/tv/episode_group/${absGroup.id}`));
+                    }>(tmdbUrl(`/tv/episode_group/${absGroup.id}`));
 
-                  if (groupDetails?.groups && groupDetails.groups.length > 0) {
-                    handledByGroup = true;
+                    if (groupDetails?.groups && groupDetails.groups.length > 0) {
+                      handledByGroup = true;
 
-                    // Build title-to-still dictionary for title-based matching
-                    const titleToStill = new Map<string, { still_path?: string | null; overview?: string }>();
-                    for (const g of groupDetails.groups) {
-                      for (const gEp of g.episodes || []) {
-                        if (gEp.name && gEp.still_path) {
-                          titleToStill.set(gEp.name.toLowerCase().trim(), gEp);
+                      // Build title-to-still dictionary for title-based matching
+                      const titleToStill = new Map<string, { still_path?: string | null; overview?: string }>();
+                      for (const g of groupDetails.groups) {
+                        for (const gEp of g.episodes || []) {
+                          if (gEp.name && gEp.still_path) {
+                            titleToStill.set(gEp.name.toLowerCase().trim(), gEp);
+                          }
+                        }
+                      }
+
+                      // Direct episode number matching
+                      for (const g of groupDetails.groups) {
+                        for (const gEp of g.episodes || []) {
+                          const epNum = gEp.episode_number;
+                          if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
+                            const epStill = gEp.still_path ? api.getImageUrl(gEp.still_path, 'w500') : null;
+                            const existing = episodeMap.get(epNum);
+                            if (existing) {
+                              if (!existing.thumbnail && epStill) {
+                                existing.thumbnail = epStill;
+                              }
+                              if (
+                                (!existing.title || existing.title === `Episode ${epNum}`) &&
+                                gEp.name &&
+                                !gEp.name.match(/^Episode\s+\d+$/i)
+                              ) {
+                                existing.title = gEp.name;
+                              }
+                              if (!existing.description && gEp.overview) {
+                                existing.description = gEp.overview;
+                              }
+                            } else {
+                              episodeMap.set(epNum, {
+                                id: `ep-${epNum}`,
+                                season: 1,
+                                episode: epNum,
+                                title: gEp.name || `Episode ${epNum}`,
+                                duration: raw.duration ? `${raw.duration}m` : '24m',
+                                thumbnail: epStill,
+                                description: gEp.overview || '',
+                              });
+                            }
+                          }
+                        }
+                      }
+
+                      // Title-based fallback for cour seasons
+                      for (const [epNum, ep] of episodeMap.entries()) {
+                        if (!ep.thumbnail && ep.title && ep.title !== `Episode ${epNum}`) {
+                          const matched = titleToStill.get(ep.title.toLowerCase().trim());
+                          if (matched?.still_path) {
+                            ep.thumbnail = api.getImageUrl(matched.still_path, 'w500');
+                            if (!ep.description && matched.overview) {
+                              ep.description = matched.overview;
+                            }
+                          }
                         }
                       }
                     }
+                  }
+                } catch {
+                  // Episode group lookup non-blocking
+                }
 
-                    // Direct episode number matching
-                    for (const g of groupDetails.groups) {
-                      for (const gEp of g.episodes || []) {
-                        const epNum = gEp.episode_number;
+                // Priority B: Regular Seasons
+                const needsMoreThumbs = Array.from(episodeMap.values()).some((ep) => !ep.thumbnail);
+                if (!handledByGroup || needsMoreThumbs) {
+                  const tvDetails = await request<{
+                    number_of_episodes?: number;
+                    first_air_date?: string;
+                    seasons?: Array<{ season_number: number; name?: string; episode_count: number; air_date?: string }>;
+                  }>(tmdbUrl(`/tv/${bestTv.id}`));
+
+                  const validSeasons = (tvDetails.seasons || [])
+                    .filter((s) => s.season_number > 0 && s.episode_count > 0)
+                    .sort((a, b) => a.season_number - b.season_number);
+
+                  let seasonsToFetch: number[] = [];
+                  if (isOnePiece) {
+                    seasonsToFetch = validSeasons.map((s) => s.season_number);
+                  } else if (validSeasons.length === 1) {
+                    seasonsToFetch = [validSeasons[0].season_number];
+                  } else if (validSeasons.length > 1) {
+                    const matched = findMatchingSeason(
+                      validSeasons,
+                      [raw.title?.english, raw.title?.romaji, movie.title].filter(Boolean) as string[],
+                      raw.startDate?.year || movie.year || undefined,
+                      actualEpisodeCount
+                    );
+                    if (matched) {
+                      seasonsToFetch = [matched.season_number];
+                    } else if (actualEpisodeCount >= 100) {
+                      seasonsToFetch = validSeasons.slice(0, 3).map((s) => s.season_number);
+                    }
+                  }
+
+                  let currentOffset = 0;
+                  for (const sn of seasonsToFetch) {
+                    const seasonData = await api.getSeasonDetails(String(bestTv.id), sn);
+                    if (seasonData?.episodes && seasonData.episodes.length > 0) {
+                      const titleToStill = new Map<string, { still_path?: string | null; overview?: string }>();
+                      for (const tmdbEp of seasonData.episodes) {
+                        if (tmdbEp.name && tmdbEp.still_path) {
+                          titleToStill.set(tmdbEp.name.toLowerCase().trim(), tmdbEp);
+                        }
+                      }
+
+                      for (const [num, ep] of episodeMap.entries()) {
+                        if (!ep.thumbnail && ep.title && ep.title !== `Episode ${num}`) {
+                          const matched = titleToStill.get(ep.title.toLowerCase().trim());
+                          if (matched?.still_path) {
+                            ep.thumbnail = api.getImageUrl(matched.still_path, 'w500');
+                            if (!ep.description && matched.overview) {
+                              ep.description = matched.overview;
+                            }
+                          }
+                        }
+                      }
+
+                      for (const tmdbEp of seasonData.episodes) {
+                        const epNum = tmdbEp.episode_number + currentOffset;
                         if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
-                          const epStill = gEp.still_path ? api.getImageUrl(gEp.still_path, 'w500') : null;
+                          const epStill = tmdbEp.still_path ? api.getImageUrl(tmdbEp.still_path, 'w500') : null;
                           const existing = episodeMap.get(epNum);
                           if (existing) {
                             if (!existing.thumbnail && epStill) {
@@ -1792,160 +1998,30 @@ export const anilistApi = {
                             }
                             if (
                               (!existing.title || existing.title === `Episode ${epNum}`) &&
-                              gEp.name &&
-                              !gEp.name.match(/^Episode\s+\d+$/i)
+                              tmdbEp.name &&
+                              !tmdbEp.name.match(/^Episode\s+\d+$/i)
                             ) {
-                              existing.title = gEp.name;
+                              existing.title = tmdbEp.name;
                             }
-                            if (!existing.description && gEp.overview) {
-                              existing.description = gEp.overview;
+                            if (!existing.description && tmdbEp.overview) {
+                              existing.description = tmdbEp.overview;
                             }
                           } else {
                             episodeMap.set(epNum, {
                               id: `ep-${epNum}`,
                               season: 1,
                               episode: epNum,
-                              title: gEp.name || `Episode ${epNum}`,
+                              title: tmdbEp.name || `Episode ${epNum}`,
                               duration: raw.duration ? `${raw.duration}m` : '24m',
                               thumbnail: epStill,
-                              description: gEp.overview || '',
+                              description: tmdbEp.overview || '',
                             });
                           }
                         }
                       }
+
+                      currentOffset += seasonData.episodes.length;
                     }
-
-                    // Title-based fallback for cour seasons (like Bleach TYBW Part 4 where order is 40-46)
-                    for (const [epNum, ep] of episodeMap.entries()) {
-                      if (!ep.thumbnail && ep.title && ep.title !== `Episode ${epNum}`) {
-                        const matched = titleToStill.get(ep.title.toLowerCase().trim());
-                        if (matched?.still_path) {
-                          ep.thumbnail = api.getImageUrl(matched.still_path, 'w500');
-                          if (!ep.description && matched.overview) {
-                            ep.description = matched.overview;
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              } catch {
-                // Episode group lookup non-blocking
-              }
-
-              // Priority B: Regular Seasons
-              const needsMoreThumbs = Array.from(episodeMap.values()).some((ep) => !ep.thumbnail);
-              if (!handledByGroup || needsMoreThumbs) {
-                const tvDetails = await request<{
-                  number_of_episodes?: number;
-                  first_air_date?: string;
-                  seasons?: Array<{ season_number: number; name?: string; episode_count: number; air_date?: string }>;
-                }>(tmdbUrl(`/tv/${bestTv.id}`));
-
-                const validSeasons = (tvDetails.seasons || [])
-                  .filter((s) => s.season_number > 0 && s.episode_count > 0)
-                  .sort((a, b) => a.season_number - b.season_number);
-
-                let seasonsToFetch: number[] = [];
-                if (isTYBW) {
-                  // Bleach TYBW has 4 distinct seasons on TMDB corresponding to its 4 cours
-                  const combinedTitle = `${raw.title?.english || ''} ${raw.title?.romaji || ''} ${movie.title || ''}`.toLowerCase();
-                  const year = raw.startDate?.year || movie.year || 0;
-                  let targetSeason = 1;
-                  if (combinedTitle.includes('calamity') || year >= 2025) {
-                    targetSeason = 4;
-                  } else if (combinedTitle.includes('conflict') || combinedTitle.includes('soukoku') || year === 2024) {
-                    targetSeason = 3;
-                  } else if (combinedTitle.includes('separation') || combinedTitle.includes('ketsubetsu') || year === 2023) {
-                    targetSeason = 2;
-                  } else {
-                    targetSeason = 1;
-                  }
-                  const exists = validSeasons.some((s) => s.season_number === targetSeason);
-                  seasonsToFetch = [exists ? targetSeason : (validSeasons[0]?.season_number || 1)];
-                } else if (isBleach) {
-                  // Classic Bleach: fetch all seasons to enrich all 366 episodes
-                  seasonsToFetch = validSeasons.map((s) => s.season_number);
-                } else if (isOnePiece) {
-                  // One Piece: fetch all valid seasons
-                  seasonsToFetch = validSeasons.map((s) => s.season_number);
-                } else if (validSeasons.length === 1) {
-                  seasonsToFetch = [validSeasons[0].season_number];
-                } else if (validSeasons.length > 1) {
-                  const matched = findMatchingSeason(
-                    validSeasons,
-                    [raw.title?.english, raw.title?.romaji, movie.title].filter(Boolean) as string[],
-                    raw.startDate?.year || movie.year || undefined,
-                    actualEpisodeCount
-                  );
-                  if (matched) {
-                    seasonsToFetch = [matched.season_number];
-                  } else if (actualEpisodeCount >= 100) {
-                    // Only fall back to first 3 seasons for long-running shows (100+ eps)
-                    // Short cours should NOT pull random early seasons
-                    seasonsToFetch = validSeasons.slice(0, 3).map((s) => s.season_number);
-                  }
-                }
-
-                let currentOffset = 0;
-                for (const sn of seasonsToFetch) {
-                  const seasonData = await api.getSeasonDetails(String(bestTv.id), sn);
-                  if (seasonData?.episodes && seasonData.episodes.length > 0) {
-                    const titleToStill = new Map<string, { still_path?: string | null; overview?: string }>();
-                    for (const tmdbEp of seasonData.episodes) {
-                      if (tmdbEp.name && tmdbEp.still_path) {
-                        titleToStill.set(tmdbEp.name.toLowerCase().trim(), tmdbEp);
-                      }
-                    }
-
-                    // 1. Title matching (for cour seasons where seasonData epNum is 41-47 while AniList is 1-7)
-                    for (const [num, ep] of episodeMap.entries()) {
-                      if (!ep.thumbnail && ep.title && ep.title !== `Episode ${num}`) {
-                        const matched = titleToStill.get(ep.title.toLowerCase().trim());
-                        if (matched?.still_path) {
-                          ep.thumbnail = api.getImageUrl(matched.still_path, 'w500');
-                          if (!ep.description && matched.overview) {
-                            ep.description = matched.overview;
-                          }
-                        }
-                      }
-                    }
-
-                    // 2. Direct episode number matching with offset
-                    for (const tmdbEp of seasonData.episodes) {
-                      const epNum = tmdbEp.episode_number + currentOffset;
-                      if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
-                        const epStill = tmdbEp.still_path ? api.getImageUrl(tmdbEp.still_path, 'w500') : null;
-                        const existing = episodeMap.get(epNum);
-                        if (existing) {
-                          if (!existing.thumbnail && epStill) {
-                            existing.thumbnail = epStill;
-                          }
-                          if (
-                            (!existing.title || existing.title === `Episode ${epNum}`) &&
-                            tmdbEp.name &&
-                            !tmdbEp.name.match(/^Episode\s+\d+$/i)
-                          ) {
-                            existing.title = tmdbEp.name;
-                          }
-                          if (!existing.description && tmdbEp.overview) {
-                            existing.description = tmdbEp.overview;
-                          }
-                        } else {
-                          episodeMap.set(epNum, {
-                            id: `ep-${epNum}`,
-                            season: 1,
-                            episode: epNum,
-                            title: tmdbEp.name || `Episode ${epNum}`,
-                            duration: raw.duration ? `${raw.duration}m` : '24m',
-                            thumbnail: epStill,
-                            description: tmdbEp.overview || '',
-                          });
-                        }
-                      }
-                    }
-
-                    currentOffset += seasonData.episodes.length;
                   }
                 }
               }
@@ -1977,8 +2053,6 @@ export const anilistApi = {
                 if (parts.length > 2) courSubtitles.push(parts[parts.length - 2]);
               }
             }
-
-            let kitsuVerified = false;
 
             for (const cand of titleCandidates) {
               const kitsuRes = await fetchWithTimeout(
@@ -2047,7 +2121,6 @@ export const anilistApi = {
               // Only accept if we have a reasonable confidence score
               // For multi-cour anime with subtitles, we need at least a subtitle or year+count match
               if (!bestKitsu || (courSubtitles.length > 0 && bestScore < 10)) continue;
-              kitsuVerified = bestScore >= 20;
 
               const limit = Math.min(20, Math.max(1, actualEpisodeCount));
               const epRes = await fetchWithTimeout(
@@ -2095,11 +2168,12 @@ export const anilistApi = {
                     existing.thumbnail = epThumb;
                   }
                   // Only overwrite title if:
-                  // - Existing title is generic ("Episode X")
-                  // - OR the Kitsu entry was verified to match this specific cour
+                  // - Not Bleach (Bleach already enriched with 100% verified official TMDB titles)
+                  // - Existing title is generic ("Episode X" or "Untitled")
                   if (
+                    !isBleach &&
                     epTitle &&
-                    (!existing.title || existing.title === `Episode ${epNum}` || kitsuVerified)
+                    (!existing.title || existing.title === `Episode ${epNum}` || existing.title.toLowerCase() === 'untitled')
                   ) {
                     existing.title = epTitle;
                   }
