@@ -7,7 +7,7 @@ import {
   THEME_BEAM_COLORS,
   DEFAULT_PALETTE,
 } from '../boringAvatars';
-import { getUserAvatarUrl, PRESET_AVATARS } from '../avatars';
+import { getUserAvatarUrl, PRESET_AVATARS, DEFAULT_EMPTY_AVATAR, EMPTY_AVATAR_PRESET } from '../avatars';
 
 describe('Boring Avatars Generator', () => {
   const variants: BoringAvatarVariant[] = ['beam', 'marble', 'sunset', 'bauhaus', 'pixel', 'ring'];
@@ -90,5 +90,20 @@ describe('Boring Avatars Generator', () => {
     expect(
       THEME_BEAM_COLORS.some((c) => migratedUrl.includes(encodeURIComponent(c)))
     ).toBe(true);
+  });
+
+  it('correctly resolves empty avatar silhouette without overwriting', () => {
+    expect(DEFAULT_EMPTY_AVATAR).toContain('data:image/svg+xml');
+    expect(EMPTY_AVATAR_PRESET.id).toBe('empty-default');
+    expect(EMPTY_AVATAR_PRESET.url).toBe(DEFAULT_EMPTY_AVATAR);
+
+    const emptyUrl = getUserAvatarUrl('empty');
+    expect(emptyUrl).toBe(DEFAULT_EMPTY_AVATAR);
+
+    const emptyPresetUrl = getUserAvatarUrl('empty-default');
+    expect(emptyPresetUrl).toBe(DEFAULT_EMPTY_AVATAR);
+
+    const directEmptyUrl = getUserAvatarUrl(DEFAULT_EMPTY_AVATAR);
+    expect(directEmptyUrl).toBe(DEFAULT_EMPTY_AVATAR);
   });
 });

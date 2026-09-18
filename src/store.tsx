@@ -15,6 +15,7 @@ import { continueWatchingKey, syncService } from './services/sync';
 import { watchTrackingService } from './services/watchTracking';
 import { loadAppFont, normalizeFontId, type AppFontId } from './lib/fonts';
 import { COMPLETION_THRESHOLD } from './lib/playback';
+import { DEFAULT_EMPTY_AVATAR } from './lib/avatars';
 import {
   getTelemetryConsent,
   hasTelemetryConsent,
@@ -320,7 +321,7 @@ function buildDefaultProfile(uid: string): UserProfile {
     uid,
     name: 'Guest',
     email: '',
-    avatar: 'beam-director',
+    avatar: DEFAULT_EMPTY_AVATAR,
     isLoggedIn: false,
     language: 'English (US)',
     defaultServer: 'auto',
@@ -419,7 +420,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {
         id: 'default',
         name: legacyProf.name || 'Primary',
-        avatar: legacyProf.avatar || 'beam-director',
+        avatar: legacyProf.avatar || DEFAULT_EMPTY_AVATAR,
         isKids: false,
         watchlist: legacyWatchlist,
         continueWatching: legacyCW,

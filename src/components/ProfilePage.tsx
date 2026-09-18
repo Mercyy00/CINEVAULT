@@ -26,6 +26,8 @@ import {
   getUserAvatarUrl,
   getBoringAvatarUrl,
   THEME_BEAM_COLORS,
+  DEFAULT_EMPTY_AVATAR,
+  EMPTY_AVATAR_PRESET,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
 
@@ -397,8 +399,10 @@ export function ProfilePage() {
                 </div>
 
                 <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 pt-2">
-                  {PRESET_AVATARS.map((avatar) => {
-                    const isSelected = (userProfile.avatar || '') === avatar.url;
+                  {[EMPTY_AVATAR_PRESET, ...PRESET_AVATARS].map((avatar) => {
+                    const isSelected =
+                      (userProfile.avatar || DEFAULT_EMPTY_AVATAR) === avatar.url ||
+                      (avatar.id === 'empty-default' && (!userProfile.avatar || userProfile.avatar === DEFAULT_EMPTY_AVATAR || userProfile.avatar === 'empty'));
                     return (
                       <button
                         key={avatar.id}

@@ -13,6 +13,8 @@ import {
   PRESET_AVATARS, 
   getUserAvatarUrl, 
   THEME_BEAM_COLORS,
+  DEFAULT_EMPTY_AVATAR,
+  EMPTY_AVATAR_PRESET,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
 import { navigate } from '../lib/navigation';
@@ -38,7 +40,7 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
 
   // Form State for Add / Edit
   const [formName, setFormName] = useState('');
-  const [formAvatar, setFormAvatar] = useState('beam-director');
+  const [formAvatar, setFormAvatar] = useState(DEFAULT_EMPTY_AVATAR);
   const [formIsKids, setFormIsKids] = useState(false);
   const [formMaxAge, setFormMaxAge] = useState('PG');
   const [selectedAvatarStyle, setSelectedAvatarStyle] = useState('beam');
@@ -46,7 +48,7 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
 
   const openCreateModal = () => {
     setFormName('');
-    setFormAvatar('beam-director');
+    setFormAvatar(DEFAULT_EMPTY_AVATAR);
     setFormIsKids(false);
     setFormMaxAge('PG');
     setSelectedAvatarStyle('beam');
@@ -315,17 +317,18 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
 
                   {/* Preset Avatars Row */}
                   <div className="grid grid-cols-4 sm:grid-cols-6 gap-2.5 mb-4">
-                    {PRESET_AVATARS.slice(0, 12).map((av) => (
+                    {[EMPTY_AVATAR_PRESET, ...PRESET_AVATARS.slice(0, 11)].map((av) => (
                       <button
                         type="button"
                         key={av.id}
-                        onClick={() => setFormAvatar(av.id)}
+                        onClick={() => setFormAvatar(av.url)}
                         className={cn(
                           "w-12 h-12 rounded-2xl p-1 bg-black/40 border transition-all cursor-pointer overflow-hidden",
-                          formAvatar === av.id
+                          formAvatar === av.id || formAvatar === av.url || (av.id === 'empty-default' && formAvatar === DEFAULT_EMPTY_AVATAR)
                             ? "border-brand ring-2 ring-brand/40 scale-105"
                             : "border-white/10 hover:border-white/30"
                         )}
+                        title={av.name}
                       >
                         <img src={av.url} alt={av.name} className="w-full h-full object-contain" />
                       </button>

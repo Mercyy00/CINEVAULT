@@ -292,9 +292,34 @@ const LEGACY_PRESET_MAP: Record<string, string> = {
   default: 'beam-director',
 };
 
+/**
+ * Default empty avatar silhouette. Minimalist, elegant obsidian circle with neutral silhouette.
+ */
+export const DEFAULT_EMPTY_AVATAR = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" fill="none"><rect width="96" height="96" rx="48" fill="%2313141f"/><circle cx="48" cy="38" r="16" fill="%233e4256"/><path d="M22 84c0-14.36 11.64-26 26-26s26 11.64 26 26" fill="%233e4256"/></svg>`;
+
+export const EMPTY_AVATAR_PRESET: UserAvatar = {
+  id: 'empty-default',
+  name: 'Empty Avatar',
+  style: 'beam',
+  seed: 'empty',
+  tag: 'Default Silhouette',
+  color: '#3e4256',
+  url: DEFAULT_EMPTY_AVATAR,
+};
+
 export function getUserAvatarUrl(avatarIdOrUrl?: string, fallbackSeed: string = 'Cinephile'): string {
   if (!avatarIdOrUrl) {
     return getBoringAvatarUrl('beam', fallbackSeed, THEME_BEAM_COLORS);
+  }
+
+  // Handle explicit empty silhouette avatar
+  if (
+    avatarIdOrUrl === 'empty' ||
+    avatarIdOrUrl === 'empty-default' ||
+    avatarIdOrUrl === DEFAULT_EMPTY_AVATAR ||
+    avatarIdOrUrl.includes('%2313141f')
+  ) {
+    return DEFAULT_EMPTY_AVATAR;
   }
 
   // If old DiceBear or old legacy amber palette data-URI, refresh to the requested Beam theme!
