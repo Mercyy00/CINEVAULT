@@ -1090,102 +1090,10 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
       onTouchStart={handlePointerMove}
       onClick={() => handlePointerMove()}
     >
-      {/* Contained Cinema Stage Top Bar Header */}
-      {isContained && (
-        <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 shrink-0 z-40">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button 
-              onClick={() => {
-                const current = window.location.pathname;
-                window.history.back();
-                setTimeout(() => {
-                  if (
-                    window.location.pathname === current ||
-                    window.location.pathname.startsWith('/watch/') ||
-                    window.location.pathname.startsWith('/player/')
-                  ) {
-                    goToDetail(id, 'anime');
-                  }
-                }, 100);
-              }}
-              aria-label="Back"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open episodes and servers menu"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
-              title="Open episodes & servers menu (M)"
-            >
-              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
-            </button>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                {movie.logoUrl ? (
-                  <div className="max-w-[140px] sm:max-w-[200px]">
-                    <h1 className="sr-only">{movie.title}</h1>
-                    <img
-                      src={movie.logoUrl}
-                      alt={movie.title}
-                      className="max-h-6 sm:max-h-8 w-auto object-contain object-left drop-shadow-md"
-                    />
-                  </div>
-                ) : (
-                  <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
-                    {movie.title}
-                  </h1>
-                )}
-                {(movie.rating ?? 0) > 0 && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
-                    <Star className="w-3 h-3 fill-current" /> {Number(movie.rating).toFixed(1)}
-                  </span>
-                )}
-              </div>
-              {selectedEpisode && (
-                <p className="text-[11px] sm:text-xs text-brand truncate font-medium">
-                  Episode {selectedEpisode.episode || selectedEpisode.number || episode}{selectedEpisode.title ? ` — ${selectedEpisode.title}` : ''}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Right actions: Download + Mode Toggles */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0')}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full glass border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 transition-all text-xs sm:text-sm font-bold shadow-sm cursor-pointer"
-              title="Download anime episode in High-Speed"
-            >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Download</span>
-            </button>
-
-            {/* Fullscreen Button */}
-            <button
-              type="button"
-              onClick={() => {
-                toggleFullscreen();
-              }}
-              className="p-2 sm:px-3 sm:py-2 rounded-full glass border border-white/10 hover:border-brand/40 text-foreground/80 hover:text-brand transition-all text-xs font-semibold cursor-pointer flex items-center gap-1.5 shadow-sm"
-              title="Full Screen Mode (F)"
-            >
-              <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Fullscreen</span>
-            </button>
-          </div>
-        </header>
-      )}
-
       {/* Video Stage Outer Constraint */}
       <div className={cn(
         isContained
-          ? "w-full max-w-5xl xl:max-w-6xl mx-auto px-3 sm:px-6 py-1 shrink-0"
+          ? "w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 shrink-0"
           : "w-full h-full flex-1 relative flex flex-col"
       )}>
         {/* Video Stage Container */}
@@ -1195,7 +1103,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
             playerMode === 'floating'
               ? 'h-full'
               : isContained
-              ? 'aspect-video rounded-2xl sm:rounded-3xl border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] ring-1 ring-white/10 group'
+              ? 'aspect-video max-h-[85vh] rounded-2xl sm:rounded-3xl border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9)] ring-1 ring-white/10 group mx-auto'
               : isMobileView && !isFullscreen
               ? 'aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
               : 'flex-1 h-full'
@@ -1650,153 +1558,125 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
 
       {/* Contained Cinema & Mobile Console Dock (Visible whenever not fullscreen or floating) */}
       {!isFullscreen && playerMode !== 'floating' && (
-        <div className="w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 space-y-4 pb-24">
-          {/* Prominent Anime Streaming Servers & Sub/Dub Shelf (1-click direct switcher) */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-card/65 border border-white/10 backdrop-blur-xl shadow-lg space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-brand" />
-                <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground">
-                  Anime Streaming Servers
-                </h2>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  ({ANIME_SERVERS.length} servers)
-                </span>
+        <div className="w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 space-y-4 pb-20 pt-1">
+          {/* Streamlined Info & Controls Bar */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-card/40 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
+            {/* Title & Metadata */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-sm sm:text-base font-bold text-foreground truncate">
+                  {movie?.title}
+                </h1>
+                {(movie?.rating ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
+                    <Star className="w-3 h-3 fill-current" /> {Number(movie.rating).toFixed(1)}
+                  </span>
+                )}
+                {movie?.year && (
+                  <span className="text-xs text-muted-foreground font-medium">
+                    {movie.year}
+                  </span>
+                )}
+              </div>
+              {selectedEpisode && (
+                <p className="text-xs text-brand truncate font-medium mt-0.5">
+                  Episode {selectedEpisode.episode || selectedEpisode.number || episode}
+                  {selectedEpisode.title && !selectedEpisode.title.toLowerCase().startsWith('episode')
+                    ? ` — ${selectedEpisode.title}`
+                    : ''}
+                </p>
+              )}
+            </div>
+
+            {/* Server & Audio Controls */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+              {/* Server selector pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 max-w-full sm:max-w-[460px] xl:max-w-[560px]">
+                {ANIME_SERVERS.map((s) => {
+                  const isCurrent = s.id === server;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        setServer(s.id);
+                        updateIframeSrc(
+                          selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1,
+                          language,
+                          s.id,
+                          movie?.malId,
+                          movie?.title,
+                          tmdbIdRef.current || tmdbId,
+                          anilistIdRef.current || movie?.anilistId
+                        );
+                      }}
+                      className={cn(
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border cursor-pointer',
+                        isCurrent
+                          ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-bold'
+                          : 'bg-white/5 border-white/10 text-foreground/75 hover:bg-white/10 hover:text-foreground'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'w-1.5 h-1.5 rounded-full shrink-0',
+                          isCurrent ? 'bg-background' : 'bg-emerald-400'
+                        )}
+                      />
+                      <span>{s.name.replace(' (Primary)', '')}</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Chunky Touch-Friendly Sub/Dub Switch */}
-              <div className="inline-flex bg-white/5 p-1 rounded-xl border border-white/10 shrink-0 self-start sm:self-auto">
+              {/* Sub/Dub Switch */}
+              <div className="inline-flex bg-white/5 p-0.5 rounded-xl border border-white/10 shrink-0">
                 <button
                   type="button"
                   onClick={() => { if (language !== 'sub') toggleLanguage(); }}
                   className={cn(
-                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+                    "px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     language === 'sub'
                       ? "bg-brand text-background shadow-md shadow-brand/20"
                       : "text-muted-foreground hover:text-foreground"
                   )}
-                  title="Subtitled (S)"
+                  title="Subtitled"
                 >
-                  <Globe className="w-3.5 h-3.5" /> SUB
+                  SUB
                 </button>
                 <button
                   type="button"
                   onClick={() => { if (language !== 'dub') toggleLanguage(); }}
                   className={cn(
-                    "px-4 py-1.5 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+                    "px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer",
                     language === 'dub'
                       ? "bg-brand text-background shadow-md shadow-brand/20"
                       : "text-muted-foreground hover:text-foreground"
                   )}
-                  title="English Dubbed (U)"
+                  title="English Dubbed"
                 >
-                  <Globe className="w-3.5 h-3.5" /> DUB
+                  DUB
                 </button>
               </div>
-            </div>
 
-            {/* Server pills with 1-click switching */}
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
-              {ANIME_SERVERS.map((s) => {
-                const isCurrent = s.id === server;
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => {
-                      setServer(s.id);
-                      updateIframeSrc(
-                        selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1,
-                        language,
-                        s.id,
-                        movie?.malId,
-                        movie?.title,
-                        tmdbIdRef.current || tmdbId,
-                        anilistIdRef.current || movie?.anilistId
-                      );
-                    }}
-                    className={cn(
-                      'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all border cursor-pointer',
-                      isCurrent
-                        ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-extrabold scale-[1.02]'
-                        : 'bg-white/5 border-white/10 text-foreground/80 hover:bg-white/10 hover:border-white/20'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'w-2 h-2 rounded-full shrink-0',
-                        isCurrent ? 'bg-background' : 'bg-emerald-400'
-                      )}
-                    />
-                    <span>{s.name}</span>
-                    {s.quality && (
-                      <span
-                        className={cn(
-                          'text-[9px] px-1 py-0.5 rounded uppercase font-mono',
-                          isCurrent ? 'bg-black/20 text-background' : 'bg-white/10 text-brand'
-                        )}
-                      >
-                        {s.quality}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Quick action bar */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-            <button
-              type="button"
-              onClick={() => goToDownload(id, 'anime', 1, selectedEpisode?.episode || selectedEpisode?.number || episode, movie?.malId || malId || '0')}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand/10 border border-brand/40 text-brand text-xs font-bold shrink-0 hover:bg-brand/20 transition-all cursor-pointer shadow-sm"
-              title="Download in High-Speed"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download in High-Speed</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setPlayerMode('fullscreen');
-                toggleFullscreen();
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
-            >
-              <Maximize className="w-3.5 h-3.5 text-brand" />
-              <span>Fullscreen</span>
-            </button>
-
-            {currentIframeSrc && currentIframeSrc !== 'about:blank' && (
-              <a
-                href={currentIframeSrc}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
-                title="Pop out video into separate tab"
+              {/* Browse All Episodes Button */}
+              <button
+                type="button"
+                onClick={() => setSidebarOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 hover:text-brand transition-colors cursor-pointer"
+                title="Browse all episodes"
               >
-                <ExternalLink className="w-3.5 h-3.5 text-brand" />
-                <span>Pop-out</span>
-              </a>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
-            >
-              <Menu className="w-3.5 h-3.5 text-brand" />
-              <span>All Episodes ({episodes.length})</span>
-            </button>
+                <Menu className="w-3.5 h-3.5 text-brand" />
+                <span className="hidden sm:inline">Episodes</span>
+              </button>
+            </div>
           </div>
 
-          {/* Horizontal Episode Picker Row with direct download */}
+          {/* Clean Horizontal Episode Picker */}
           {episodes.length > 0 && (
             <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-foreground/80 uppercase tracking-wider">
                   Episodes ({episodes.length})
                 </span>
                 <button
@@ -1804,56 +1684,37 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   onClick={() => setSidebarOpen(true)}
                   className="text-xs font-semibold text-brand hover:underline cursor-pointer"
                 >
-                  View All
+                  View All & Search
                 </button>
               </div>
 
-              {/* Horizontal scrollable episode chips with direct download */}
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-4 px-4">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
                 {episodes.map((ep: any) => {
                   const isCurrent = selectedEpisode?.episode === ep.episode || selectedEpisode?.number === ep.number;
                   return (
-                    <div
+                    <button
                       key={ep.id || ep.episode}
+                      type="button"
+                      onClick={() => handleEpisodeChange(ep)}
                       className={cn(
-                        "flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-xl text-xs shrink-0 transition-all border",
+                        "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs shrink-0 transition-all border cursor-pointer",
                         isCurrent
                           ? "bg-brand text-background font-bold border-brand shadow-lg shadow-brand/20"
-                          : "bg-card border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground"
+                          : "bg-card/70 border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground"
                       )}
                     >
-                      <button
-                        type="button"
-                        onClick={() => handleEpisodeChange(ep)}
-                        className="flex items-center gap-2 cursor-pointer text-left"
-                      >
-                        {isCurrent ? (
-                          <Play className="w-3 h-3 fill-current shrink-0" />
-                        ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
-                        )}
-                        <span>EP {ep.episode || ep.number}</span>
-                        {ep.title && !ep.title.toLowerCase().startsWith('episode') && (
-                          <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.title}</span>
-                        )}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          goToDownload(id, 'anime', 1, ep.episode || ep.number, movie?.malId || malId || '0');
-                        }}
-                        className={cn(
-                          "p-1 rounded-lg transition-colors cursor-pointer ml-1",
-                          isCurrent ? "hover:bg-black/20 text-background" : "hover:bg-white/20 text-muted-foreground hover:text-brand"
-                        )}
-                        title={`Download Episode ${ep.episode || ep.number}`}
-                        aria-label={`Download Episode ${ep.episode || ep.number}`}
-                      >
-                        <Download className="w-3 h-3" />
-                      </button>
-                    </div>
+                      {isCurrent ? (
+                        <Play className="w-3 h-3 fill-current shrink-0" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
+                      )}
+                      <span>EP {ep.episode || ep.number}</span>
+                      {ep.title && !ep.title.toLowerCase().startsWith('episode') && (
+                        <span className="max-w-[120px] truncate opacity-80 text-[11px] font-normal">
+                          {ep.title}
+                        </span>
+                      )}
+                    </button>
                   );
                 })}
               </div>
@@ -1861,10 +1722,10 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           )}
 
           {/* Overview */}
-          {movie.description && (
-            <div className="pt-2 border-t border-white/5 space-y-1">
+          {movie?.description && (
+            <div className="pt-2 border-t border-white/5 space-y-1 px-1">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Synopsis</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed max-w-4xl">
+              <p className="text-xs sm:text-sm text-muted-foreground/80 leading-relaxed max-w-4xl line-clamp-3 hover:line-clamp-none transition-all">
                 {movie.description}
               </p>
             </div>

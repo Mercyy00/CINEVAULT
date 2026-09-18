@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, PictureInPicture, Play, Signal, SkipForward, SkipBack, X, Download, Box, Star } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, SkipForward, SkipBack, X, Download, Star } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -914,125 +914,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       onMouseMove={handleMouseMove}
       onTouchStart={handleTouchStart}
     >
-      {/* Contained Cinema Stage Top Bar Header */}
-      {isContained && (
-        <header className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-3 sm:pt-4 pb-2 flex items-center justify-between gap-3 shrink-0 z-40">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <button
-              type="button"
-              onClick={() => {
-                const current = window.location.pathname;
-                window.history.back();
-                setTimeout(() => {
-                  if (
-                    window.location.pathname === current ||
-                    window.location.pathname.startsWith('/watch/') ||
-                    window.location.pathname.startsWith('/player/')
-                  ) {
-                    goToDetail(id, type);
-                  }
-                }, 100);
-              }}
-              aria-label="Back to details"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open episodes and sources menu"
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full glass border border-white/10 hover:border-brand/50 hover:bg-brand/20 flex items-center justify-center text-foreground transition-all cursor-pointer shrink-0 shadow-sm active:scale-95"
-              title="Open episodes & sources menu (M)"
-            >
-              <Menu className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
-            </button>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                {movie.logoUrl ? (
-                  <div className="max-w-[140px] sm:max-w-[200px]">
-                    <h1 className="sr-only">{movie.title}</h1>
-                    <img
-                      src={movie.logoUrl}
-                      alt={movie.title}
-                      className="max-h-6 sm:max-h-8 w-auto object-contain object-left drop-shadow-md"
-                    />
-                  </div>
-                ) : (
-                  <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
-                    {movie.title}
-                  </h1>
-                )}
-                {(movie.rating ?? 0) > 0 && (
-                  <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
-                    <Star className="w-3 h-3 fill-current" /> {movie.rating?.toFixed(1)}
-                  </span>
-                )}
-              </div>
-              {type === 'tv' && selectedEpisode && (
-                <p className="text-[11px] sm:text-xs text-brand truncate font-medium">
-                  S{selectedSeason} E{selectedEpisode.episode_number}{selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Right actions: Download + Mode Toggles */}
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={() => goToDownload(id, type, selectedSeason, selectedEpisode?.episode_number)}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full glass border border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 transition-all text-xs sm:text-sm font-bold shadow-sm cursor-pointer"
-              title="Download movie or episode in High-Speed"
-            >
-              <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden xs:inline">Download</span>
-            </button>
-
-            {/* Mode Toggle Pills */}
-            <div className="flex items-center bg-card/80 border border-white/10 rounded-full p-0.5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setPlayerMode('contained')}
-                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold bg-brand text-background shadow-md shadow-brand/20 font-bold transition-all cursor-pointer"
-                title="Theater Box Stage (ASA Square)"
-              >
-                <Box className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden md:inline">Theater Box</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setPlayerMode('fullscreen');
-                  toggleFullscreen();
-                }}
-                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                title="Full Screen Mode (F)"
-              >
-                <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden md:inline">Full</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPlayerMode('floating')}
-                className="p-1.5 sm:px-2 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                title="Mini-Player / Picture-in-Picture (I)"
-              >
-                <PictureInPicture className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
-          </div>
-        </header>
-      )}
-
       {/* Video Stage Outer Constraint */}
       <div className={cn(
         isContained
-          ? "w-full max-w-5xl xl:max-w-6xl mx-auto px-3 sm:px-6 py-1 shrink-0"
+          ? "w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 shrink-0"
           : "w-full h-full flex-1 relative flex flex-col"
       )}>
         {/* Video Stage Container */}
@@ -1042,7 +927,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             playerMode === 'floating'
               ? 'h-full'
               : isContained
-              ? 'aspect-video rounded-2xl sm:rounded-3xl border border-white/15 shadow-[0_25px_70px_rgba(0,0,0,0.85)] ring-1 ring-white/10 group'
+              ? 'aspect-video max-h-[85vh] rounded-2xl sm:rounded-3xl border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9)] ring-1 ring-white/10 group mx-auto'
               : isMobileView && !isFullscreen
               ? 'aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
               : 'flex-1 h-full'
@@ -1213,7 +1098,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 </div>
               </div>
 
-              {/* Right side: Download, Theater Box, Mini-Player & Fullscreen toggles */}
+              {/* Right side: Download & Fullscreen */}
               <div className="flex items-center gap-2 pointer-events-auto">
                 <button
                   type="button"
@@ -1223,27 +1108,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Download</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isFullscreen) toggleFullscreen();
-                    setPlayerMode('contained');
-                  }}
-                  aria-label="Theater Box Stage"
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
-                  title="Theater Box Stage (ASA Square) (T)"
-                >
-                  <Box className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlayerMode('floating')}
-                  aria-label="Floating mini player"
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
-                  title="Mini Player / Picture-in-Picture (I)"
-                >
-                  <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
@@ -1484,172 +1348,146 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
       {/* Contained Cinema & Mobile Console Dock (Visible whenever not fullscreen or floating) */}
       {!isFullscreen && playerMode !== 'floating' && (
-        <div className="w-full max-w-5xl xl:max-w-6xl mx-auto px-4 sm:px-6 space-y-4 pb-24">
-          {/* Dedicated Streaming Servers Dock (1-click direct switcher) */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-card/65 border border-white/10 backdrop-blur-xl shadow-lg space-y-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Signal className="w-4 h-4 text-brand" />
-                <h2 className="text-xs sm:text-sm font-bold uppercase tracking-wider text-foreground">
-                  Streaming Servers
-                </h2>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  ({rankedSources.length} servers)
-                </span>
+        <div className="w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 space-y-4 pb-20 pt-1">
+          {/* Streamlined Info & Controls Bar */}
+          <div className="p-3.5 sm:p-4 rounded-2xl bg-card/40 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
+            {/* Title & Metadata */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-sm sm:text-base font-bold text-foreground truncate">
+                  {movie?.title}
+                </h1>
+                {(movie?.rating ?? 0) > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
+                    <Star className="w-3 h-3 fill-current" /> {movie.rating?.toFixed(1)}
+                  </span>
+                )}
+                {movie?.year ? (
+                  <span className="text-xs text-muted-foreground font-medium">
+                    {movie.year}
+                  </span>
+                ) : null}
+                {movie?.duration ? (
+                  <span className="text-xs text-muted-foreground font-medium">
+                    • {movie.duration}
+                  </span>
+                ) : null}
               </div>
-              <span className="text-[11px] text-muted-foreground hidden sm:inline">
-                Click any server to switch stream immediately
-              </span>
+              {type === 'tv' && selectedEpisode && (
+                <p className="text-xs text-brand truncate font-medium mt-0.5">
+                  S{selectedSeason} E{selectedEpisode.episode_number}
+                  {selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
+                </p>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
-              {rankedSources.map((s) => {
-                const isCurrent = s.id === source.id;
-                const probe = serverProbeCache.get(s.id);
-                const isFailed = failedSources.has(s.id);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => handleSourceChange(s)}
-                    className={cn(
-                      'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all border cursor-pointer',
-                      isCurrent
-                        ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-extrabold scale-[1.02]'
-                        : 'bg-white/5 border-white/10 text-foreground/80 hover:bg-white/10 hover:border-white/20'
-                    )}
-                  >
-                    <span
+            {/* Server & TV Controls */}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+              {/* Server selector pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 max-w-full sm:max-w-[460px] xl:max-w-[560px]">
+                {rankedSources.map((s) => {
+                  const isCurrent = s.id === source.id;
+                  const probe = serverProbeCache.get(s.id);
+                  const isFailed = failedSources.has(s.id);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleSourceChange(s)}
                       className={cn(
-                        'w-2 h-2 rounded-full shrink-0',
+                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border cursor-pointer',
                         isCurrent
-                          ? 'bg-background'
-                          : isFailed
-                          ? 'bg-amber-400'
-                          : probe?.reachable
-                          ? 'bg-emerald-400'
-                          : 'bg-white/40'
+                          ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-bold'
+                          : 'bg-white/5 border-white/10 text-foreground/75 hover:bg-white/10 hover:text-foreground'
                       )}
-                    />
-                    <span>{s.name}</span>
-                    {s.quality && (
+                    >
                       <span
                         className={cn(
-                          'text-[9px] px-1 py-0.5 rounded uppercase font-mono',
-                          isCurrent ? 'bg-black/20 text-background' : 'bg-white/10 text-brand'
+                          'w-1.5 h-1.5 rounded-full shrink-0',
+                          isCurrent
+                            ? 'bg-background'
+                            : isFailed
+                            ? 'bg-amber-400'
+                            : probe?.reachable
+                            ? 'bg-emerald-400'
+                            : 'bg-white/40'
                         )}
-                      >
-                        {s.quality}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+                      />
+                      <span>{s.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Season Selector for TV */}
+              {type === 'tv' && seasons.length > 1 && (
+                <select
+                  value={selectedSeason}
+                  onChange={(e) => goToWatch(id, 'tv', Number(e.target.value), 1)}
+                  className="bg-card border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-foreground font-semibold focus:outline-none focus:border-brand cursor-pointer shrink-0"
+                >
+                  {seasons.map((s) => (
+                    <option key={s.season_number} value={s.season_number} className="bg-background">
+                      {s.name || `Season ${s.season_number}`}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Browse Episodes Button for TV */}
+              {type === 'tv' && (
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 hover:text-brand transition-colors cursor-pointer"
+                  title="Browse all episodes"
+                >
+                  <Menu className="w-3.5 h-3.5 text-brand" />
+                  <span className="hidden sm:inline">Episodes</span>
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Quick actions row */}
-          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1">
-            <button
-              type="button"
-              onClick={() => goToDownload(id, type, selectedSeason, selectedEpisode?.episode_number)}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-brand/10 border border-brand/40 text-brand text-xs font-bold shrink-0 hover:bg-brand/20 transition-all cursor-pointer shadow-sm"
-              title="Download in High-Speed"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download in High-Speed</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setPlayerMode('fullscreen');
-                toggleFullscreen();
-              }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
-            >
-              <Maximize className="w-3.5 h-3.5 text-brand" />
-              <span>Fullscreen</span>
-            </button>
-
-            {type === 'tv' && (
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 transition-colors cursor-pointer"
-              >
-                <Menu className="w-3.5 h-3.5 text-brand" />
-                <span>All Episodes ({episodes.length})</span>
-              </button>
-            )}
-          </div>
-
-          {/* Horizontal Episode Picker for TV Series */}
+          {/* Clean Horizontal Episode Picker for TV */}
           {type === 'tv' && episodes.length > 0 && (
             <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Season {selectedSeason} Episodes
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-foreground/80 uppercase tracking-wider">
+                  Season {selectedSeason} Episodes ({episodes.length})
                 </span>
-                {seasons.length > 1 && (
-                  <select
-                    value={selectedSeason}
-                    onChange={(e) => goToWatch(id, 'tv', Number(e.target.value), 1)}
-                    className="bg-card border border-white/10 rounded-lg px-2 py-1 text-xs text-foreground focus:outline-none focus:border-brand cursor-pointer"
-                  >
-                    {seasons.map((s) => (
-                      <option key={s.season_number} value={s.season_number} className="bg-background">
-                        {s.name || `Season ${s.season_number}`}
-                      </option>
-                    ))}
-                  </select>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="text-xs font-semibold text-brand hover:underline cursor-pointer"
+                >
+                  View All & Search
+                </button>
               </div>
 
-              {/* Horizontal scrollable episode chips with direct download */}
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-4 px-4">
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
                 {episodes.map((ep) => {
                   const isCurrent = selectedEpisode?.id === ep.id || selectedEpisode?.episode_number === ep.episode_number;
                   return (
-                    <div
+                    <button
                       key={ep.id}
+                      type="button"
+                      onClick={() => goToEpisode(ep)}
                       className={cn(
-                        'flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-xl text-xs shrink-0 transition-all border',
+                        'flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs shrink-0 transition-all border cursor-pointer',
                         isCurrent
                           ? 'bg-brand text-background font-bold border-brand shadow-lg shadow-brand/20'
-                          : 'bg-card border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground'
+                          : 'bg-card/70 border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground'
                       )}
                     >
-                      <button
-                        type="button"
-                        onClick={() => goToEpisode(ep)}
-                        className="flex items-center gap-2 cursor-pointer text-left"
-                      >
-                        {isCurrent ? (
-                          <Play className="w-3 h-3 fill-current shrink-0" />
-                        ) : (
-                          <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
-                        )}
-                        <span>EP {ep.episode_number}</span>
-                        {ep.name && <span className="max-w-[100px] truncate opacity-80 text-[11px] font-normal">{ep.name}</span>}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          goToDownload(id, 'tv', selectedSeason, ep.episode_number);
-                        }}
-                        className={cn(
-                          "p-1 rounded-lg transition-colors cursor-pointer ml-1",
-                          isCurrent ? "hover:bg-black/20 text-background" : "hover:bg-white/20 text-muted-foreground hover:text-brand"
-                        )}
-                        title={`Download S${selectedSeason} E${ep.episode_number}`}
-                        aria-label={`Download S${selectedSeason} E${ep.episode_number}`}
-                      >
-                        <Download className="w-3 h-3" />
-                      </button>
-                    </div>
+                      {isCurrent ? (
+                        <Play className="w-3 h-3 fill-current shrink-0" />
+                      ) : (
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
+                      )}
+                      <span>EP {ep.episode_number}</span>
+                      {ep.name && <span className="max-w-[120px] truncate opacity-80 text-[11px] font-normal">{ep.name}</span>}
+                    </button>
                   );
                 })}
               </div>
@@ -1657,10 +1495,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           )}
 
           {/* Overview */}
-          {movie.description && (
-            <div className="pt-2 border-t border-white/5 space-y-1">
+          {movie?.description && (
+            <div className="pt-2 border-t border-white/5 space-y-1 px-1">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Overview</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground/90 leading-relaxed max-w-4xl">
+              <p className="text-xs sm:text-sm text-muted-foreground/80 leading-relaxed max-w-4xl line-clamp-3 hover:line-clamp-none transition-all">
                 {movie.description}
               </p>
             </div>
