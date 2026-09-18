@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => ({
     port: 3005,
     watch: {
       ignored: [
+        '**/_birthday_backup/**',
         '**/cinematic-kinetic-typography-component/**',
         '**/public/music/**',
         '**/public/videos/**',

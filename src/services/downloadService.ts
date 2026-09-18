@@ -73,6 +73,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   screenscape: 'ScreenScape In-Player Downloader',
   torrentio: 'Torrentio High-Speed Swarm',
   webtor: 'Webtor Cloud Download',
+  vidvault: 'VidVault',
 };
 
 /** Clean raw title strings into alphanumeric keywords for safe querying */
@@ -277,25 +278,29 @@ export async function fetchDownloads({
 
   const [tgdlRes, vidsrcRes, torrentioRes, archiveRes] = await Promise.allSettled(fetches);
 
-  const rawLinks: UnifiedDownloadLink[] = [
-    {
-      id: `nxsha-${id}-${type === 'tv' ? `${season}-${episode}` : 'movie'}`,
-      name: `${type === 'tv' ? `Episode S${season}E${episode}` : 'Movie'} Multi-Server Direct Hub`,
-      quality: '1080p',
-      qualityRaw: '1080p Multi-Server',
-      format: 'MKV',
-      size: 'Direct Cloud',
-      sizeBytes: null,
-      provider: 'NxSha Hub',
-      providerCode: 'nxsha',
-      audio: 'Multi-Audio (Hindi + English)',
-      url: nxshaDlUrl,
-      isPinned: false,
-      category: 'hub',
-      speedBadge: 'Multi-Host Hub',
-      description: 'Interactive multi-source cloud hub with automatic mirror failover.',
-    },
-  ];
+  const rawLinks: UnifiedDownloadLink[] = [];
+
+  // 0. VidVault Direct Downloader (TMDB Instant Gateway)
+  const vidVaultLinks = await fetchVidVaultLinks(id, type, season, episode);
+  rawLinks.push(...vidVaultLinks);
+
+  rawLinks.push({
+    id: `nxsha-${id}-${type === 'tv' ? `${season}-${episode}` : 'movie'}`,
+    name: `${type === 'tv' ? `Episode S${season}E${episode}` : 'Movie'} Multi-Server Direct Hub`,
+    quality: '1080p',
+    qualityRaw: '1080p Multi-Server',
+    format: 'MKV',
+    size: 'Direct Cloud',
+    sizeBytes: null,
+    provider: 'NxSha Hub',
+    providerCode: 'nxsha',
+    audio: 'Multi-Audio (Hindi + English)',
+    url: nxshaDlUrl,
+    isPinned: false,
+    category: 'hub',
+    speedBadge: 'Multi-Host Hub',
+    description: 'Interactive multi-source cloud hub with automatic mirror failover.',
+  });
 
   // Parse Internet Archive Direct MP4 (True 1-Click Direct File Download for Classics)
   if (archiveRes.status === 'fulfilled' && archiveRes.value) {
@@ -719,3 +724,65 @@ export async function fetchDownloads({
   return result;
 }
 
+/**
+ * VidVault download provider — uses TMDB ID directly.
+ * Returns an embed link and a direct download entry.
+ * VidVault URL format: https://vidvault.to/{tmdb_id} for movies
+ *                      https://vidvault.to/tv/{tmdb_id}/{season}/{episode} for TV
+ */
+export async function fetchVidVaultLinks(
+  tmdbId: string,
+  type: 'movie' | 'tv' | 'anime',
+  season?: number,
+  episode?: number
+): Promise<UnifiedDownloadLink[]> {
+  try {
+    if (!tmdbId) return [];
+
+    const links: UnifiedDownloadLink[] = [];
+
+    if (type === 'movie' || type === 'anime') {
+      links.push({
+        id: `vidvault-movie-${tmdbId}`,
+        name: 'VidVault — Instant Media Downloader',
+        quality: '1080p',
+        qualityRaw: '1080p / 720p (MKV & MP4)',
+        format: 'MP4',
+        size: '1080p / 720p / 480p',
+        sizeBytes: null,
+        provider: 'VidVault',
+        providerCode: 'vidvault',
+        audio: 'Original / Multi-Audio & Subtitles',
+        url: `https://vidvault.to/movie/${tmdbId}`,
+        isPinned: true,
+        isOneClick: true,
+        category: 'cloud',
+        speedBadge: '⚡ Instant 1-Click',
+        description: 'Direct download via VidVault with MKV / MP4 resolutions and subtitle downloads.',
+      });
+    } else if (type === 'tv' && season !== undefined && episode !== undefined) {
+      links.push({
+        id: `vidvault-tv-${tmdbId}-s${season}e${episode}`,
+        name: `VidVault — S${season}E${episode} Instant Media Downloader`,
+        quality: '1080p',
+        qualityRaw: '1080p / 720p (MKV & MP4)',
+        format: 'MP4',
+        size: '1080p / 720p / 480p',
+        sizeBytes: null,
+        provider: 'VidVault',
+        providerCode: 'vidvault',
+        audio: 'Original / Multi-Audio & Subtitles',
+        url: `https://vidvault.to/tv/${tmdbId}/${season}/${episode}`,
+        isPinned: true,
+        isOneClick: true,
+        category: 'cloud',
+        speedBadge: '⚡ Instant 1-Click',
+        description: 'Direct download via VidVault with MKV / MP4 resolutions and subtitle downloads.',
+      });
+    }
+
+    return links;
+  } catch {
+    return [];
+  }
+}

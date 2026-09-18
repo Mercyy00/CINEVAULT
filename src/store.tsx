@@ -424,15 +424,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         watchlist: legacyWatchlist,
         continueWatching: legacyCW,
       },
-      {
-        id: 'kids',
-        name: 'Kids',
-        avatar: 'beam-cinephile',
-        isKids: true,
-        maxAgeRating: 'PG',
-        watchlist: [],
-        continueWatching: [],
-      },
     ];
   });
 

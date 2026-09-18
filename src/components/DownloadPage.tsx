@@ -987,8 +987,9 @@ export function DownloadPage() {
             <div className="grid grid-cols-1 gap-2.5 sm:gap-3">
               {filteredLinks.map((item) => {
                 const isScreenScape = item.providerCode === 'screenscape';
+                const isVidVault = item.providerCode === 'vidvault';
                 const isHub = item.category === 'hub' || item.providerCode === 'nxsha';
-                const isStream = !isScreenScape && (item.providerCode === 'videasy' || item.providerCode === 'autoembed' || item.providerCode === '2embed');
+                const isStream = !isScreenScape && !isVidVault && (item.providerCode === 'videasy' || item.providerCode === 'autoembed' || item.providerCode === '2embed');
                 const hasWebDl = Boolean(item.webtorUrl || item.directUrl);
                 const webDlUrl = item.webtorUrl || item.directUrl;
                 const isHindi = item.audio.toLowerCase().includes('hindi');
@@ -997,7 +998,12 @@ export function DownloadPage() {
                 return (
                   <div
                     key={item.id}
-                    className="group p-3 sm:p-4 rounded-2xl bg-card/60 hover:bg-card/95 border border-white/[0.07] hover:border-brand/40 transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-sm hover:shadow-lg"
+                    className={cn(
+                      "group p-3 sm:p-4 rounded-2xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-sm hover:shadow-lg",
+                      isVidVault
+                        ? "bg-brand/10 hover:bg-brand/15 border-brand/40 shadow-brand/10 ring-1 ring-brand/30"
+                        : "bg-card/60 hover:bg-card/95 border-white/[0.07] hover:border-brand/40"
+                    )}
                   >
                     {/* Left: Quality Badge & Clean File Details */}
                     <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -1005,7 +1011,9 @@ export function DownloadPage() {
                       <div
                         className={cn(
                           "w-11 h-11 sm:w-12 sm:h-12 rounded-xl font-mono font-bold text-xs shrink-0 flex flex-col items-center justify-center border text-center transition-transform group-hover:scale-105",
-                          item.quality === '4K'
+                          isVidVault
+                            ? "bg-brand text-background border-brand shadow-sm shadow-brand/20 font-black"
+                            : item.quality === '4K'
                             ? "bg-amber-500/10 text-amber-300 border-amber-500/25 shadow-sm shadow-amber-500/10"
                             : item.quality === '1080p'
                             ? "bg-brand/10 text-brand border-brand/25 shadow-sm shadow-brand/10"
@@ -1024,6 +1032,11 @@ export function DownloadPage() {
                           <p className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-brand transition-colors truncate max-w-2xl" title={item.name}>
                             {item.name}
                           </p>
+                          {isVidVault && (
+                            <span className="hidden sm:inline-flex px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-brand text-background shrink-0">
+                              ⚡ VIDVAULT 1-CLICK
+                            </span>
+                          )}
                           {isScreenScape && (
                             <span className="hidden sm:inline-flex px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/25 shrink-0">
                               IN-PLAYER DOWNLOADER
@@ -1096,8 +1109,20 @@ export function DownloadPage() {
                         </a>
                       )}
 
-                      {/* ScreenScape Dedicated In-Player Downloader Action */}
-                      {isScreenScape ? (
+                      {/* VidVault Instant Downloader Action */}
+                      {isVidVault ? (
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-brand text-background hover:bg-brand/90 font-black transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/25"
+                          title="Open VidVault Instant Media Downloader"
+                        >
+                          <Download className="w-3.5 h-3.5 stroke-[3]" />
+                          <span>VidVault Download</span>
+                          <ExternalLink className="w-3.5 h-3.5 opacity-80" />
+                        </a>
+                      ) : isScreenScape ? (
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"

@@ -18,7 +18,7 @@ import { useApp } from '../store';
  * bottom of the screen would be in the way.
  */
 
-const HIDDEN_ROUTES = ['watch/', 'birthday'];
+const HIDDEN_ROUTES = ['watch/'];
 
 interface ConsentBannerProps {
   /** Current route, so the bar can stay out of full-screen experiences. */

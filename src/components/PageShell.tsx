@@ -81,6 +81,33 @@ const ANIME_PILLS = [
 
 const PILLS_BY_TYPE = { movie: MOVIE_PILLS, tv: TV_PILLS, anime: ANIME_PILLS } as const;
 
+export const FEATURED_MOVIE_CATEGORIES = [
+  { id: 'trending', label: 'Trending Movies', fetchFn: (p: number) => api.getTrending('movie', 'week', p) },
+  { id: 'popular', label: 'Popular Blockbusters', fetchFn: (p: number) => api.getPopular('movie', p) },
+  { id: 'top_rated', label: 'Top Rated All-Time', fetchFn: (p: number) => api.getTopRated('movie', p) },
+  { id: '28', label: 'Action & Adventure', fetchFn: (p: number) => api.discover('movie', { with_genres: '28', sort_by: 'popularity.desc', page: p }), pillId: '28' },
+  { id: '878', label: 'Sci-Fi & Cyberpunk', fetchFn: (p: number) => api.discover('movie', { with_genres: '878', sort_by: 'popularity.desc', page: p }), pillId: '878' },
+  { id: '35', label: 'Comedy Hits', fetchFn: (p: number) => api.discover('movie', { with_genres: '35', sort_by: 'popularity.desc', page: p }), pillId: '35' },
+  { id: '53', label: 'Thriller & Suspense', fetchFn: (p: number) => api.discover('movie', { with_genres: '53', sort_by: 'popularity.desc', page: p }), pillId: '53' },
+  { id: '27', label: 'Horror & Supernatural', fetchFn: (p: number) => api.discover('movie', { with_genres: '27', sort_by: 'popularity.desc', page: p }), pillId: '27' },
+  { id: '10749', label: 'Romance & Drama', fetchFn: (p: number) => api.discover('movie', { with_genres: '10749', sort_by: 'popularity.desc', page: p }), pillId: '10749' },
+  { id: '14', label: 'Fantasy Worlds', fetchFn: (p: number) => api.discover('movie', { with_genres: '14', sort_by: 'popularity.desc', page: p }), pillId: '14' },
+  { id: '9648', label: 'Mystery & Noir', fetchFn: (p: number) => api.discover('movie', { with_genres: '9648', sort_by: 'popularity.desc', page: p }), pillId: '9648' },
+];
+
+export const FEATURED_TV_CATEGORIES = [
+  { id: 'trending', label: 'Trending TV Shows', fetchFn: (p: number) => api.getTrending('tv', 'week', p) },
+  { id: 'popular', label: 'Popular TV Series', fetchFn: (p: number) => api.getPopular('tv', p) },
+  { id: 'top_rated', label: 'Critically Acclaimed TV', fetchFn: (p: number) => api.getTopRated('tv', p) },
+  { id: '10765', label: 'Sci-Fi & Fantasy Series', fetchFn: (p: number) => api.discover('tv', { with_genres: '10765', sort_by: 'popularity.desc', page: p }), pillId: '10765' },
+  { id: '80', label: 'Crime & Investigation', fetchFn: (p: number) => api.discover('tv', { with_genres: '80', sort_by: 'popularity.desc', page: p }), pillId: '80' },
+  { id: '18', label: 'Gripping Dramas', fetchFn: (p: number) => api.discover('tv', { with_genres: '18', sort_by: 'popularity.desc', page: p }), pillId: '18' },
+  { id: '35', label: 'Comedy Series', fetchFn: (p: number) => api.discover('tv', { with_genres: '35', sort_by: 'popularity.desc', page: p }), pillId: '35' },
+  { id: '16', label: 'Animated Series', fetchFn: (p: number) => api.discover('tv', { with_genres: '16', sort_by: 'popularity.desc', page: p }), pillId: '16' },
+  { id: '99', label: 'Documentary Series', fetchFn: (p: number) => api.discover('tv', { with_genres: '99', sort_by: 'popularity.desc', page: p }), pillId: '99' },
+  { id: '10764', label: 'Reality Television', fetchFn: (p: number) => api.discover('tv', { with_genres: '10764', sort_by: 'popularity.desc', page: p }), pillId: '10764' },
+];
+
 const SEARCH_PILLS = [
   { id: 'all', label: 'All Results' },
   { id: 'anime', label: 'Anime Series & Movies' },
@@ -168,6 +195,14 @@ export function PageShell({
 
   useEffect(() => {
     let active = true;
+
+    // Dedicated categorized rows view for Home/Anime/Movies/TV
+    if (!isSearch && activePill === 'all' && filtersAreDefault(appliedFilters)) {
+      setLoading(false);
+      setLoadingMore(false);
+      return;
+    }
+
     if (page === 1) setLoading(true);
     else setLoadingMore(true);
 
@@ -393,6 +428,32 @@ export function PageShell({
                 fetchFn={(p) => anilistApi.byGenre(genre.slug, p)}
                 onMovieSelect={onMovieSelect}
                 onExploreAll={() => setActivePill(genre.slug)}
+              />
+            ))}
+          </div>
+        ) : defaultType === 'movie' && activePill === 'all' && !isSearch && filtersAreDefault(appliedFilters) ? (
+          <div className="space-y-12 pb-16">
+            {FEATURED_MOVIE_CATEGORIES.map((cat, idx) => (
+              <MovieRow
+                key={cat.id}
+                index={idx}
+                title={cat.label}
+                fetchFn={cat.fetchFn}
+                onMovieSelect={onMovieSelect}
+                onExploreAll={cat.pillId ? () => setActivePill(cat.pillId) : undefined}
+              />
+            ))}
+          </div>
+        ) : defaultType === 'tv' && activePill === 'all' && !isSearch && filtersAreDefault(appliedFilters) ? (
+          <div className="space-y-12 pb-16">
+            {FEATURED_TV_CATEGORIES.map((cat, idx) => (
+              <MovieRow
+                key={cat.id}
+                index={idx}
+                title={cat.label}
+                fetchFn={cat.fetchFn}
+                onMovieSelect={onMovieSelect}
+                onExploreAll={cat.pillId ? () => setActivePill(cat.pillId) : undefined}
               />
             ))}
           </div>

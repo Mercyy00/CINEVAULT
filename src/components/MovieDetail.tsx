@@ -17,7 +17,7 @@ import {
 import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
-import { api, anilistApi } from '../api';
+import { api, anilistApi, fetchExternalRatings } from '../api';
 import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
@@ -121,6 +121,23 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         }
         if (mounted) {
           setImdbId(resolvedImdb);
+        }
+
+        if (resolvedImdb) {
+          fetchExternalRatings(resolvedImdb).then((ratings) => {
+            if (mounted && (ratings.imdbRating || ratings.rtRating || ratings.metacriticRating)) {
+              setMovie((prev: any) =>
+                prev
+                  ? {
+                      ...prev,
+                      imdbRating: ratings.imdbRating,
+                      rtRating: ratings.rtRating,
+                      metacriticRating: ratings.metacriticRating,
+                    }
+                  : prev
+              );
+            }
+          }).catch(() => {});
         }
 
         // Fetch Credits
@@ -357,11 +374,23 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                 {movie.title}
               </h1>
             )}
-            <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/80 mb-2.5">
-              <div className="flex items-center gap-1 text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20 font-mono font-bold">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs text-foreground/80 mb-2.5">
+              <div className="flex items-center gap-1 text-brand bg-brand/10 px-2 py-0.5 rounded-lg border border-brand/20 font-mono font-bold">
                 <Star className="w-3 h-3 fill-current" />
                 <span>{formatRating(movie.rating)}</span>
               </div>
+              {movie.imdbRating && (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-[#f5c518]/15 border border-[#f5c518]/30 text-[#f5c518] font-bold text-[10px] font-mono">
+                  <span className="bg-[#f5c518] text-black text-[8px] font-black px-0.5 rounded leading-none">IMDb</span>
+                  <span>{movie.imdbRating}</span>
+                </div>
+              )}
+              {movie.rtRating && (
+                <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold text-[10px] font-mono">
+                  <span>🍅</span>
+                  <span>{movie.rtRating}</span>
+                </div>
+              )}
               <span className="font-mono">{movie.year || '—'}</span>
               {movie.duration && (
                 <>
@@ -370,7 +399,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                 </>
               )}
               {movie.ageRating && (
-                <span className="px-1.5 py-0.2 border border-white/20 rounded text-[10px] font-mono">
+                <span className="px-1.5 py-0.5 border border-white/20 rounded text-[10px] font-mono">
                   {movie.ageRating}
                 </span>
               )}
@@ -444,22 +473,46 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             )}
 
             <div className="hidden sm:flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-foreground/80 mb-6">
-              <div className="flex items-center gap-1 text-brand bg-brand/10 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full border border-brand/20">
+              <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-xl border border-brand/25 font-mono shadow-sm">
                 <Star className="w-3.5 h-3.5 fill-current" />
-                <span className="ml-1 font-bold tracking-wide">
+                <span className="font-bold tracking-wide">
                   {formatRating(movie.rating)}{' '}
                   <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span>
                 </span>
               </div>
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-muted-foreground" /> {movie.year}
+
+              {movie.imdbRating && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f5c518]/15 border border-[#f5c518]/35 text-[#f5c518] font-bold text-xs font-mono shadow-sm">
+                  <span className="bg-[#f5c518] text-black text-[9px] font-black px-1 py-0.5 rounded leading-none">IMDb</span>
+                  <span>{movie.imdbRating}</span>
+                </div>
+              )}
+
+              {movie.rtRating && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-300 font-bold text-xs font-mono shadow-sm">
+                  <span className="text-sm leading-none">🍅</span>
+                  <span>{movie.rtRating}</span>
+                </div>
+              )}
+
+              {movie.metacriticRating && (
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-bold text-xs font-mono shadow-sm">
+                  <span className="bg-emerald-500 text-black text-[9px] font-black px-1 py-0.5 rounded leading-none">META</span>
+                  <span>{movie.metacriticRating}</span>
+                </div>
+              )}
+
+              <span className="flex items-center gap-1.5 text-muted-foreground font-mono">
+                <Calendar className="w-3.5 h-3.5" /> {movie.year}
               </span>
-              <span className="flex items-center gap-1">
-                <Clock className="w-3.5 h-3.5 text-muted-foreground" /> {movie.duration}
+              <span className="flex items-center gap-1.5 text-muted-foreground font-mono">
+                <Clock className="w-3.5 h-3.5" /> {movie.duration}
               </span>
-              <span className="px-2 py-0.5 border border-white/20 rounded text-muted-foreground text-[10px] sm:text-xs font-mono">
-                {movie.ageRating}
-              </span>
+              {movie.ageRating && (
+                <span className="px-2 py-0.5 border border-white/20 rounded-lg text-muted-foreground text-[10px] sm:text-xs font-mono">
+                  {movie.ageRating}
+                </span>
+              )}
               {movie.genres?.map((g) => (
                 <span
                   key={g}

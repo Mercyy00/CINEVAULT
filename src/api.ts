@@ -103,6 +103,67 @@ export function clearApiCache(): void {
   cache.clear();
 }
 
+/* ------------------------------------------------------------------------ */
+/* OMDB — IMDb / Rotten Tomatoes / Metacritic ratings                        */
+/*                                                                           */
+/* VITE_OMDB_API_KEY is optional. When absent, fetchExternalRatings returns  */
+/* null for all three sources and the UI falls back to the TMDB score only.  */
+/* ------------------------------------------------------------------------ */
+
+const OMDB_API_KEY = (import.meta.env.VITE_OMDB_API_KEY ?? '').trim();
+/** 30-minute TTL for external ratings — they change at most once a week. */
+const OMDB_CACHE_TTL_MS = 30 * 60 * 1000;
+const omdbCache = new Map<string, { expires: number; data: ExternalRatings }>();
+
+export interface ExternalRatings {
+  imdbRating: string | null;
+  rtRating: string | null;
+  metacriticRating: string | null;
+}
+
+/**
+ * Fetches IMDb, Rotten Tomatoes, and Metacritic ratings via OMDB.
+ * Requires VITE_OMDB_API_KEY. Returns all-null when unconfigured or when
+ * the title is not found.
+ */
+export async function fetchExternalRatings(imdbId: string): Promise<ExternalRatings> {
+  const empty: ExternalRatings = { imdbRating: null, rtRating: null, metacriticRating: null };
+  if (!OMDB_API_KEY || !imdbId) return empty;
+
+  const cached = omdbCache.get(imdbId);
+  if (cached && cached.expires > Date.now()) return cached.data;
+
+  try {
+    const url = `https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&apikey=${OMDB_API_KEY}`;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 8_000);
+    const res = await fetch(url, { signal: controller.signal });
+    window.clearTimeout(timer);
+
+    if (!res.ok) return empty;
+    const json = await res.json();
+    if (json?.Response === 'False') return empty;
+
+    const ratings: Array<{ Source: string; Value: string }> = json.Ratings ?? [];
+    const rt = ratings.find((r) => r.Source === 'Rotten Tomatoes')?.Value ?? null;
+    const mc = ratings.find((r) => r.Source === 'Metacritic')?.Value?.split('/')?.[0]?.trim() ?? null;
+    const imdb = json.imdbRating && json.imdbRating !== 'N/A' ? json.imdbRating : null;
+
+    const data: ExternalRatings = {
+      imdbRating: imdb,
+      rtRating: rt !== 'N/A' ? rt : null,
+      metacriticRating: mc !== 'N/A' ? mc : null,
+    };
+
+    omdbCache.set(imdbId, { expires: Date.now() + OMDB_CACHE_TTL_MS, data });
+    return data;
+  } catch {
+    return empty;
+  }
+}
+
+
+
 async function request<T>(url: string, init: RequestInit = {}, attempt = 0): Promise<T> {
   const cacheKey = url;
   const cached = readCache<T>(cacheKey);
@@ -1632,17 +1693,44 @@ export const anilistApi = {
               raw.title?.romaji,
             ].filter((t): t is string => Boolean(t && t.trim()));
 
+            const isBleach =
+              movie.title?.toLowerCase().includes('bleach') ||
+              raw.title?.english?.toLowerCase().includes('bleach') ||
+              raw.title?.romaji?.toLowerCase().includes('bleach');
+
+            const isTYBW =
+              isBleach &&
+              (movie.title?.toLowerCase().includes('thousand-year blood war') ||
+                movie.title?.toLowerCase().includes('sennen kessen') ||
+                movie.title?.toLowerCase().includes('tybw') ||
+                raw.title?.english?.toLowerCase().includes('thousand-year blood war') ||
+                raw.title?.romaji?.toLowerCase().includes('sennen kessen') ||
+                (raw.startDate?.year && raw.startDate.year >= 2022));
+
             let bestTv: any = null;
-            for (const q of queryTitles) {
-              const searchRes = await api.searchTv(q);
-              if (searchRes.results && searchRes.results.length > 0) {
-                bestTv =
-                  searchRes.results.find(
-                    (item: any) =>
-                      item.name?.toLowerCase() === q.toLowerCase() ||
-                      item.original_name?.toLowerCase() === q.toLowerCase()
-                  ) || searchRes.results[0];
-                if (bestTv) break;
+            if (isOnePiece) {
+              // Guaranteed anime ID (37854) - NEVER live-action (111110)
+              bestTv = { id: 37854, name: 'One Piece' };
+            } else if (isTYBW) {
+              // Bleach: Thousand-Year Blood War standalone TMDB entry
+              bestTv = { id: 214756, name: 'Bleach: Thousand-Year Blood War' };
+            } else if (isBleach) {
+              // Classic Bleach (2004)
+              bestTv = { id: 30984, name: 'Bleach' };
+            } else {
+              for (const q of queryTitles) {
+                const searchRes = await api.searchTv(q);
+                if (searchRes.results && searchRes.results.length > 0) {
+                  // Filter out live action adaptations (e.g. One Piece 111110)
+                  const filtered = searchRes.results.filter((item: any) => item.id !== 111110);
+                  bestTv =
+                    filtered.find(
+                      (item: any) =>
+                        item.name?.toLowerCase() === q.toLowerCase() ||
+                        item.original_name?.toLowerCase() === q.toLowerCase()
+                    ) || filtered[0];
+                  if (bestTv) break;
+                }
               }
             }
 
@@ -1657,71 +1745,72 @@ export const anilistApi = {
 
                 const absGroup = (groupsData.results || []).find(
                   (g) =>
-                    g.type === 2 ||
+                    g.type === 7 ||
                     g.name?.toLowerCase().includes('absolute') ||
                     g.name?.toLowerCase().includes('all episodes') ||
-                    g.name?.toLowerCase().includes('single season') ||
-                    g.name?.toLowerCase().includes('correct order')
+                    g.name?.toLowerCase().includes('tv order') ||
+                    g.name?.toLowerCase().includes('streaming') ||
+                    g.name?.toLowerCase().includes('canon') ||
+                    g.name?.toLowerCase().includes('original air')
                 );
 
-                const isLongRunningRoot =
-                  isOnePiece ||
-                  actualEpisodeCount > 100 ||
-                  (Boolean(absGroup?.episode_count) && actualEpisodeCount >= (absGroup!.episode_count || 0) * 0.7);
-
-                if (absGroup?.id && isLongRunningRoot) {
+                if (absGroup?.id) {
                   const groupDetails = await request<{
                     groups?: Array<{
                       episodes?: Array<{
-                        order: number;
+                        episode_number: number;
                         name?: string;
-                        overview?: string;
                         still_path?: string | null;
-                        episode_number?: number;
+                        overview?: string;
                       }>;
                     }>;
                   }>(tmdbUrl(`/tv/episode_group/${absGroup.id}`));
 
-                  const allGroupEps = groupDetails.groups?.flatMap((g) => g.episodes || []) || [];
-                  if (allGroupEps.length > 0) {
+                  if (groupDetails?.groups && groupDetails.groups.length > 0) {
                     handledByGroup = true;
 
-                    const titleToStill = new Map<string, any>();
-                    for (const gEp of allGroupEps) {
-                      if (gEp.name) {
-                        titleToStill.set(gEp.name.toLowerCase().trim(), gEp);
+                    // Build title-to-still dictionary for title-based matching
+                    const titleToStill = new Map<string, { still_path?: string | null; overview?: string }>();
+                    for (const g of groupDetails.groups) {
+                      for (const gEp of g.episodes || []) {
+                        if (gEp.name && gEp.still_path) {
+                          titleToStill.set(gEp.name.toLowerCase().trim(), gEp);
+                        }
                       }
                     }
 
-                    for (const gEp of allGroupEps) {
-                      const epNum = typeof gEp.order === 'number' ? gEp.order + 1 : gEp.episode_number || 0;
-                      if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
-                        const epStill = gEp.still_path ? api.getImageUrl(gEp.still_path, 'w500') : null;
-                        const existing = episodeMap.get(epNum);
-                        if (existing) {
-                          if (!existing.thumbnail && epStill) {
-                            existing.thumbnail = epStill;
+                    // Direct episode number matching
+                    for (const g of groupDetails.groups) {
+                      for (const gEp of g.episodes || []) {
+                        const epNum = gEp.episode_number;
+                        if (epNum > 0 && (isOnePiece || epNum <= actualEpisodeCount)) {
+                          const epStill = gEp.still_path ? api.getImageUrl(gEp.still_path, 'w500') : null;
+                          const existing = episodeMap.get(epNum);
+                          if (existing) {
+                            if (!existing.thumbnail && epStill) {
+                              existing.thumbnail = epStill;
+                            }
+                            if (
+                              (!existing.title || existing.title === `Episode ${epNum}`) &&
+                              gEp.name &&
+                              !gEp.name.match(/^Episode\s+\d+$/i)
+                            ) {
+                              existing.title = gEp.name;
+                            }
+                            if (!existing.description && gEp.overview) {
+                              existing.description = gEp.overview;
+                            }
+                          } else {
+                            episodeMap.set(epNum, {
+                              id: `ep-${epNum}`,
+                              season: 1,
+                              episode: epNum,
+                              title: gEp.name || `Episode ${epNum}`,
+                              duration: raw.duration ? `${raw.duration}m` : '24m',
+                              thumbnail: epStill,
+                              description: gEp.overview || '',
+                            });
                           }
-                          if (
-                            (!existing.title || existing.title === `Episode ${epNum}`) &&
-                            gEp.name &&
-                            !gEp.name.match(/^Episode\s+\d+$/i)
-                          ) {
-                            existing.title = gEp.name;
-                          }
-                          if (!existing.description && gEp.overview) {
-                            existing.description = gEp.overview;
-                          }
-                        } else {
-                          episodeMap.set(epNum, {
-                            id: `ep-${epNum}`,
-                            season: 1,
-                            episode: epNum,
-                            title: gEp.name || `Episode ${epNum}`,
-                            duration: raw.duration ? `${raw.duration}m` : '24m',
-                            thumbnail: epStill,
-                            description: gEp.overview || '',
-                          });
                         }
                       }
                     }
@@ -1758,7 +1847,29 @@ export const anilistApi = {
                   .sort((a, b) => a.season_number - b.season_number);
 
                 let seasonsToFetch: number[] = [];
-                if (validSeasons.length === 1) {
+                if (isTYBW) {
+                  // Bleach TYBW has 4 distinct seasons on TMDB corresponding to its 4 cours
+                  const combinedTitle = `${raw.title?.english || ''} ${raw.title?.romaji || ''} ${movie.title || ''}`.toLowerCase();
+                  const year = raw.startDate?.year || movie.year || 0;
+                  let targetSeason = 1;
+                  if (combinedTitle.includes('calamity') || year >= 2025) {
+                    targetSeason = 4;
+                  } else if (combinedTitle.includes('conflict') || combinedTitle.includes('soukoku') || year === 2024) {
+                    targetSeason = 3;
+                  } else if (combinedTitle.includes('separation') || combinedTitle.includes('ketsubetsu') || year === 2023) {
+                    targetSeason = 2;
+                  } else {
+                    targetSeason = 1;
+                  }
+                  const exists = validSeasons.some((s) => s.season_number === targetSeason);
+                  seasonsToFetch = [exists ? targetSeason : (validSeasons[0]?.season_number || 1)];
+                } else if (isBleach) {
+                  // Classic Bleach: fetch all seasons to enrich all 366 episodes
+                  seasonsToFetch = validSeasons.map((s) => s.season_number);
+                } else if (isOnePiece) {
+                  // One Piece: fetch all valid seasons
+                  seasonsToFetch = validSeasons.map((s) => s.season_number);
+                } else if (validSeasons.length === 1) {
                   seasonsToFetch = [validSeasons[0].season_number];
                 } else if (validSeasons.length > 1) {
                   const matched = findMatchingSeason(
@@ -1771,10 +1882,9 @@ export const anilistApi = {
                     seasonsToFetch = [matched.season_number];
                   } else if (actualEpisodeCount >= 100) {
                     // Only fall back to first 3 seasons for long-running shows (100+ eps)
-                    // Short cours (like TYBW 13-ep parts) should NOT pull random early seasons
+                    // Short cours should NOT pull random early seasons
                     seasonsToFetch = validSeasons.slice(0, 3).map((s) => s.season_number);
                   }
-                  // else: seasonsToFetch stays empty → skip TMDB season enrichment for this cour
                 }
 
                 let currentOffset = 0;

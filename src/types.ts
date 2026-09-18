@@ -139,6 +139,12 @@ export interface Movie {
   providers?: WatchProvider[];
   /** Number of seasons, for TV. */
   seasonCount?: number;
+  /** IMDb rating string, e.g. '8.2' or '8.2/10'. Fetched from OMDB. Null when unavailable. */
+  imdbRating?: string | null;
+  /** Rotten Tomatoes score, e.g. '94%'. Null when unavailable. */
+  rtRating?: string | null;
+  /** Metacritic score, e.g. '80'. Null when unavailable. */
+  metacriticRating?: string | null;
 }
 
 export interface ContinueWatchingItem {

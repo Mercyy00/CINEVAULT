@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   Trash2,
   Tv,
-  Unlock,
   Users,
   X,
 } from 'lucide-react';
@@ -27,7 +26,6 @@ import { cn } from '../lib/utils';
 import { COMPLETION_THRESHOLD as PLAYBACK_COMPLETION_THRESHOLD } from '../lib/playback';
 import { formatDuration } from '../types';
 import { PosterImage } from './PosterImage';
-import { isBirthdayLocallyEnabled, setBirthdayLocallyEnabled, isBirthdayBuildEnabled } from '../config/birthdayAccess';
 import { goToWatch, goToHome } from '../lib/navigation';
 
 /**
@@ -88,7 +86,6 @@ export function AdminDashboard() {
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>('all');
   const [userTypeFilter, setUserTypeFilter] = useState<'all' | 'registered' | 'guest'>('all');
   const [subscriptionError, setSubscriptionError] = useState<string | null>(null);
-  const [birthdayEnabled, setBirthdayEnabled] = useState(isBirthdayLocallyEnabled);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -136,15 +133,6 @@ export function AdminDashboard() {
       active = false;
     };
   }, [selectedUser]);
-
-  const handleToggleBirthday = () => {
-    const next = !birthdayEnabled;
-    setBirthdayEnabled(next);
-    setBirthdayLocallyEnabled(next);
-    showToast(
-      next ? 'Birthday section is visible in this browser' : 'Birthday section is hidden again'
-    );
-  };
 
   const handleDeleteSession = useCallback(
     async (id: string) => {
@@ -293,33 +281,6 @@ export function AdminDashboard() {
             </h1>
           </div>
         </div>
-
-          <div className="flex flex-col gap-1.5">
-            <button
-              type="button"
-              onClick={handleToggleBirthday}
-              aria-pressed={birthdayEnabled}
-              className={cn(
-                'px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer border',
-                birthdayEnabled
-                  ? 'bg-pink-500/20 text-pink-300 border-pink-500/40 hover:bg-pink-500/30'
-                  : 'bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10'
-              )}
-              title="Local-only display toggle for the birthday section"
-            >
-              {birthdayEnabled ? (
-                <Unlock className="w-3.5 h-3.5 text-pink-400" aria-hidden="true" />
-              ) : (
-                <Lock className="w-3.5 h-3.5" aria-hidden="true" />
-              )}
-              <span>Birthday section: {birthdayEnabled ? 'shown (local)' : 'hidden (local)'}</span>
-            </button>
-            {isBirthdayBuildEnabled && (
-              <p className="text-[10px] text-amber-400/80 max-w-[200px] leading-tight">
-                VITE_ENABLE_BIRTHDAY is true. Section is visible globally, overriding this toggle.
-              </p>
-            )}
-          </div>
       </header>
 
       {subscriptionError && (

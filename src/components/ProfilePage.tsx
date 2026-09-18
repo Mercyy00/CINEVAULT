@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { 
   User, 
@@ -6,19 +6,16 @@ import {
   History, 
   Info, 
   Download, 
-  Globe, 
   X, 
   Sparkles, 
   Check, 
   Trash2, 
   Play, 
-  Sliders, 
-  Upload, 
   Film, 
-  
   LogOut,
   RefreshCw,
   ShieldCheck,
+  Sliders,
   Users
 } from 'lucide-react';
 import { useApp, Theme } from '../store';
@@ -32,7 +29,7 @@ import {
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
 
-type SettingsTab = 'account' | 'general' | 'appearance' | 'history' | 'about';
+type SettingsTab = 'account' | 'playback' | 'appearance' | 'history' | 'about';
 
 interface ProfileTheme {
   id: Theme;
@@ -68,23 +65,11 @@ const ALL_FONTS = APP_FONT_IDS.map((id) => ({
   fontFamily: APP_FONTS[id].fontFamily,
 }));
 
-const LANGUAGES = [
-  { code: 'en', label: 'English (US)' },
-  { code: 'es', label: 'Español (Spanish)' },
-  { code: 'fr', label: 'Français (French)' },
-  { code: 'de', label: 'Deutsch (German)' },
-  { code: 'ja', label: '日本語 (Japanese)' },
-  { code: 'pt', label: 'Português (Portuguese)' },
-  { code: 'it', label: 'Italiano (Italian)' },
-  { code: 'ko', label: '한국어 (Korean)' },
-];
-
 export function ProfilePage() {
   const {
     userProfile,
     updateUserProfile,
     watchlist,
-    replaceWatchlist,
     continueWatching,
     clearContinueWatching,
     removeContinueWatchingItem,
@@ -108,7 +93,6 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [nameInput, setNameInput] = useState(userProfile.name || 'Guest');
   const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleClose = () => {
     const current = window.location.pathname;
@@ -147,45 +131,6 @@ export function ProfilePage() {
     showToast('Search history cleared');
   };
 
-  const handleExportData = () => {
-    const backupData = {
-      version: '2.4',
-      exportDate: new Date().toISOString(),
-      userProfile,
-      watchlist,
-      continueWatching,
-      theme,
-      appFont
-    };
-    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `cinevault-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast('Backup exported successfully');
-  };
-
-  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const parsed = JSON.parse(event.target?.result as string);
-        if (parsed.watchlist) replaceWatchlist(parsed.watchlist);
-        if (parsed.userProfile) updateUserProfile(parsed.userProfile);
-        if (parsed.theme) setTheme(parsed.theme);
-        if (parsed.appFont) setAppFont(parsed.appFont);
-        showToast('Data imported successfully');
-      } catch {
-        showToast('Failed to parse backup file');
-      }
-    };
-    reader.readAsText(file);
-  };
-
   const handleInstallApp = async () => {
     if (deferredInstallPrompt) {
       deferredInstallPrompt.prompt();
@@ -203,7 +148,7 @@ export function ProfilePage() {
 
   const navItems: { id: SettingsTab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
     { id: 'account', label: 'Account', icon: User },
-    { id: 'general', label: 'General', icon: Sliders },
+    { id: 'playback', label: 'Playback', icon: Sliders },
     { id: 'appearance', label: 'Appearance', icon: Palette },
     { id: 'history', label: 'Watch history', icon: History },
     { id: 'about', label: 'About', icon: Info },
@@ -211,13 +156,6 @@ export function ProfilePage() {
 
   return (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in text-foreground">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleImportData} 
-        accept=".json" 
-        className="hidden" 
-      />
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
@@ -286,26 +224,6 @@ export function ProfilePage() {
               <Download className="w-4 h-4 text-brand" />
               <span>Install app</span>
             </button>
-
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1 px-1">
-                <Globe className="w-3 h-3 text-muted-foreground" /> Language
-              </label>
-              <select
-                value={userProfile.language || 'English (US)'}
-                onChange={(e) => {
-                  updateUserProfile({ language: e.target.value });
-                  showToast(`Language set to ${e.target.value}`);
-                }}
-                className="w-full bg-input/50 border border-border rounded-xl px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-brand cursor-pointer"
-              >
-                {LANGUAGES.map((lang) => (
-                  <option key={lang.code} value={lang.label} className="bg-card text-foreground">
-                    {lang.label}
-                  </option>
-                ))}
-              </select>
-            </div>
           </div>
         </aside>
 
@@ -453,28 +371,16 @@ export function ProfilePage() {
               </div>
 
               {/* Avatar Studio Selector Card */}
+              {/* Avatar Selector Card */}
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-brand" /> Boring Avatars • Beam Studio
+                      <Sparkles className="w-4 h-4 text-brand" /> Avatar Collection
                     </h3>
-                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
-                      <span>CineVault Beam Palette:</span>
-                      <div className="flex items-center -space-x-1">
-                        {THEME_BEAM_COLORS.map((c, i) => (
-                          <span
-                            key={i}
-                            className="w-3 h-3 rounded-full border border-black/50 inline-block shadow-sm"
-                            style={{ backgroundColor: c }}
-                            title={c}
-                          />
-                        ))}
-                      </div>
-                      <span className="font-mono text-[10px] text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20">
-                        variant="beam"
-                      </span>
-                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Select a persona avatar or randomize a new face
+                    </p>
                   </div>
                   <button
                     type="button"
@@ -482,11 +388,11 @@ export function ProfilePage() {
                       const randomSeed = 'User_' + Math.floor(Math.random() * 9999);
                       const newUrl = getBoringAvatarUrl('beam', randomSeed, THEME_BEAM_COLORS);
                       updateUserProfile({ avatar: newUrl });
-                      showToast('Generated new Beam avatar');
+                      showToast('Generated new avatar');
                     }}
                     className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" /> Reroll Face
+                    <RefreshCw className="w-3.5 h-3.5" /> Randomize
                   </button>
                 </div>
 
@@ -576,43 +482,21 @@ export function ProfilePage() {
                   </div>
                 </div>
               )}
-
-              {/* Local Data Backup */}
-              <div className="p-6 rounded-2xl bg-card border border-border shadow-card flex flex-col gap-4">
-                <h4 className="text-sm font-bold text-foreground">Local Data Backup</h4>
-                <p className="text-xs text-muted-foreground">
-                  Export your entire watchlist and watch history as a JSON file to transfer between devices without creating an account.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <button
-                    onClick={handleExportData}
-                    className="px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold transition-colors flex items-center gap-2 border border-border cursor-pointer shadow-sm"
-                  >
-                    <Download className="w-3.5 h-3.5" /> Export Data (.json)
-                  </button>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="px-4 py-2 rounded-xl bg-muted/60 hover:bg-muted text-foreground text-xs font-semibold transition-colors flex items-center gap-2 border border-border cursor-pointer shadow-sm"
-                  >
-                    <Upload className="w-3.5 h-3.5" /> Import Backup (.json)
-                  </button>
-                </div>
-              </div>
             </motion.div>
           )}
 
-          {/* TAB 2: GENERAL */}
-          {activeTab === 'general' && (
+          {/* TAB 2: PLAYBACK & STREAMING */}
+          {activeTab === 'playback' && (
             <motion.div 
-              key="general-tab"
+              key="playback-tab"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2 }}
               className="space-y-6"
             >
               <div>
-                <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground">General</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">Playback, streaming & audio preferences</p>
+                <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground">Playback & Streaming</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">Display preferences, streaming servers & audio</p>
               </div>
 
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-5">
@@ -704,9 +588,9 @@ export function ProfilePage() {
                     }}
                     className="bg-input/50 border border-border rounded-xl px-3 py-1.5 text-xs text-foreground font-medium outline-none focus:border-brand cursor-pointer"
                   >
-                    <option value="auto" className="bg-card text-foreground">Auto (Zoko Primary)</option>
-                    <option value="zokoanime" className="bg-card text-foreground">Zoko (Primary)</option>
-                    <option value="megaplay" className="bg-card text-foreground">MegaPlay</option>
+                    <option value="auto" className="bg-card text-foreground">Auto (MegaPlay Primary)</option>
+                    <option value="megaplay" className="bg-card text-foreground">MegaPlay (Primary)</option>
+                    <option value="zokoanime" className="bg-card text-foreground">Zoko Anime</option>
                     <option value="videasy" className="bg-card text-foreground">VIDEASY 4K</option>
                     <option value="vidlink" className="bg-card text-foreground">VidLink HD</option>
                   </select>

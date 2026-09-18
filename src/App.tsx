@@ -14,9 +14,7 @@ import { CinematicIntro } from './components/CinematicIntro';
 import { ContinueWatchingRow } from './components/ContinueWatchingRow';
 import { OnboardingModal } from './components/OnboardingModal';
 import { AuthModal } from './components/AuthModal';
-import { BirthdayMusicProvider, useBirthdayMusic } from './context/BirthdayMusicContext';
 import { goToDetail, isSyntheticNavigation, navigate } from './lib/navigation';
-import { isBirthdayVisible, rememberBirthdayUnlock } from './config/birthdayAccess';
 import { useScrollRestoration } from './hooks/useScrollRestoration';
 import { ConsentBanner } from './components/ConsentBanner';
 
@@ -49,9 +47,6 @@ const ProfileSwitcher = lazy(() =>
 );
 const MoodFinderOverlay = lazy(() =>
   import('./components/MoodFinderOverlay').then((m) => ({ default: m.MoodFinderOverlay }))
-);
-const BirthdayPage = lazy(() =>
-  import('./components/BirthdayPage').then((m) => ({ default: m.BirthdayPage }))
 );
 const AdminDashboard = lazy(() =>
   import('./components/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
@@ -157,7 +152,6 @@ function AppContent() {
   const {
     ambientColor,
     toasts,
-    showToast,
     userPreferences,
     genreAffinity,
     continueWatching,
@@ -172,15 +166,6 @@ function AppContent() {
   } = useApp();
 
   const { applyForNavigation } = useScrollRestoration();
-
-  const { pauseTrack } = useBirthdayMusic();
-
-  // Stop birthday music immediately whenever user leaves the birthday special route
-  useEffect(() => {
-    if (currentRoute !== 'birthday') {
-      pauseTrack();
-    }
-  }, [currentRoute, pauseTrack]);
 
   // Track active watch routes for seamless fullscreen <-> floating PiP continuity
   useEffect(() => {
@@ -371,7 +356,6 @@ function AppContent() {
     if (path === '/anime') return { route: 'anime', query: '' };
     if (path === '/mylist') return { route: 'mylist', query: '' };
     if (path === '/admin') return { route: 'admin', query: '' };
-    if (path === '/birthday') return { route: 'birthday', query: '' };
     if (path === '/profile') return { route: 'profile', query: '' };
     if (path === '/profiles') return { route: 'profiles', query: '' };
     if (path === '/download' || path.startsWith('/download')) return { route: 'download', query: '' };
@@ -493,23 +477,6 @@ function AppContent() {
     document.addEventListener('click', handleLinkClick);
     return () => document.removeEventListener('click', handleLinkClick);
   }, []);
-
-  /**
-   * The birthday route used to redirect from inside the render function via
-   * `setTimeout(..., 10)` and write to localStorage in the same breath. Both
-   * are side effects, so both belong here.
-   */
-  const birthdayVisible = currentRoute === 'birthday' && isBirthdayVisible();
-
-  useEffect(() => {
-    if (currentRoute !== 'birthday') return;
-    if (isBirthdayVisible()) {
-      rememberBirthdayUnlock();
-    } else {
-      navigate('/', { replace: true });
-      showToast('🔒 The Birthday Special unlocks on 2nd September! Counting down the seconds ✨🎂');
-    }
-  }, [currentRoute, showToast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -896,19 +863,6 @@ function AppContent() {
           </motion.div>
         );
 
-      case 'birthday':
-        if (!birthdayVisible) return <RouteLoading />;
-        return (
-          <motion.div
-            key="birthday"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <BirthdayPage />
-          </motion.div>
-        );
-
       case 'profiles':
         if (authStatus === 'loading') return <RouteLoading key="profiles-loading" />;
         return (
@@ -1234,9 +1188,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AppProvider>
-        <BirthdayMusicProvider>
-          <AppContent />
-        </BirthdayMusicProvider>
+        <AppContent />
       </AppProvider>
     </ErrorBoundary>
   );

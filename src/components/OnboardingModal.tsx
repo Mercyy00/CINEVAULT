@@ -3,11 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import FocusLock from 'react-focus-lock';
 import { useApp, type UserPreference } from '../store';
 import {
-  BORING_PALETTES,
   PRESET_AVATARS,
   getBoringAvatarUrl,
-  BoringAvatarVariant,
-  THEME_BEAM_COLORS,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
 import type { LucideIcon } from 'lucide-react';
@@ -38,6 +35,9 @@ interface RichGenreItem extends UserPreference {
   id: string;
   icon: LucideIcon;
   desc: string;
+  famousMovie: string;
+  posterUrl: string;
+  reelCode: string;
   iconColor: string;
   badgeBg: string;
   badgeBorder: string;
@@ -50,6 +50,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '28',
     type: 'movie',
     icon: Flame,
+    famousMovie: 'The Dark Knight',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/qJ2tW6WMUDux911r6m7haRef0WH.jpg',
+    reelCode: '35MM • ACT-01',
     desc: 'High-octane blockbusters & adrenaline',
     iconColor: 'text-orange-400',
     badgeBg: 'bg-orange-500/15',
@@ -61,6 +64,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '878',
     type: 'movie',
     icon: Rocket,
+    famousMovie: 'Interstellar',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg',
+    reelCode: '70MM • SCI-02',
     desc: 'Deep cosmos, cyberpunk & time paradoxes',
     iconColor: 'text-cyan-400',
     badgeBg: 'bg-cyan-500/15',
@@ -72,6 +78,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '16',
     type: 'tv',
     icon: Sparkles,
+    famousMovie: 'Your Name',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/q719jXXEzOoYaps6qFsPwa0KiQc.jpg',
+    reelCode: 'CELL • ANI-03',
     desc: 'Shonen epics, slice of life & dark fantasy',
     iconColor: 'text-pink-400',
     badgeBg: 'bg-pink-500/15',
@@ -83,6 +92,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: 'bollywood',
     type: 'movie',
     icon: Film,
+    famousMovie: 'RRR',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/wE0noFU4ETvdVYyIpSpSRvjP1w9.jpg',
+    reelCode: '35MM • BOL-04',
     desc: 'Blockbusters, romance, masala & classics',
     iconColor: 'text-amber-400',
     badgeBg: 'bg-amber-500/15',
@@ -94,6 +106,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '53',
     type: 'movie',
     icon: Crosshair,
+    famousMovie: 'Fight Club',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg',
+    reelCode: '35MM • THL-05',
     desc: 'Psychological suspense & nail-biting twists',
     iconColor: 'text-red-400',
     badgeBg: 'bg-red-500/15',
@@ -105,6 +120,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '27',
     type: 'movie',
     icon: Skull,
+    famousMovie: 'The Shining',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/b6qUu00iIIkXX13szFy740Mv96G.jpg',
+    reelCode: '35MM • HOR-06',
     desc: 'Supernatural chills, gore & cosmic dread',
     iconColor: 'text-purple-400',
     badgeBg: 'bg-purple-500/15',
@@ -116,6 +134,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '18',
     type: 'movie',
     icon: Clapperboard,
+    famousMovie: 'Oppenheimer',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+    reelCode: '70MM • DRM-07',
     desc: 'Deep auteur cinema & human storytelling',
     iconColor: 'text-emerald-400',
     badgeBg: 'bg-emerald-500/15',
@@ -127,6 +148,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '35',
     type: 'movie',
     icon: Laugh,
+    famousMovie: 'The Grand Budapest Hotel',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/eWdyYQreja6JGCzqHWX9NZkt5BW.jpg',
+    reelCode: '35MM • COM-08',
     desc: 'Sharp satire, irreverent laughs & feel-good',
     iconColor: 'text-yellow-400',
     badgeBg: 'bg-yellow-500/15',
@@ -138,6 +162,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '10749',
     type: 'movie',
     icon: Heart,
+    famousMovie: 'La La Land',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/uDO8zWDhfWwoFdKS4fzkVJt0Rf0.jpg',
+    reelCode: '35MM • ROM-09',
     desc: 'Passionate connections & romantic journeys',
     iconColor: 'text-rose-400',
     badgeBg: 'bg-rose-500/15',
@@ -149,6 +176,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '14',
     type: 'movie',
     icon: Wand2,
+    famousMovie: 'The Lord of the Rings',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/6oom5QYQ2yQTMJIbnvbkBL9cDK6.jpg',
+    reelCode: '35MM • FAN-10',
     desc: 'Mythical beasts, sword & sorcery realms',
     iconColor: 'text-violet-400',
     badgeBg: 'bg-violet-500/15',
@@ -160,6 +190,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '9648',
     type: 'movie',
     icon: Search,
+    famousMovie: 'Knives Out',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/4SeFD8b9X7o1gA3wL0sXh2aM24c.jpg',
+    reelCode: '35MM • MYS-11',
     desc: 'Whodunits, noir detectives & hidden clues',
     iconColor: 'text-sky-400',
     badgeBg: 'bg-sky-500/15',
@@ -171,6 +204,9 @@ const RICH_GENRES: RichGenreItem[] = [
     genres: '80',
     type: 'movie',
     icon: Fingerprint,
+    famousMovie: 'The Godfather',
+    posterUrl: 'https://image.tmdb.org/t/p/w780/3bhkrj58Vtu7enYsRolD1fZdja1.jpg',
+    reelCode: '35MM • CRM-12',
     desc: 'Underworld heists, mob sagas & investigations',
     iconColor: 'text-teal-400',
     badgeBg: 'bg-teal-500/15',
@@ -203,8 +239,6 @@ export function OnboardingModal() {
   } = useApp();
 
   const [step, setStep] = useState(0); // 0: Persona, 1: Genres, 2: Preferences, 3: VIP Passport
-  const [activeVariant, setActiveVariant] = useState<BoringAvatarVariant>('beam');
-  const [activePaletteIndex, setActivePaletteIndex] = useState(0);
   const [nameInput, setNameInput] = useState(userProfile.name || 'Cinephile');
   const [seed, setSeed] = useState(userProfile.name || 'Cinephile');
   const [selectedIds, setSelectedIds] = useState<string[]>(['28', '878', '16', 'bollywood']);
@@ -230,9 +264,8 @@ export function OnboardingModal() {
     return () => window.clearTimeout(timer);
   }, [onboardingComplete, setOnboardingComplete]);
 
-  // Compute live Boring Avatar URL based on variant, seed, and selected palette
-  const activePalette = BORING_PALETTES[activePaletteIndex].colors;
-  const liveAvatarUrl = getBoringAvatarUrl(activeVariant, seed || nameInput || 'Cinephile', activePalette);
+  // Live avatar computation based on seed/name input
+  const liveAvatarUrl = getBoringAvatarUrl('beam', seed || nameInput || 'Cinephile');
 
   const toggleGenre = (id: string) => {
     setSelectedIds((prev) =>
@@ -246,8 +279,6 @@ export function OnboardingModal() {
       RANDOM_SEEDS[Math.floor(Math.random() * RANDOM_SEEDS.length)] +
       Math.floor(Math.random() * 999);
     setSeed(newSeed);
-    setActiveVariant('beam');
-    setActivePaletteIndex(0);
     window.setTimeout(() => setIsSpinning(false), 350);
   };
 
@@ -294,7 +325,12 @@ export function OnboardingModal() {
           transition={{ duration: 0.35, ease: 'easeOut' }}
           className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-2xl pointer-events-auto"
         >
-          <div className="bg-[#0b0c12]/95 border border-white/15 p-5 sm:p-8 md:p-10 rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(232,133,42,0.15)] max-w-2xl sm:max-w-3xl w-full mx-auto relative overflow-hidden text-foreground">
+          <div
+            className={cn(
+              'bg-[#0b0c12]/95 border border-white/15 p-5 sm:p-7 md:p-8 rounded-3xl shadow-[0_25px_80px_rgba(0,0,0,0.95),0_0_50px_rgba(232,133,42,0.15)] w-full mx-auto relative overflow-hidden text-foreground transition-all duration-300',
+              step === 1 ? 'max-w-4xl sm:max-w-5xl' : 'max-w-2xl sm:max-w-3xl'
+            )}
+          >
             <FocusLock returnFocus>
               {/* Top Accent Lighting Bar */}
               <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-brand to-transparent" />
@@ -333,7 +369,7 @@ export function OnboardingModal() {
 
               <AnimatePresence mode="wait">
                 {/* ══════════════════════════════════════════════════════════ */}
-                {/* STEP 0: Identity & Boring Avatar Studio                   */}
+                {/* STEP 0: Identity & Persona Studio                         */}
                 {/* ══════════════════════════════════════════════════════════ */}
                 {step === 0 && (
                   <motion.div
@@ -346,20 +382,20 @@ export function OnboardingModal() {
                   >
                     <div className="text-center mb-6">
                       <h2 className="text-2xl sm:text-3xl font-black font-display text-foreground mb-1 tracking-tight">
-                        Craft Your Cinephile Persona
+                        Choose Your CineVault Identity
                       </h2>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        Powered by <span className="text-brand font-semibold">Boring Avatars</span> — CineVault signature Beam theme
+                        Pick a nickname and signature avatar to personalize your experience
                       </p>
                     </div>
 
-                    {/* Live Avatar Preview Card */}
-                    <div className="flex flex-col sm:flex-row items-center gap-6 p-5 rounded-2xl bg-white/[0.03] border border-white/10 mb-5 shadow-inner">
+                    {/* Live Avatar Preview Card with Dynamic Two-Way Sync */}
+                    <div className="flex flex-col sm:flex-row items-center gap-6 p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 mb-6 shadow-inner">
                       <div className="relative group shrink-0">
                         <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full overflow-hidden bg-black/60 border-2 border-brand/80 shadow-[0_0_30px_var(--theme-accent-glow,rgba(232,133,42,0.4))] flex items-center justify-center p-1 transition-transform duration-300 group-hover:scale-105">
                           <img
                             src={liveAvatarUrl}
-                            alt="Boring Avatar Preview"
+                            alt="Avatar Preview"
                             className="w-full h-full object-contain rounded-full"
                           />
                         </div>
@@ -370,7 +406,7 @@ export function OnboardingModal() {
                             'absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand text-brand-foreground flex items-center justify-center shadow-lg hover:scale-110 active:scale-90 transition-transform cursor-pointer border-2 border-[#0b0c12]',
                             isSpinning && 'animate-spin'
                           )}
-                          title="Reroll Avatar Seed & Palette"
+                          title="Roll Random Avatar"
                         >
                           <Dice5 className="w-4 h-4" />
                         </button>
@@ -385,70 +421,62 @@ export function OnboardingModal() {
                             type="text"
                             value={nameInput}
                             onChange={(e) => {
-                              setNameInput(e.target.value);
-                              setSeed(e.target.value);
+                              const val = e.target.value;
+                              setNameInput(val);
+                              setSeed(val || 'Cinephile');
                             }}
                             placeholder="e.g. Neo, Nolan, StarWatcher..."
                             maxLength={24}
                             className="w-full bg-black/40 border border-white/15 rounded-xl px-4 py-2.5 text-sm font-semibold text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all"
                           />
+                          <p className="text-[11px] text-muted-foreground/80 mt-1">
+                            Typing updates your avatar dynamically. You can also pick from presets below.
+                          </p>
                         </div>
 
-                        {/* Signature Beam Theme Badge & Swatches */}
-                        <div className="rounded-xl p-3 bg-white/[0.03] border border-white/10 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-mono uppercase font-bold text-brand tracking-wider flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-brand" />
-                              Beam Signature Theme
-                            </span>
-                            <span className="text-[10px] font-mono text-muted-foreground bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                              variant="beam"
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-1.5">
-                              {THEME_BEAM_COLORS.map((hex, idx) => (
-                                <div
-                                  key={idx}
-                                  className="group/swatch relative flex items-center justify-center"
-                                >
-                                  <span
-                                    className="w-5 h-5 rounded-full border border-black/40 shadow-sm transition-transform group-hover/swatch:scale-125"
-                                    style={{ backgroundColor: hex }}
-                                    title={hex}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                            <span className="text-[11px] font-mono text-muted-foreground">
-                              5-Color System
-                            </span>
-                          </div>
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={handleRandomize}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all flex items-center gap-1.5 cursor-pointer font-medium"
+                          >
+                            <Dice5 className="w-3.5 h-3.5 text-brand" />
+                            <span>Randomize</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSeed(nameInput.trim() || 'Cinephile');
+                            }}
+                            className="text-xs px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all flex items-center gap-1.5 cursor-pointer font-medium"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-brand" />
+                            <span>Sync Avatar with Name</span>
+                          </button>
                         </div>
                       </div>
                     </div>
 
                     {/* Quick Preset Personas */}
                     <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center justify-between mb-2.5">
                         <span className="text-xs font-mono uppercase font-bold text-muted-foreground tracking-wider">
-                          Or Choose a Signature Preset
+                          Or Choose a Signature Avatar
                         </span>
-                        <span className="text-[11px] text-muted-foreground">1-Click Apply</span>
+                        <span className="text-[11px] text-muted-foreground">Click to apply</span>
                       </div>
-                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 max-h-32 overflow-y-auto custom-scrollbar p-1">
+                      <div className="grid grid-cols-4 sm:grid-cols-8 gap-2.5 max-h-36 overflow-y-auto custom-scrollbar p-1">
                         {PRESET_AVATARS.map((avatar) => {
-                          const isSelected = seed === avatar.seed && activeVariant === avatar.style;
+                          const isSelected = seed === avatar.seed;
                           return (
                             <button
                               key={avatar.id}
                               type="button"
                               onClick={() => {
                                 setSeed(avatar.seed);
-                                setNameInput(avatar.name);
-                                setActiveVariant('beam');
-                                setActivePaletteIndex(0);
+                                if (!nameInput.trim() || nameInput === 'Cinephile') {
+                                  setNameInput(avatar.name);
+                                }
                               }}
                               className={cn(
                                 'w-12 h-12 rounded-full border transition-all cursor-pointer relative group flex items-center justify-center p-1 overflow-hidden mx-auto',
@@ -485,7 +513,7 @@ export function OnboardingModal() {
                         onClick={() => setStep(1)}
                         className="py-3 px-6 bg-brand text-brand-foreground font-bold text-sm rounded-full flex items-center gap-2 shadow-card hover:scale-[1.02] active:scale-95 transition-all cursor-pointer"
                       >
-                        <span>Next: Your Taste Universe</span>
+                        <span>Next: Film Taste Reel</span>
                         <ArrowRight className="w-4 h-4" />
                       </button>
                     </div>
@@ -493,7 +521,7 @@ export function OnboardingModal() {
                 )}
 
                 {/* ══════════════════════════════════════════════════════════ */}
-                {/* STEP 1: Taste Universe (Genre Selection)                  */}
+                {/* STEP 1: Film-Roll Taste Universe (Genre Selection)       */}
                 {/* ══════════════════════════════════════════════════════════ */}
                 {step === 1 && (
                   <motion.div
@@ -504,7 +532,7 @@ export function OnboardingModal() {
                     transition={{ duration: 0.25 }}
                     className="relative z-10 flex flex-col"
                   >
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-3">
                       <button
                         type="button"
                         onClick={() => setStep(0)}
@@ -515,17 +543,37 @@ export function OnboardingModal() {
                       <span className="text-xs font-mono text-brand font-bold">STEP 2 OF 4</span>
                     </div>
 
-                    <div className="text-center mb-5">
+                    <div className="text-center mb-3">
                       <h2 className="text-2xl sm:text-3xl font-black font-display text-foreground mb-1 tracking-tight">
-                        What Kind of Cinema Inspires You?
+                        Film Reel Taste Selector
                       </h2>
                       <p className="text-xs sm:text-sm text-muted-foreground">
-                        Select your favorite genres to customize spotlight heroes and match scores
+                        Select the genres that define your cinematic palate — featuring iconic poster art
                       </p>
                     </div>
 
-                    {/* Rich Genre Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5 max-h-[340px] overflow-y-auto custom-scrollbar p-1">
+                    {/* Film Reel Sprocket Strip Header */}
+                    <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border border-white/10 bg-black/40 mb-3 overflow-hidden select-none">
+                      <div className="flex gap-2.5 overflow-hidden opacity-30">
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <div key={i} className="w-3 h-2 rounded-[2px] border border-white/50 bg-white/10 shrink-0" />
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-2 px-2 shrink-0">
+                        <Film className="w-3.5 h-3.5 text-brand" />
+                        <span className="text-[10px] font-mono uppercase tracking-widest text-brand font-bold">
+                          35MM CINEMATIC REEL
+                        </span>
+                      </div>
+                      <div className="flex gap-2.5 overflow-hidden opacity-30">
+                        {Array.from({ length: 12 }).map((_, i) => (
+                          <div key={i} className="w-3 h-2 rounded-[2px] border border-white/50 bg-white/10 shrink-0" />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cinematic Film-Roll Posters Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4 max-h-[48vh] overflow-y-auto custom-scrollbar p-1">
                       {RICH_GENRES.map((g) => {
                         const isSelected = selectedIds.includes(g.id);
                         const Icon = g.icon;
@@ -535,43 +583,68 @@ export function OnboardingModal() {
                             type="button"
                             onClick={() => toggleGenre(g.id)}
                             className={cn(
-                              'p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer relative overflow-hidden flex flex-col justify-between gap-2.5 group',
+                              'group relative h-40 sm:h-44 rounded-2xl border text-left overflow-hidden transition-all duration-300 cursor-pointer flex flex-col justify-between p-3',
                               isSelected
-                                ? 'bg-brand/15 border-brand shadow-[0_0_20px_var(--theme-accent-glow,rgba(232,133,42,0.3))] ring-1 ring-brand/40'
-                                : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20'
+                                ? 'border-brand ring-2 ring-brand/60 shadow-[0_0_25px_rgba(232,133,42,0.35)] scale-[1.01]'
+                                : 'border-white/15 hover:border-white/40 hover:scale-[1.01]'
                             )}
                           >
-                            <div className="flex items-center justify-between">
+                            {/* Background Poster Image */}
+                            <div className="absolute inset-0 bg-[#12131a] -z-20">
+                              <img
+                                src={g.posterUrl}
+                                alt={g.famousMovie}
+                                loading="lazy"
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ease-out opacity-65"
+                              />
+                            </div>
+
+                            {/* Cinematic Gradient Overlays */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/30 -z-10" />
+                            <div
+                              className={cn(
+                                'absolute inset-0 transition-opacity duration-300 -z-10',
+                                isSelected ? 'bg-brand/20 opacity-100' : 'opacity-0 group-hover:opacity-20 bg-brand/10'
+                              )}
+                            />
+
+                            {/* Top Bar: Reel badge & Check indicator */}
+                            <div className="flex items-center justify-between w-full relative z-10">
+                              <span className="text-[9px] font-mono tracking-wider text-white/80 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded border border-white/15 shadow-sm">
+                                {g.reelCode}
+                              </span>
+
                               <div
                                 className={cn(
-                                  'w-8 h-8 rounded-xl flex items-center justify-center border transition-all duration-200 group-hover:scale-110 shadow-sm',
-                                  g.badgeBg,
-                                  g.badgeBorder,
-                                  g.iconColor
+                                  'w-5 h-5 rounded-full flex items-center justify-center transition-all duration-200 border shadow-md',
+                                  isSelected
+                                    ? 'bg-brand border-brand text-brand-foreground scale-100 shadow-[0_0_12px_rgba(232,133,42,0.6)]'
+                                    : 'bg-black/50 border-white/20 text-transparent scale-90 group-hover:border-white/40'
                                 )}
                               >
-                                <Icon className="w-4 h-4" />
+                                <Check className="w-3 h-3 stroke-[3]" />
                               </div>
-                              {isSelected && (
-                                <motion.div
-                                  initial={{ scale: 0 }}
-                                  animate={{ scale: 1 }}
-                                  className="w-5 h-5 rounded-full bg-brand text-brand-foreground flex items-center justify-center shadow-md shadow-brand/30 shrink-0"
-                                >
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                </motion.div>
-                              )}
                             </div>
-                            <div className="min-w-0">
-                              <h4
-                                className={cn(
-                                  'text-xs sm:text-sm font-bold truncate leading-snug transition-colors',
-                                  isSelected ? 'text-brand' : 'text-foreground'
-                                )}
-                              >
-                                {g.label}
-                              </h4>
-                              <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5 leading-snug">
+
+                            {/* Bottom Content: Genre name, iconic film, description */}
+                            <div className="relative z-10 min-w-0">
+                              <div className="flex items-center gap-1.5 mb-0.5">
+                                <Icon className={cn('w-3.5 h-3.5 shrink-0', g.iconColor)} />
+                                <h4
+                                  className={cn(
+                                    'text-sm sm:text-base font-extrabold truncate leading-tight transition-colors',
+                                    isSelected ? 'text-brand' : 'text-white'
+                                  )}
+                                >
+                                  {g.label}
+                                </h4>
+                              </div>
+
+                              <div className="text-[11px] font-medium text-brand/90 truncate mb-0.5">
+                                Feat. {g.famousMovie}
+                              </div>
+
+                              <p className="text-[10px] text-white/70 line-clamp-1 leading-tight">
                                 {g.desc}
                               </p>
                             </div>
@@ -581,7 +654,7 @@ export function OnboardingModal() {
                     </div>
 
                     {/* Bottom Action Bar */}
-                    <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center justify-between pt-2 border-t border-white/10">
                       <span className="text-xs text-muted-foreground font-mono">
                         {selectedIds.length} {selectedIds.length === 1 ? 'genre' : 'genres'} selected
                       </span>

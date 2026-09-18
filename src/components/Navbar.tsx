@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
 import { getUserAvatarUrl, getFallbackAvatarDataUri } from '../lib/avatars';
-import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, ArrowLeft, Music, Play, Pause, SkipForward, SkipBack, Users, ShieldCheck } from 'lucide-react';
-import { useBirthdayMusic } from '../context/BirthdayMusicContext';
+import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, Users, ShieldCheck } from 'lucide-react';
 import { navigate } from '../lib/navigation';
 
 interface ThemeOption {
@@ -51,7 +50,6 @@ const FONTS = APP_FONT_IDS.map((id) => ({
 export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   const [showProfile, setShowProfile] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
-  const [showMusicPlayer, setShowMusicPlayer] = useState(false);
 
   const [customizerTab, setCustomizerTab] = useState<'themes' | 'fonts'>('themes');
   const [themeModeFilter, setThemeModeFilter] = useState<'all' | 'dark' | 'light'>('all');
@@ -77,25 +75,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
   } = useApp();
   const [currentPath, setCurrentPath] = useState('/');
 
-  const {
-    playlist: BIRTHDAY_PLAYLIST,
-    currentTrackIndex,
-    isPlaying: isPlayingMusic,
-    progress: trackProgress,
-    duration: trackDuration,
-    togglePlay: toggleMusic,
-    playTrack: startMusic,
-    nextTrack: handleNextTrack,
-    prevTrack: handlePrevTrack,
-    seekTo,
-    formatTime
-  } = useBirthdayMusic();
-
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const time = parseFloat(e.target.value);
-    seekTo(time);
-  };
-
   useEffect(() => {
     const handleLocation = () => {
       let path = window.location.pathname || '/';
@@ -104,7 +83,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
       }
       if (path === '/home') path = '/';
       setCurrentPath(path);
-      setShowMusicPlayer(false);
       setShowCustomizer(false);
       setShowProfile(false);
     };
@@ -127,14 +105,12 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     const handleGlobalClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       if (!target.closest('.header-popup-container')) {
-        setShowMusicPlayer(false);
         setShowCustomizer(false);
         setShowProfile(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setShowMusicPlayer(false);
         setShowCustomizer(false);
         setShowProfile(false);
       }
@@ -163,19 +139,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     <>
       {/* Top Header */}
       <header className="fixed top-0 inset-x-0 z-[100] bg-gradient-to-b from-background/90 via-background/40 to-transparent py-2 sm:py-4 px-3 sm:px-8 flex items-center justify-between gap-1.5 sm:gap-4 pointer-events-none backdrop-blur-[2px] max-w-full safe-top">
-        {currentPath === '/birthday' ? (
-          <a
-            href="/"
-            className="pointer-events-auto flex items-center gap-2 px-3 sm:px-4 py-1.5 rounded-full glass border border-white/10 hover:border-brand/40 text-xs sm:text-sm font-semibold text-foreground hover:text-brand transition-all shadow-sm group"
-          >
-            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-            <span>Back to CineVault</span>
-          </a>
-        ) : (
-          <a 
-            href="/" 
-            className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
-          >
+        <a 
+          href="/" 
+          className="pointer-events-auto font-display font-black text-xl sm:text-3xl lg:text-4xl text-brand tracking-tight flex items-center gap-1.5 sm:gap-3 group transition-transform hover:scale-[1.02] drop-shadow-md shrink-0"
+        >
             <div 
               className={cn(
                 "w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 bg-brand transition-all shrink-0 drop-shadow-md group-hover:rotate-6",
@@ -188,8 +155,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
               </span>
             )}
           </a>
-        )}
-
 
         <div className="flex items-center gap-1.5 sm:gap-3 pointer-events-auto shrink-0">
           {/* Customizer (Themes & Fonts) Toggle */}
@@ -199,7 +164,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 e.stopPropagation(); 
                 setShowCustomizer(!showCustomizer); 
                 setShowProfile(false); 
-                setShowMusicPlayer(false); 
               }}
               className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
               aria-label="Customize theme and typography"
@@ -391,172 +355,18 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
             </AnimatePresence>
           </div>
 
-          {/* Music Button on Birthday Page, Search on other pages */}
-          {currentPath === '/birthday' ? (
-            <div className="relative header-popup-container">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowMusicPlayer(!showMusicPlayer);
-                  setShowProfile(false);
-                  setShowCustomizer(false);
-                }}
-                className={cn(
-                  "h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border flex items-center justify-center transition-all shadow-card cursor-pointer relative",
-                  isPlayingMusic 
-                    ? "border-brand/60 text-brand bg-brand/15 shadow-[0_0_15px_var(--theme-accent-glow,rgba(232,133,42,0.35))]" 
-                    : "border-white/10 text-foreground hover:text-brand hover:border-brand/30"
-                )}
-                aria-label="Birthday Music Player"
-                title="Divu's Birthday Mixtape 🎵"
-              >
-                <Music className={cn("w-4 h-4 sm:w-5 sm:h-5 transition-transform", isPlayingMusic && "scale-110 text-brand animate-pulse")} />
-                {isPlayingMusic && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-pink-500 rounded-full animate-ping" />
-                )}
-              </button>
-
-              {/* Music Player Popover */}
-              <AnimatePresence>
-                {showMusicPlayer && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
-                    className="absolute right-0 mt-3 w-80 sm:w-88 glass bg-card/95 border border-border rounded-3xl p-4 sm:p-5 shadow-2xl z-[220] origin-top-right backdrop-blur-2xl"
-                  >
-                    {/* Header */}
-                    <div className="flex items-center justify-between pb-3 border-b border-border/60 mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-brand/15 border border-brand/30 text-brand flex items-center justify-center">
-                          <Music className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <h4 className="text-xs font-display font-bold text-foreground">Divu's 21st Mixtape</h4>
-                          <p className="text-[10px] text-muted-foreground">Our Special Soundtrack 💖</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setShowMusicPlayer(false)}
-                        className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-white/5"
-                      >
-                        ✕
-                      </button>
-                    </div>
-
-                    {/* Active Track Highlight */}
-                    <div className="glass border border-brand/25 rounded-2xl p-3.5 mb-3.5 bg-brand/5 relative overflow-hidden flex items-center gap-3">
-                      {/* Rotating Vinyl */}
-                      <div className="relative w-12 h-12 shrink-0 flex items-center justify-center">
-                        <motion.div 
-                          animate={{ rotate: isPlayingMusic ? 360 : 0 }}
-                          transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
-                          className="w-full h-full rounded-full bg-black border-2 border-brand/40 flex items-center justify-center shadow-md relative"
-                        >
-                          <div className="w-4 h-4 rounded-full bg-brand/30 border border-brand flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-brand" />
-                          </div>
-                        </motion.div>
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-foreground truncate">
-                          {BIRTHDAY_PLAYLIST[currentTrackIndex].title}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground truncate">
-                          {BIRTHDAY_PLAYLIST[currentTrackIndex].artist}
-                        </p>
-                        <span className="inline-block mt-1 text-[9px] px-2 py-0.5 rounded-full bg-brand/15 border border-brand/30 text-brand font-medium">
-                          {BIRTHDAY_PLAYLIST[currentTrackIndex].tag}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Track Progress Seekbar */}
-                    <div className="mb-3 px-1">
-                      <input
-                        type="range"
-                        min={0}
-                        max={trackDuration || 100}
-                        value={trackProgress}
-                        onChange={handleSeek}
-                        className="w-full h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand"
-                      />
-                      <div className="flex justify-between text-[9px] font-mono text-muted-foreground mt-1">
-                        <span>{formatTime(trackProgress)}</span>
-                        <span>{formatTime(trackDuration)}</span>
-                      </div>
-                    </div>
-
-                    {/* Player Controls */}
-                    <div className="flex items-center justify-center gap-4 mb-4">
-                      <button
-                        onClick={handlePrevTrack}
-                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-foreground flex items-center justify-center border border-white/10 transition-transform active:scale-95 cursor-pointer"
-                        title="Previous Song"
-                      >
-                        <SkipBack className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={toggleMusic}
-                        className="w-11 h-11 rounded-full bg-brand text-background flex items-center justify-center font-bold shadow-lg shadow-brand/25 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
-                        title={isPlayingMusic ? "Pause" : "Play"}
-                      >
-                        {isPlayingMusic ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
-                      </button>
-                      <button
-                        onClick={handleNextTrack}
-                        className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-foreground flex items-center justify-center border border-white/10 transition-transform active:scale-95 cursor-pointer"
-                        title="Next Song"
-                      >
-                        <SkipForward className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    {/* Track Selection List */}
-                    <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar pr-1">
-                      {BIRTHDAY_PLAYLIST.map((track, idx) => (
-                        <button
-                          key={track.id}
-                          onClick={() => startMusic(idx)}
-                          className={cn(
-                            "w-full flex items-center justify-between p-2 rounded-xl text-left transition-all text-xs cursor-pointer",
-                            currentTrackIndex === idx
-                              ? "bg-brand/15 border border-brand/30 text-brand font-semibold"
-                              : "hover:bg-white/5 text-foreground/80 hover:text-foreground"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <span className="text-[10px] font-mono text-muted-foreground w-3.5">{idx + 1}</span>
-                            <span className="truncate">{track.title}</span>
-                          </div>
-                          {currentTrackIndex === idx && isPlayingMusic ? (
-                            <span className="text-[10px] text-pink-500 animate-pulse font-bold shrink-0">Playing 🎵</span>
-                          ) : (
-                            <span className="text-[9px] text-muted-foreground shrink-0">{track.mood}</span>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          ) : (
-            <button 
-              onClick={() => {
-                setShowCustomizer(false);
-                setShowProfile(false);
-                setShowMusicPlayer(false);
-                onSearchClick();
-              }}
-              className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card"
-              aria-label="Search"
-            >
-              <Search className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
-            </button>
-          )}
+          {/* Search Button */}
+          <button 
+            onClick={() => {
+              setShowCustomizer(false);
+              setShowProfile(false);
+              onSearchClick();
+            }}
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer"
+            aria-label="Search"
+          >
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 opacity-80" />
+          </button>
           
           <div className="relative header-popup-container">
             <button 
@@ -564,7 +374,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 e.stopPropagation(); 
                 setShowProfile(!showProfile); 
                 setShowCustomizer(false); 
-                setShowMusicPlayer(false); 
               }}
               className={cn(
                 "h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border flex items-center justify-center text-foreground hover:border-brand/40 transition-all shadow-card cursor-pointer p-0.5 hover:scale-105 active:scale-95 overflow-hidden relative",
@@ -795,12 +604,11 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
         </div>
       </header>
 
-      {/* Bottom Floating/Docked Navigation (Hidden on Birthday Page) */}
-      {currentPath !== '/birthday' && (
-        <nav
-          aria-label="Main Navigation"
-          className="fixed bottom-0 inset-x-0 sm:bottom-7 sm:left-1/2 sm:-translate-x-1/2 sm:inset-x-auto z-[100] pointer-events-auto select-none safe-bottom"
-        >
+      {/* Bottom Floating/Docked Navigation */}
+      <nav
+        aria-label="Main Navigation"
+        className="fixed bottom-0 inset-x-0 sm:bottom-7 sm:left-1/2 sm:-translate-x-1/2 sm:inset-x-auto z-[100] pointer-events-auto select-none safe-bottom"
+      >
           <div className="w-full sm:w-auto px-1.5 py-1 sm:p-2 sm:rounded-full flex items-center justify-around sm:justify-start gap-0.5 sm:gap-2 border-t sm:border border-white/10 sm:border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] sm:shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-3xl bg-[#0a0b10]/95 sm:bg-[#0a0b10]/85 sm:ring-1 sm:ring-brand/30 transition-all duration-300">
             {navLinks.map((link) => {
               const isActive = link.href === '/' ? currentPath === '/' : currentPath.startsWith(link.href);
@@ -866,7 +674,6 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
             })}
           </div>
         </nav>
-      )}
 
     </>
   );

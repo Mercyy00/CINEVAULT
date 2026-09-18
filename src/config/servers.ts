@@ -215,6 +215,7 @@ export const TRUSTED_PLAYER_ORIGINS = new Set([
   'https://vidsrc.pm',
   'https://vidstuck.xyz',
   'https://nxsha.space',
+  'https://vidvault.to',
 ]);
 
 export function findSource(id: string | undefined): StreamSource | undefined {

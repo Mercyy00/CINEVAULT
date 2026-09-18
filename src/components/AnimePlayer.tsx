@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize, PictureInPicture, Download, Box, Star } from 'lucide-react';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize, Download, Star } from 'lucide-react';
 import { api, anilistApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -30,14 +30,14 @@ function formatSeconds(totalSec: number): string {
 }
 
 export const ANIME_SERVERS: AnimeServerOption[] = [
-  { id: 'zokoanime', name: 'Zoko (Primary)', quality: '1080p', tag: 'Fast • Auto-Skip • Sub/Dub' },
-  { id: 'vidstuck', name: 'VIDSTUCK 4K', quality: '1080p', tag: 'Fast Player • Auto-Skip • Sub/Dub Sync' },
-  { id: 'megaplay', name: 'MegaPlay', quality: '1080p', tag: 'Direct MAL • Sub/Dub' },
+  { id: 'megaplay', name: 'MegaPlay (Primary)', quality: '1080p', tag: 'Direct MAL • Sub/Dub' },
+  { id: 'zokoanime', name: 'Zoko Anime', quality: '1080p', tag: 'Auto-Skip • Sub/Dub' },
+  { id: 'vidstuck', name: 'VIDSTUCK 4K', quality: '1080p', tag: 'Auto-Skip • Sub/Dub Sync' },
   { id: 'videasy', name: 'VIDEASY 4K', quality: '4K', tag: 'Direct AniList • 4K Sub/Dub' },
-  { id: 'vidlink', name: 'VidLink Pro (Multi)', quality: '1080p', tag: 'Direct Sync • No Cloudflare Block' },
-  { id: 'screenmirror', name: 'ScreenMirror (ModiPlay)', quality: '4K', tag: 'TMDB • Multi-Audio' },
-  { id: 'gogoanime', name: 'GogoAnime (MAL)', quality: 'HD', tag: 'Direct Gogo Player' },
-  { id: 'screenscape', name: 'ScreenScape 4K', quality: '4K', tag: 'TMDB • Hindi Dub • Ultra HD' },
+  { id: 'vidlink', name: 'VidLink Pro', quality: '1080p', tag: 'Direct Sync • Sub/Dub' },
+  { id: 'screenmirror', name: 'ModiPlay Hindi', quality: '4K', tag: 'TMDB • Multi-Audio' },
+  { id: 'gogoanime', name: 'GogoAnime', quality: 'HD', tag: 'Direct Gogo Player' },
+  { id: 'screenscape', name: 'ScreenScape', quality: '4K', tag: 'TMDB • Hindi Dub' },
 ];
 
 export const TRUSTED_ANIME_ORIGINS = new Set([
@@ -183,10 +183,10 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
   const [selectedEpisode, setSelectedEpisode] = useState<any>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [language, setLanguage] = useState<'sub' | 'dub'>(userProfile?.audioPreference === 'dub' ? 'dub' : 'sub');
-  // Default to ZokoAnime (Primary)
+  // Default to MegaPlay (Primary)
   const initialServer: AnimeServerId = (userProfile?.defaultServer && ANIME_SERVERS.some(s => s.id === userProfile.defaultServer))
     ? (userProfile.defaultServer as AnimeServerId)
-    : 'zokoanime';
+    : 'megaplay';
   const [server, setServer] = useState<AnimeServerId>(initialServer);
   const [tmdbId, setTmdbId] = useState<string>('');
   const tmdbIdRef = useRef<string>('');
@@ -1166,40 +1166,18 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
               <span className="hidden xs:inline">Download</span>
             </button>
 
-            {/* Mode Toggle Pills */}
-            <div className="flex items-center bg-card/80 border border-white/10 rounded-full p-0.5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setPlayerMode('contained')}
-                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold bg-brand text-background shadow-md shadow-brand/20 font-bold transition-all cursor-pointer"
-                title="Theater Box Stage (ASA Square)"
-              >
-                <Box className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden md:inline">Theater Box</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setPlayerMode('fullscreen');
-                  toggleFullscreen();
-                }}
-                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                title="Full Screen Mode (F)"
-              >
-                <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                <span className="hidden md:inline">Full</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setPlayerMode('floating')}
-                className="p-1.5 sm:px-2 sm:py-1.5 rounded-full flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-                title="Mini-Player / Picture-in-Picture (I)"
-              >
-                <PictureInPicture className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              </button>
-            </div>
+            {/* Fullscreen Button */}
+            <button
+              type="button"
+              onClick={() => {
+                toggleFullscreen();
+              }}
+              className="p-2 sm:px-3 sm:py-2 rounded-full glass border border-white/10 hover:border-brand/40 text-foreground/80 hover:text-brand transition-all text-xs font-semibold cursor-pointer flex items-center gap-1.5 shadow-sm"
+              title="Full Screen Mode (F)"
+            >
+              <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Fullscreen</span>
+            </button>
           </div>
         </header>
       )}
@@ -1342,19 +1320,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   </span>
                 </button>
 
-                {/* External Pop-out link for adblock/iframe-blocked bypass */}
-                {currentIframeSrc && currentIframeSrc !== 'about:blank' && (
-                  <a
-                    href={currentIframeSrc}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all cursor-pointer shrink-0"
-                    title="Open video player in external tab (bypasses adblock/iframe embedding restrictions)"
-                  >
-                    <ExternalLink className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" />
-                    <span className="hidden sm:inline">Pop-out</span>
-                  </a>
-                )}
 
                 {/* Prev & Next Episode Navigation */}
                 {(() => {
@@ -1428,27 +1393,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">Download</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isFullscreen) toggleFullscreen();
-                    setPlayerMode('contained');
-                  }}
-                  aria-label="Theater Box Stage"
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
-                  title="Theater Box Stage (ASA Square) (T)"
-                >
-                  <Box className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPlayerMode('floating')}
-                  aria-label="Floating mini player"
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card/80 hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0 shadow-md"
-                  title="Mini Player / Picture-in-Picture (I)"
-                >
-                  <PictureInPicture className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                 </button>
                 <button
                   type="button"
