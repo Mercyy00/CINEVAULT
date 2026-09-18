@@ -298,6 +298,9 @@ export interface TmdbItem {
   'watch/providers'?: {
     results?: Record<string, { link?: string; flatrate?: TmdbProvider[]; rent?: TmdbProvider[]; buy?: TmdbProvider[] }>;
   };
+  production_countries?: Array<{ iso_3166_1: string; name?: string }>;
+  origin_country?: string[];
+  spoken_languages?: Array<{ iso_639_1: string; name?: string }>;
 }
 
 /** Formats a runtime in minutes as "2h 10m". Returns null when unknown. */
@@ -413,12 +416,17 @@ export const api = {
    * the title in a UI font is the single most recognisable piece of premium
    * catalogue styling, and it was not fetched anywhere.
    */
-  getTitleImages: (mediaType: string, id: string) =>
+  getTitleImages: (mediaType: string, id: string, includeLanguage: string | null = 'en,null') =>
     request<{
       logos?: TmdbImage[];
       backdrops?: TmdbImage[];
       posters?: TmdbImage[];
-    }>(tmdbUrl(`/${mediaType}/${id}/images`, { include_image_language: 'en,null' })),
+    }>(
+      tmdbUrl(
+        `/${mediaType}/${id}/images`,
+        includeLanguage ? { include_image_language: includeLanguage } : {}
+      )
+    ),
 
   /** Real user reviews. `Movie.reviews` was hardcoded to `[]` before this. */
   getReviews: (mediaType: string, id: string, page = 1) =>
@@ -553,6 +561,12 @@ export const api = {
     prefetchMovieDetails(type, id);
   },
 
+  resolveTmdbLogo: (mediaType: 'movie' | 'tv', id: string | number) =>
+    resolveTmdbLogo(mediaType, id),
+
+  resolveTitleLogo: (title: string, type?: 'movie' | 'tv' | 'anime') =>
+    resolveTitleLogo(title, type),
+
   getGenres: (mediaType: 'movie' | 'tv' = 'movie') =>
     request<{ genres: TmdbGenre[] }>(tmdbUrl(`/genre/${mediaType}/list`)),
 
@@ -662,6 +676,113 @@ function pickLogoUrl(item: TmdbItem): string | null {
     logos.sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0];
   // PNG keeps transparency; TMDB also serves SVG, which w500 cannot resize.
   return preferred?.file_path ? `${IMAGE_BASE}/w500${preferred.file_path}` : null;
+}
+
+const titleLogoCache = new Map<string, string | null>();
+
+/**
+ * Direct logo resolution for TMDB movie or tv show by ID.
+ * Tries English first, then falls back to original/international logos.
+ * Returns cached logo URL or null.
+ */
+export async function resolveTmdbLogo(
+  mediaType: 'movie' | 'tv',
+  id: string | number
+): Promise<string | null> {
+  const cleanId = String(id).trim();
+  if (!cleanId) return null;
+  const cacheKey = `logo:tmdb:${mediaType}:${cleanId}`;
+  if (titleLogoCache.has(cacheKey)) {
+    return titleLogoCache.get(cacheKey) || null;
+  }
+
+  try {
+    // 1. Try English / textless first
+    let images = await api.getTitleImages(mediaType, cleanId, 'en,null');
+    let logos = images?.logos ?? [];
+
+    // 2. If no English logo, fetch all languages (e.g. international, foreign titles)
+    if (logos.length === 0) {
+      images = await api.getTitleImages(mediaType, cleanId, null);
+      logos = images?.logos ?? [];
+    }
+
+    if (logos.length === 0) {
+      titleLogoCache.set(cacheKey, null);
+      return null;
+    }
+
+    // Prefer English/null if available, then widest
+    const preferred =
+      logos.filter((l) => l.iso_639_1 === 'en' || !l.iso_639_1).sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0] ??
+      logos.sort((a, b) => (b.width ?? 0) - (a.width ?? 0))[0];
+
+    const logoUrl = preferred?.file_path ? `${IMAGE_BASE}/w500${preferred.file_path}` : null;
+    titleLogoCache.set(cacheKey, logoUrl);
+    return logoUrl;
+  } catch {
+    titleLogoCache.set(cacheKey, null);
+    return null;
+  }
+}
+
+/**
+ * Proactively resolves the official title logo for any title (movie, TV, or anime)
+ * via TMDB's images API. Returns cached URL or null.
+ */
+export async function resolveTitleLogo(title: string, type?: 'movie' | 'tv' | 'anime'): Promise<string | null> {
+  const cleanTitle = title.trim();
+  if (!cleanTitle) return null;
+  const cacheKey = `logo:${type || 'all'}:${cleanTitle.toLowerCase()}`;
+  if (titleLogoCache.has(cacheKey)) {
+    return titleLogoCache.get(cacheKey) || null;
+  }
+
+  try {
+    // 1. Search TMDB
+    let matchId: number | string | null = null;
+    let matchType: 'movie' | 'tv' = type === 'movie' ? 'movie' : 'tv';
+
+    if (type === 'movie') {
+      const res = await api.searchMovie(cleanTitle, 1);
+      matchId = res.results?.[0]?.id ?? null;
+      matchType = 'movie';
+    } else if (type === 'tv' || type === 'anime') {
+      const res = await api.searchTv(cleanTitle, 1);
+      matchId = res.results?.[0]?.id ?? null;
+      matchType = 'tv';
+      if (!matchId) {
+        // Try without season, cour, or subtitle suffix
+        const simplified = cleanTitle.replace(/\s*(season\s*\d+|part\s*\d+|cour\s*\d+|:\s*.*)/i, '').trim();
+        if (simplified && simplified !== cleanTitle) {
+          const simplifiedRes = await api.searchTv(simplified, 1);
+          matchId = simplifiedRes.results?.[0]?.id ?? null;
+        }
+      }
+    }
+
+    if (!matchId) {
+      const multi = await api.searchMulti(cleanTitle, 1);
+      const firstValid = multi.results?.find((r) => r.media_type === 'movie' || r.media_type === 'tv');
+      if (firstValid?.id) {
+        matchId = firstValid.id;
+        matchType = firstValid.media_type === 'movie' ? 'movie' : 'tv';
+      }
+    }
+
+    if (!matchId) {
+      titleLogoCache.set(cacheKey, null);
+      return null;
+    }
+
+    // 2. Fetch images via resolveTmdbLogo
+    const logoUrl = await resolveTmdbLogo(matchType, matchId);
+    titleLogoCache.set(cacheKey, logoUrl);
+    return logoUrl;
+  } catch {
+    titleLogoCache.set(cacheKey, null);
+    return null;
+  }
 }
 
 /** Picks the best official YouTube trailer key from an appended videos payload. */
@@ -1024,6 +1145,7 @@ export function mapAniListToInternal(item: AniListMedia): Movie {
     posterUrl,
     posterThumbUrl,
     backdropUrl,
+    logoUrl: null,
     servers: [],
     cast,
     reviews: [],
@@ -1399,6 +1521,12 @@ export const anilistApi = {
       });
 
     const movie = mapAniListToInternal(data.Media);
+    try {
+      const logo = await resolveTitleLogo(movie.title, 'anime');
+      if (logo) movie.logoUrl = logo;
+    } catch {
+      // Non-blocking
+    }
 
     return {
       movie,

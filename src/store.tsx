@@ -320,7 +320,7 @@ function buildDefaultProfile(uid: string): UserProfile {
     uid,
     name: 'Guest',
     email: '',
-    avatar: 'default',
+    avatar: 'beam-director',
     isLoggedIn: false,
     language: 'English (US)',
     defaultServer: 'auto',
@@ -419,7 +419,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {
         id: 'default',
         name: legacyProf.name || 'Primary',
-        avatar: legacyProf.avatar || 'constellation-orion',
+        avatar: legacyProf.avatar || 'beam-director',
         isKids: false,
         watchlist: legacyWatchlist,
         continueWatching: legacyCW,
@@ -427,7 +427,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {
         id: 'kids',
         name: 'Kids',
-        avatar: 'big-smile',
+        avatar: 'beam-cinephile',
         isKids: true,
         maxAgeRating: 'PG',
         watchlist: [],
@@ -446,7 +446,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       profiles[0] || {
         id: 'default',
         name: 'Primary',
-        avatar: 'constellation-orion',
+        avatar: 'beam-director',
         isKids: false,
         watchlist: [],
         continueWatching: [],
@@ -1051,7 +1051,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const created: ProfileItem = {
         id: newId,
         name: newProf.name.trim() || 'New Profile',
-        avatar: newProf.avatar || 'constellation-orion',
+        avatar: newProf.avatar || 'beam-director',
         isKids: Boolean(newProf.isKids),
         maxAgeRating: newProf.maxAgeRating || (newProf.isKids ? 'PG' : undefined),
         watchlist: [],

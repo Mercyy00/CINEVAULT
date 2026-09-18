@@ -1,5 +1,17 @@
-export interface DiceBearStyle {
-  id: string;
+import {
+  BoringAvatarVariant,
+  BORING_PALETTES,
+  DEFAULT_PALETTE,
+  THEME_BEAM_COLORS,
+  getBoringAvatarDataUri,
+  getBoringAvatarSvg,
+} from './boringAvatars';
+
+export type { BoringAvatarVariant };
+export { BORING_PALETTES, DEFAULT_PALETTE, THEME_BEAM_COLORS, getBoringAvatarDataUri, getBoringAvatarSvg };
+
+export interface AvatarStyle {
+  id: BoringAvatarVariant;
   name: string;
   category: string;
   desc: string;
@@ -9,205 +21,332 @@ export interface DiceBearStyle {
 export interface UserAvatar {
   id: string;
   name: string;
-  style: string;
+  style: BoringAvatarVariant;
   seed: string;
   tag: string;
   color: string;
   url: string;
+  paletteId?: string;
 }
 
-export const DICEBEAR_STYLES: DiceBearStyle[] = [
-  { id: 'constellation', name: 'Constellation', category: 'Cosmic', desc: 'Geometric star alignments & space maps', badge: 'Cosmic' },
-  { id: 'lorelei', name: 'Lorelei', category: 'Anime', desc: 'Japanese anime & illustrated personas', badge: 'Anime' },
-  { id: 'bottts', name: 'Bottts', category: 'Cyber', desc: 'Robotic cyber-units & mecha androids', badge: 'Cyber' },
-  { id: 'adventurer', name: 'Adventurer', category: 'Fantasy', desc: 'RPG heroes, knights & rogues', badge: 'Fantasy' },
-  { id: 'pixel-art', name: 'Pixel Art', category: 'Arcade', desc: 'Retro 8-bit / 16-bit arcade avatars', badge: 'Retro' },
-  { id: 'avataaars', name: 'Avataaars', category: 'Expressive', desc: 'Stylized modern expressive characters', badge: 'Popular' },
-  { id: 'micah', name: 'Micah', category: 'Minimal', desc: 'Minimalist editorial vector portraits', badge: 'Modern' },
-  { id: 'notionists', name: 'Notionists', category: 'Sketch', desc: 'Monochrome editorial hand-drawn sketch', badge: 'Editorial' },
-  { id: 'rings', name: 'Rings', category: 'Abstract', desc: 'Cosmic glowing orbital rings', badge: 'Aura' },
-  { id: 'shapes', name: 'Shapes', category: 'Bauhaus', desc: 'Abstract modernist geometric art', badge: 'Abstract' },
-  { id: 'big-smile', name: 'Big Smile', category: 'Fun', desc: 'Vibrant cheerful cartoon characters', badge: 'Vibrant' },
-  { id: 'thumbs', name: 'Thumbs', category: 'Minimal', desc: 'Playful minimalist thumb faces', badge: 'Playful' },
+/**
+ * 6 Official Boring Avatar Variants
+ */
+export const BORING_AVATAR_VARIANTS: AvatarStyle[] = [
+  {
+    id: 'beam',
+    name: 'Beam (Official Theme)',
+    category: 'Expressive',
+    desc: 'Signature CineVault Beam avatars with expressive character faces',
+    badge: 'Signature',
+  },
+  {
+    id: 'marble',
+    name: 'Marble (Fluid)',
+    category: 'Abstract',
+    desc: 'Fluid organic liquid art & blending paths',
+    badge: 'Artistic',
+  },
+  {
+    id: 'sunset',
+    name: 'Sunset (Dusk)',
+    category: 'Atmospheric',
+    desc: 'Cinematic dusk horizon & warm gradient dusk',
+    badge: 'Cinema',
+  },
+  {
+    id: 'bauhaus',
+    name: 'Bauhaus (Modern)',
+    category: 'Geometric',
+    desc: 'Modernist constructivist geometric shapes',
+    badge: 'Minimal',
+  },
+  {
+    id: 'pixel',
+    name: 'Pixel (Arcade)',
+    category: 'Retro',
+    desc: 'Retro 8-bit arcade matrix with symmetric blocks',
+    badge: 'Retro',
+  },
+  {
+    id: 'ring',
+    name: 'Ring (Cosmic)',
+    category: 'Cosmic',
+    desc: 'Glowing concentric orbits & celestial portal rings',
+    badge: 'Cosmic',
+  },
 ];
 
-export function getDiceBearUrl(style: string, seed: string): string {
-  const safeSeed = encodeURIComponent(seed || 'Cinephile');
-  const safeStyle = style || 'constellation';
-  return `https://api.dicebear.com/10.x/${safeStyle}/svg?seed=${safeSeed}`;
+/** Backward compatibility alias for legacy imports */
+export const DICEBEAR_STYLES = BORING_AVATAR_VARIANTS;
+export type DiceBearStyle = AvatarStyle;
+
+/**
+ * Generates Boring Avatar data-URI for a variant and seed, defaulting to the requested Beam theme.
+ */
+export function getBoringAvatarUrl(
+  variant: BoringAvatarVariant = 'beam',
+  seed: string = 'Cinephile',
+  colors: string[] = THEME_BEAM_COLORS
+): string {
+  return getBoringAvatarDataUri(variant, seed, colors, 96);
 }
+
+/** Legacy alias pointing directly to the new Boring Avatar generator */
+export function getDiceBearUrl(_styleOrVariant: string, seed: string): string {
+  return getBoringAvatarUrl('beam', seed, THEME_BEAM_COLORS);
+}
+
+export const PALETTE_MAP: Record<string, string[]> = {
+  'vault-beam-theme': BORING_PALETTES[0].colors,
+  'vault-amber': BORING_PALETTES[1].colors,
+  'cinema-neon': BORING_PALETTES[2].colors,
+  'sunset-cinema': BORING_PALETTES[3].colors,
+  'cosmic-noir': BORING_PALETTES[4].colors,
+  'emerald-matrix': BORING_PALETTES[5].colors,
+  'classic-boring': BORING_PALETTES[6].colors,
+};
 
 export const PRESET_AVATARS: UserAvatar[] = [
   {
-    id: 'constellation-orion',
-    name: 'Orion Nebula',
-    style: 'constellation',
+    id: 'beam-director',
+    name: 'The Director',
+    style: 'beam',
+    seed: 'Director',
+    tag: 'Film Auteur',
+    color: '#ff1168',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'Director', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'marble-orion',
+    name: 'Orion Star',
+    style: 'beam',
     seed: 'OrionVault',
     tag: 'Cosmic Star',
-    color: '#ffd066',
-    url: getDiceBearUrl('constellation', 'OrionVault'),
+    color: '#9e1e4c',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'OrionVault', THEME_BEAM_COLORS),
   },
   {
-    id: 'constellation-cassiopeia',
-    name: 'Cassiopeia',
-    style: 'constellation',
-    seed: 'CassiopeiaVault',
-    tag: 'Deep Galaxy',
-    color: '#38bdf8',
-    url: getDiceBearUrl('constellation', 'CassiopeiaVault'),
-  },
-  {
-    id: 'lorelei-ronin',
+    id: 'beam-ronin',
     name: 'Anime Ronin',
-    style: 'lorelei',
+    style: 'beam',
     seed: 'AnimeRonin',
-    tag: 'Shonen Legend',
-    color: '#ff4d6d',
-    url: getDiceBearUrl('lorelei', 'AnimeRonin'),
+    tag: 'Shonen Hero',
+    color: '#ff1168',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'AnimeRonin', THEME_BEAM_COLORS),
   },
   {
-    id: 'lorelei-star',
-    name: 'Cyber Valkyrie',
-    style: 'lorelei',
-    seed: 'CyberValkyrie',
-    tag: 'Sci-Fi Heroine',
-    color: '#a855f7',
-    url: getDiceBearUrl('lorelei', 'CyberValkyrie'),
+    id: 'sunset-solaris',
+    name: 'Solaris Auteur',
+    style: 'beam',
+    seed: 'SolarisDusk',
+    tag: 'Atmospheric',
+    color: '#9e1e4c',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'SolarisDusk', THEME_BEAM_COLORS),
   },
   {
-    id: 'bottts-cyber-titan',
-    name: 'Cyber Titan',
-    style: 'bottts',
-    seed: 'CyberTitan',
-    tag: 'Mecha Unit',
-    color: '#00f5d4',
-    url: getDiceBearUrl('bottts', 'CyberTitan'),
+    id: 'bauhaus-auteur',
+    name: 'Modernist Grid',
+    style: 'beam',
+    seed: 'BauhausGrid',
+    tag: 'Geometric Art',
+    color: '#8f8f8f',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'BauhausGrid', THEME_BEAM_COLORS),
   },
   {
-    id: 'bottts-matrix-bot',
-    name: 'Matrix Sentinel',
-    style: 'bottts',
-    seed: 'MatrixSentinel',
-    tag: 'AI Core',
-    color: '#d3f00a',
-    url: getDiceBearUrl('bottts', 'MatrixSentinel'),
-  },
-  {
-    id: 'adventurer-paladin',
-    name: 'Gold Paladin',
-    style: 'adventurer',
-    seed: 'GoldPaladin',
-    tag: 'Fantasy Knight',
-    color: '#f59e0b',
-    url: getDiceBearUrl('adventurer', 'GoldPaladin'),
-  },
-  {
-    id: 'adventurer-rogue',
-    name: 'Shadow Rogue',
-    style: 'adventurer',
-    seed: 'ShadowRogue',
-    tag: 'Night Hunter',
-    color: '#e63946',
-    url: getDiceBearUrl('adventurer', 'ShadowRogue'),
-  },
-  {
-    id: 'pixel-arcade-hero',
-    name: 'Arcade Master',
-    style: 'pixel-art',
-    seed: 'ArcadeMaster',
-    tag: '8-Bit Legend',
-    color: '#ffbe0b',
-    url: getDiceBearUrl('pixel-art', 'ArcadeMaster'),
-  },
-  {
-    id: 'pixel-cyber-ninja',
+    id: 'pixel-ninja',
     name: 'Pixel Ninja',
-    style: 'pixel-art',
+    style: 'beam',
     seed: 'PixelNinja',
-    tag: 'Retro Stealth',
-    color: '#f72585',
-    url: getDiceBearUrl('pixel-art', 'PixelNinja'),
+    tag: '8-Bit Arcade',
+    color: '#ff1168',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'PixelNinja', THEME_BEAM_COLORS),
   },
   {
-    id: 'avataaars-cinephile',
-    name: 'The Director',
-    style: 'avataaars',
-    seed: 'TheDirector',
-    tag: 'Film Connoisseur',
-    color: '#3b82f6',
-    url: getDiceBearUrl('avataaars', 'TheDirector'),
-  },
-  {
-    id: 'micah-auteur',
-    name: 'Auteur Vision',
-    style: 'micah',
-    seed: 'AuteurVision',
-    tag: 'Art Cinema',
-    color: '#10b981',
-    url: getDiceBearUrl('micah', 'AuteurVision'),
-  },
-  {
-    id: 'notionists-critic',
-    name: 'Noir Critic',
-    style: 'notionists',
-    seed: 'NoirCritic',
-    tag: 'Monochrome Noir',
-    color: '#9ca3af',
-    url: getDiceBearUrl('notionists', 'NoirCritic'),
-  },
-  {
-    id: 'rings-singularity',
-    name: 'Singularity Ring',
-    style: 'rings',
+    id: 'ring-singularity',
+    name: 'Singularity',
+    style: 'beam',
     seed: 'SingularityRing',
     tag: 'Energy Portal',
-    color: '#8b5cf6',
-    url: getDiceBearUrl('rings', 'SingularityRing'),
+    color: '#9e1e4c',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'SingularityRing', THEME_BEAM_COLORS),
   },
   {
-    id: 'shapes-vault-art',
-    name: 'Modernist Grid',
-    style: 'shapes',
-    seed: 'ModernistGrid',
-    tag: 'Geometric Art',
-    color: '#e8852a',
-    url: getDiceBearUrl('shapes', 'ModernistGrid'),
+    id: 'beam-valkyrie',
+    name: 'Cyber Valkyrie',
+    style: 'beam',
+    seed: 'CyberValkyrie',
+    tag: 'Sci-Fi Heroine',
+    color: '#ff1168',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'CyberValkyrie', THEME_BEAM_COLORS),
   },
   {
-    id: 'big-smile-popcorn',
-    name: 'Popcorn Fiend',
-    style: 'big-smile',
-    seed: 'PopcornFiend',
+    id: 'beam-cinephile',
+    name: 'Popcorn VIP',
+    style: 'beam',
+    seed: 'PopcornVIP',
     tag: 'Premiere VIP',
-    color: '#f97316',
-    url: getDiceBearUrl('big-smile', 'PopcornFiend'),
+    color: '#9e1e4c',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'PopcornVIP', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'beam-neo',
+    name: 'Neo Cyber',
+    style: 'beam',
+    seed: 'NeoCyber',
+    tag: 'Cyber Hacker',
+    color: '#ececec',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'NeoCyber', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'beam-akira',
+    name: 'Neo Tokyo',
+    style: 'beam',
+    seed: 'AkiraTokyo',
+    tag: 'Anime Icon',
+    color: '#ff1168',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'AkiraTokyo', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'marble-celestial',
+    name: 'Cassiopeia',
+    style: 'beam',
+    seed: 'CassiopeiaVoid',
+    tag: 'Deep Galaxy',
+    color: '#9e1e4c',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'CassiopeiaVoid', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'sunset-gold',
+    name: 'Golden Hour',
+    style: 'beam',
+    seed: 'GoldenHour',
+    tag: 'Warm Cinema',
+    color: '#ececec',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'GoldenHour', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'beam-shadow',
+    name: 'Noir Detective',
+    style: 'beam',
+    seed: 'ShadowDetective',
+    tag: 'Noir Mystery',
+    color: '#25020f',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'ShadowDetective', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'beam-critic',
+    name: 'The Critic',
+    style: 'beam',
+    seed: 'FilmCritic',
+    tag: 'Film Reviewer',
+    color: '#8f8f8f',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'FilmCritic', THEME_BEAM_COLORS),
+  },
+  {
+    id: 'beam-producer',
+    name: 'Studio Producer',
+    style: 'beam',
+    seed: 'StudioProducer',
+    tag: 'Executive',
+    color: '#9e1e4c',
+    paletteId: 'vault-beam-theme',
+    url: getBoringAvatarUrl('beam', 'StudioProducer', THEME_BEAM_COLORS),
   },
 ];
 
+/** Legacy preset key translations so existing stored accounts map cleanly */
+const LEGACY_PRESET_MAP: Record<string, string> = {
+  'constellation-orion': 'beam-director',
+  'constellation-cassiopeia': 'beam-valkyrie',
+  'lorelei-ronin': 'beam-ronin',
+  'lorelei-star': 'beam-valkyrie',
+  'bottts-cyber-titan': 'beam-neo',
+  'bottts-matrix-bot': 'beam-director',
+  'adventurer-paladin': 'beam-director',
+  'adventurer-rogue': 'beam-shadow',
+  'pixel-arcade-hero': 'beam-akira',
+  'pixel-cyber-ninja': 'beam-ronin',
+  'avataaars-cinephile': 'beam-cinephile',
+  'micah-auteur': 'beam-director',
+  'notionists-critic': 'beam-critic',
+  'rings-singularity': 'beam-valkyrie',
+  'shapes-vault-art': 'beam-producer',
+  'big-smile-popcorn': 'beam-cinephile',
+  'big-smile': 'beam-cinephile',
+  default: 'beam-director',
+};
+
 export function getUserAvatarUrl(avatarIdOrUrl?: string, fallbackSeed: string = 'Cinephile'): string {
   if (!avatarIdOrUrl) {
-    return getDiceBearUrl('constellation', fallbackSeed);
+    return getBoringAvatarUrl('beam', fallbackSeed, THEME_BEAM_COLORS);
   }
-  if (avatarIdOrUrl.startsWith('http://') || avatarIdOrUrl.startsWith('https://')) {
-    return avatarIdOrUrl;
+
+  // If old DiceBear or old legacy amber palette data-URI, refresh to the requested Beam theme!
+  if (
+    avatarIdOrUrl.includes('dicebear.com') ||
+    avatarIdOrUrl.includes('%23e8852a') ||
+    avatarIdOrUrl.includes('%230f1016')
+  ) {
+    return getBoringAvatarUrl('beam', fallbackSeed, THEME_BEAM_COLORS);
   }
-  const matched = PRESET_AVATARS.find((a) => a.id === avatarIdOrUrl);
+
+  // If data-URI is from an older session without any of the 5 theme colors, refresh to the requested Beam theme
+  if (
+    avatarIdOrUrl.startsWith('data:image/svg+xml') &&
+    !THEME_BEAM_COLORS.some((c) => avatarIdOrUrl.includes(encodeURIComponent(c)))
+  ) {
+    return getBoringAvatarUrl('beam', fallbackSeed, THEME_BEAM_COLORS);
+  }
+
+  // Check legacy map
+  const mappedId = LEGACY_PRESET_MAP[avatarIdOrUrl] || avatarIdOrUrl;
+
+  // Match in PRESET_AVATARS
+  const matched = PRESET_AVATARS.find((a) => a.id === mappedId);
   if (matched) {
     return matched.url;
   }
-  if (avatarIdOrUrl.includes(':')) {
-    const [style, seed] = avatarIdOrUrl.split(':');
-    return getDiceBearUrl(style, seed || fallbackSeed);
+
+  // If already an HTTP/HTTPS or valid custom data URI containing theme colors, return directly
+  if (
+    avatarIdOrUrl.startsWith('http://') ||
+    avatarIdOrUrl.startsWith('https://') ||
+    avatarIdOrUrl.startsWith('data:image')
+  ) {
+    return avatarIdOrUrl;
   }
-  return getDiceBearUrl('constellation', avatarIdOrUrl || fallbackSeed);
+
+  // Dynamic format: variant:seed -> force beam with THEME_BEAM_COLORS
+  if (avatarIdOrUrl.includes(':')) {
+    const [, seed] = avatarIdOrUrl.split(':');
+    return getBoringAvatarUrl('beam', seed || fallbackSeed, THEME_BEAM_COLORS);
+  }
+
+  // Default to beam with avatarIdOrUrl as seed using THEME_BEAM_COLORS
+  return getBoringAvatarUrl('beam', avatarIdOrUrl || fallbackSeed, THEME_BEAM_COLORS);
 }
 
-export function getFallbackAvatarDataUri(name: string = 'Cinephile', color: string = '#e8852a'): string {
-  const initial = (name.trim().charAt(0) || 'C').toUpperCase();
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${color}"/><stop offset="100%" stop-color="#12131b"/></linearGradient></defs><rect width="100" height="100" rx="50" fill="url(#g)"/><text x="50" y="62" font-size="44" font-family="system-ui,-apple-system,sans-serif" font-weight="900" fill="#ffffff" text-anchor="middle">${initial}</text></svg>`;
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+export function getFallbackAvatarDataUri(name: string = 'Cinephile', _color: string = '#ff1168'): string {
+  return getBoringAvatarDataUri('beam', name || 'Cinephile', THEME_BEAM_COLORS);
 }
 
 export function getAvatarPreset(id?: string): UserAvatar {
-  return PRESET_AVATARS.find((a) => a.id === id) || PRESET_AVATARS[0];
+  const mappedId = id ? (LEGACY_PRESET_MAP[id] || id) : undefined;
+  return PRESET_AVATARS.find((a) => a.id === mappedId) || PRESET_AVATARS[0];
 }

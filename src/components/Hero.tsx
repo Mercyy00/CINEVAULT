@@ -33,20 +33,49 @@ const heroCache = new Map<HeroType, { movies: Movie[]; at: number }>();
 async function loadHero(type: HeroType): Promise<Movie[]> {
   if (type === 'anime') {
     const payload = await anilistApi.getTrending(1, 20);
-    return (payload.results ?? [])
+    const slides = (payload.results ?? [])
       .filter((movie) => Boolean(movie.backdropUrl))
       .slice(0, SLIDE_COUNT);
+    await Promise.all(
+      slides.map(async (slide) => {
+        if (!slide.logoUrl) {
+          try {
+            slide.logoUrl = await api.resolveTitleLogo(slide.title, 'anime');
+          } catch {}
+        }
+      })
+    );
+    return slides;
   }
 
   const payload = await api.getTrending(type, 'day');
   const results = Array.isArray(payload?.results) ? payload.results : [];
-  return results
+  const slides = results
     // `/trending/all` also returns people, which map to a Movie with no title.
     .filter((item) => item.media_type !== 'person')
     // A spotlight with no backdrop is a black rectangle.
     .filter((item) => Boolean(item.backdrop_path))
     .slice(0, SLIDE_COUNT)
     .map((item) => api.mapToInternalMovie(item));
+
+  // Proactively resolve high-res official title logos for all movies & TV shows in the hero spotlight!
+  await Promise.all(
+    slides.map(async (slide) => {
+      if (!slide.logoUrl) {
+        const mediaType = slide.type === 'tv' ? 'tv' : 'movie';
+        try {
+          slide.logoUrl = await api.resolveTmdbLogo(mediaType, slide.id);
+        } catch {}
+        if (!slide.logoUrl) {
+          try {
+            slide.logoUrl = await api.resolveTitleLogo(slide.title, mediaType);
+          } catch {}
+        }
+      }
+    })
+  );
+
+  return slides;
 }
 
 /** Muted, chrome-free trailer preview. `youtube-nocookie` is CSP-allowlisted. */
@@ -159,6 +188,7 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
 
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [trailerDismissed, setTrailerDismissed] = useState(false);
+  const [logoFailed, setLogoFailed] = useState<Record<string, boolean>>({});
 
   /* Parallax through motion values: `.set()` mutates the transform directly, so
    * the pointer no longer re-renders this component (and its children) once per
@@ -243,6 +273,41 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, []);
+
+  // Background resolver: ensure every slide in `movies` has its official title logo resolved
+  useEffect(() => {
+    if (!movies || movies.length === 0) return;
+    let active = true;
+
+    movies.forEach(async (slide) => {
+      if (slide.logoUrl) return;
+      const mediaType = slide.type === 'anime' ? 'anime' : (slide.type === 'tv' ? 'tv' : 'movie');
+      let logo: string | null = null;
+      if (mediaType !== 'anime') {
+        try {
+          logo = await api.resolveTmdbLogo(mediaType, slide.id);
+        } catch {}
+      }
+      if (!logo) {
+        try {
+          logo = await api.resolveTitleLogo(slide.title, mediaType);
+        } catch {}
+      }
+      if (logo && active) {
+        setMovies((prev) =>
+          prev.map((m) => (m.id === slide.id ? { ...m, logoUrl: logo } : m))
+        );
+        const cached = heroCache.get(type);
+        if (cached) {
+          cached.movies = cached.movies.map((m) => (m.id === slide.id ? { ...m, logoUrl: logo } : m));
+        }
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [movies, type]);
 
   const safeIndex = movies.length > 0 ? Math.min(index, movies.length - 1) : 0;
   const current = movies.length > 0 ? movies[safeIndex] : null;
@@ -490,20 +555,20 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
             )}
           </div>
 
-          {/* Title. Logo artwork when the catalogue publishes it, which is what
-              a premium billboard shows; the heading stays for assistive tech. */}
-          {current.logoUrl ? (
-            <>
+          {/* Title: Official high-res logo artwork when available, falling back to clean stylized heading */}
+          {current.logoUrl && !logoFailed[current.id] ? (
+            <div className="mb-3 sm:mb-4">
               <h1 className="sr-only">{current.title}</h1>
               <img
+                key={current.logoUrl}
                 src={current.logoUrl}
-                alt=""
-                aria-hidden="true"
+                alt={current.title}
                 loading="eager"
                 decoding="async"
-                className="max-w-[min(90vw,34rem)] max-h-24 sm:max-h-32 lg:max-h-40 object-contain object-left mb-3 sm:mb-4 drop-shadow-2xl"
+                onError={() => setLogoFailed((prev) => ({ ...prev, [current.id]: true }))}
+                className="max-w-[min(88vw,34rem)] max-h-24 sm:max-h-32 lg:max-h-40 object-contain object-left drop-shadow-2xl"
               />
-            </>
+            </div>
           ) : (
             <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display font-black text-foreground mb-3 sm:mb-4 leading-[1.08] tracking-tight drop-shadow-2xl line-clamp-2">
               {current.title}

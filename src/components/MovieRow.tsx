@@ -390,7 +390,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
           {movies.map((movie, idx) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[140px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] relative"
+              className="snap-start flex-shrink-0 w-[155px] sm:w-[190px] md:w-[220px] lg:w-[245px] xl:w-[270px] relative"
             >
               <MovieCard
                 movie={movie}
@@ -401,7 +401,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
             </li>
           ))}
           {loadingMore && (
-            <li className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
+            <li className="flex-shrink-0 w-[155px] sm:w-[190px] md:w-[220px] lg:w-[245px] xl:w-[270px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
           )}
         </ul>
 

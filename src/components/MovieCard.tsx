@@ -87,10 +87,13 @@ export function MovieCard({
       onClick={onClick}
       onKeyDown={handleKeyDown}
       data-movie-card
-      className="relative aspect-[2/3] w-full select-none cursor-pointer group rounded-[1.25rem] outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070a]"
+      className="relative aspect-[2/3] w-full select-none cursor-pointer group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070a] transition-transform duration-300 ease-out hover:-translate-y-1.5"
     >
-      <div className="double-bezel-card p-[1.5px] rounded-[1.25rem] w-full h-full transition-all duration-200 group-hover:shadow-[0_12px_32px_-8px_var(--theme-accent-glow,rgba(232,133,42,0.4))] group-hover:border-white/20">
-        <div className="aspect-[2/3] w-full double-bezel-inner rounded-[calc(1.25rem-1.5px)] overflow-hidden relative bg-[#0b0c11]">
+      <div className="double-bezel-card p-[1.5px] rounded-2xl w-full h-full transition-all duration-300 ease-out group-hover:shadow-[0_16px_36px_-8px_rgba(0,0,0,0.8),0_0_24px_var(--theme-accent-glow,rgba(232,133,42,0.3))] group-hover:border-white/25">
+        <div className="aspect-[2/3] w-full double-bezel-inner rounded-[calc(1rem-1.5px)] overflow-hidden relative bg-[#090a0f]">
+          {/* Specular top sheen line */}
+          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent z-20 pointer-events-none" />
+
           {/* Responsive poster: `srcSet` means a 150px phone card no longer
               downloads the same w500 file as a 500px desktop one. */}
           <PosterImage
@@ -102,18 +105,18 @@ export function MovieCard({
             decorative
             loading={priority ? 'eager' : 'lazy'}
             fetchPriority={priority ? 'high' : 'auto'}
-            className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-105"
+            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
           />
 
           {/* Media type (Top-Right). Not a quality claim. */}
           <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/65 backdrop-blur-md text-white/90 border border-white/15 shadow-sm">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xl text-white/90 border border-white/15 shadow-sm">
               {typeLabel}
             </span>
           </div>
 
           {/* Rating pill (Top-Left). Renders an em dash when unrated. */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/65 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/15 shadow-sm">
+          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xl px-2 py-0.5 rounded-full border border-white/15 shadow-sm">
             <Star className="w-3 h-3 text-[#f5a54a] fill-[#f5a54a]" aria-hidden="true" />
             <span className="text-[10px] font-bold text-white font-mono">
               {formatRating(movie.rating)}
@@ -135,7 +138,7 @@ export function MovieCard({
           )}
 
           {/* Hover / focus overlay. CSS-driven: no state, no re-render. */}
-          <div className="absolute inset-0 z-[15] bg-gradient-to-t from-[#06070a]/95 via-[#06070a]/40 to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 focus-within:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-3">
+          <div className="absolute inset-0 z-[15] bg-gradient-to-t from-[#06070a]/95 via-[#06070a]/45 to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3.5">
             <div className="flex justify-end pt-8">
               <button
                 type="button"

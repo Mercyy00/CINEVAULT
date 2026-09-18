@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles, Clapperboard, Download, X, Search } from 'lucide-react';
-import { anilistApi, AnimeRelation } from '../api';
+import { api, anilistApi, AnimeRelation } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { formatRating } from '../types';
@@ -106,6 +106,14 @@ export function AnimeDetail({ id }: { id: string }) {
         setMovie(mappedMovie);
         setRelations(fetchedRelations || []);
         setCast(fetchedCast || mappedMovie.cast || []);
+
+        if (!mappedMovie.logoUrl && mappedMovie.title) {
+          api.resolveTitleLogo(mappedMovie.title, 'anime').then((logo: string | null) => {
+            if (logo && isMounted) {
+              setMovie((prev: Movie | null) => (prev ? { ...prev, logoUrl: logo } : prev));
+            }
+          }).catch(() => {});
+        }
 
         // Instant Episode Seeding (<300ms from AniList GraphQL response)
         const isOnePiece =
@@ -383,6 +391,35 @@ export function AnimeDetail({ id }: { id: string }) {
       !liveActionAdaptations.some((la) => la.id === r.id)
   );
 
+  // Build ordered season chain from immediate prequel/sequel relations
+  // Filters out movies, specials, and OVAs to show only main TV seasons
+  const tvFormats = new Set(['TV', 'TV_SHORT', 'ONA', undefined]);
+  const seasonChain: Array<{ id: string; title: string; year?: number; episodes?: number | null; posterUrl?: string | null; isCurrent: boolean }> = [];
+
+  const prequelSeasons = relations
+    .filter(r => r.relationType === 'PREQUEL' && r.type === 'ANIME' && tvFormats.has(r.format))
+    .map(r => ({ id: r.id, title: r.title, year: r.year, episodes: r.episodes, posterUrl: r.posterUrl, isCurrent: false }));
+
+  // Prequels come first (earlier seasons)
+  seasonChain.push(...prequelSeasons);
+
+  // Current entry
+  seasonChain.push({
+    id,
+    title: movie.title,
+    year: movie.year || undefined,
+    episodes: movie.episodeCount || null,
+    posterUrl: movie.posterUrl,
+    isCurrent: true,
+  });
+
+  // Sequels come after (later seasons)
+  const sequelSeasons = relations
+    .filter(r => r.relationType === 'SEQUEL' && r.type === 'ANIME' && tvFormats.has(r.format))
+    .map(r => ({ id: r.id, title: r.title, year: r.year, episodes: r.episodes, posterUrl: r.posterUrl, isCurrent: false }));
+
+  seasonChain.push(...sequelSeasons);
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -439,9 +476,20 @@ export function AnimeDetail({ id }: { id: string }) {
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-display font-black text-foreground mb-2 leading-tight drop-shadow-md">
-              {movie.title}
-            </h1>
+            {movie.logoUrl ? (
+              <div className="mb-2 max-w-[190px]">
+                <h1 className="sr-only">{movie.title}</h1>
+                <img
+                  src={movie.logoUrl}
+                  alt={movie.title}
+                  className="max-h-12 w-auto object-contain object-left drop-shadow-md"
+                />
+              </div>
+            ) : (
+              <h1 className="text-2xl font-display font-black text-foreground mb-2 leading-tight drop-shadow-md">
+                {movie.title}
+              </h1>
+            )}
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/80 mb-2.5">
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-purple-600 to-pink-600 text-white flex items-center gap-1 shadow-sm">
                 <Sparkles className="w-2.5 h-2.5 text-pink-200" /> Anime
@@ -505,9 +553,20 @@ export function AnimeDetail({ id }: { id: string }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex-1 pt-8 lg:pt-0"
           >
-            <h1 className="hidden sm:block text-4xl md:text-6xl font-display font-bold text-foreground mb-4 leading-tight drop-shadow-lg">
-              {movie.title}
-            </h1>
+            {movie.logoUrl ? (
+              <div className="hidden sm:block mb-4 max-w-[min(90vw,28rem)] lg:max-w-[min(80vw,38rem)]">
+                <h1 className="sr-only">{movie.title}</h1>
+                <img
+                  src={movie.logoUrl}
+                  alt={movie.title}
+                  className="max-h-20 sm:max-h-24 lg:max-h-32 w-auto object-contain object-left drop-shadow-2xl mb-3"
+                />
+              </div>
+            ) : (
+              <h1 className="hidden sm:block text-4xl md:text-6xl font-display font-bold text-foreground mb-4 leading-tight drop-shadow-lg">
+                {movie.title}
+              </h1>
+            )}
 
             {movie.tagline && (
               <p className="text-sm sm:text-2xl font-display italic text-foreground/80 mb-6">

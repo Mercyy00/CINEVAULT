@@ -171,6 +171,16 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
 
         setMovie(internalMovie);
 
+        if (!internalMovie.logoUrl) {
+          const mediaType = type === 'tv' ? 'tv' : 'movie';
+          api.resolveTmdbLogo(mediaType, id).then(async (logo) => {
+            const finalLogo = logo || (await api.resolveTitleLogo(internalMovie.title, mediaType));
+            if (finalLogo && mounted) {
+              setMovie((prev: any) => (prev ? { ...prev, logoUrl: finalLogo } : prev));
+            }
+          });
+        }
+
         if (type === 'tv' && details.seasons) {
           const validSeasons = details.seasons.filter((s: any) => s.season_number > 0);
           setSeasons(validSeasons);
@@ -333,9 +343,20 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-display font-black text-foreground mb-2 leading-tight drop-shadow-md">
-              {movie.title}
-            </h1>
+            {movie.logoUrl ? (
+              <div className="mb-2 max-w-[190px]">
+                <h1 className="sr-only">{movie.title}</h1>
+                <img
+                  src={movie.logoUrl}
+                  alt={movie.title}
+                  className="max-h-12 w-auto object-contain object-left drop-shadow-md"
+                />
+              </div>
+            ) : (
+              <h1 className="text-2xl font-display font-black text-foreground mb-2 leading-tight drop-shadow-md">
+                {movie.title}
+              </h1>
+            )}
             <div className="flex flex-wrap items-center gap-2 text-xs text-foreground/80 mb-2.5">
               <div className="flex items-center gap-1 text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20 font-mono font-bold">
                 <Star className="w-3 h-3 fill-current" />
@@ -391,9 +412,20 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             transition={{ duration: 0.5, delay: 0.15 }}
             className="flex-1 min-w-0 w-full"
           >
-            <h1 className="hidden sm:block text-3xl sm:text-5xl lg:text-6xl font-display font-extrabold text-foreground mb-3 leading-tight drop-shadow-lg">
-              {movie.title}
-            </h1>
+            {movie.logoUrl ? (
+              <div className="hidden sm:block mb-4 max-w-[min(90vw,28rem)] lg:max-w-[min(80vw,38rem)]">
+                <h1 className="sr-only">{movie.title}</h1>
+                <img
+                  src={movie.logoUrl}
+                  alt={movie.title}
+                  className="max-h-20 sm:max-h-24 lg:max-h-32 w-auto object-contain object-left drop-shadow-2xl mb-3"
+                />
+              </div>
+            ) : (
+              <h1 className="hidden sm:block text-3xl sm:text-5xl lg:text-6xl font-display font-extrabold text-foreground mb-3 leading-tight drop-shadow-lg">
+                {movie.title}
+              </h1>
+            )}
 
             {movie.genres?.includes('Animation') && type === 'tv' && (
               <div className="mb-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-200 text-xs sm:text-sm flex items-start gap-2.5 backdrop-blur-md">
@@ -506,8 +538,8 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   className="flex-1 sm:flex-none px-4 sm:px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border font-medium text-xs sm:text-base glass border-white/10 text-foreground hover:bg-white/15 hover:border-brand/40 active:scale-95 cursor-pointer"
                   title={
                     type === 'tv'
-                      ? `Download S${selectedSeason} E${selectedEpisode} via ModiPlay Server`
-                      : 'Download via ModiPlay Server'
+                      ? `Download S${selectedSeason} E${selectedEpisode} (4K / 1080p / Multi-Server)`
+                      : 'Download High-Speed (4K / 1080p / Multi-Server)'
                   }
                 >
                   <Download className="w-4 h-4 sm:w-5 sm:h-5 text-brand" />
@@ -667,7 +699,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                           e.stopPropagation();
                           handleDownload(selectedSeason, ep.episode_number);
                         }}
-                        title={`Download S${selectedSeason} E${ep.episode_number} via ModiPlay Server`}
+                        title={`Download S${selectedSeason} E${ep.episode_number} (Multi-Server Hub)`}
                         className="self-start sm:self-center px-3 py-2 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
                       >
                         <Download className="w-3.5 h-3.5 text-brand" />

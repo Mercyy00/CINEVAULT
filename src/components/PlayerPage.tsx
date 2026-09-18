@@ -224,8 +224,17 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     (async () => {
       try {
         const details = await api.getDetails(type, id);
-        if (!active) return;
-        setMovie(api.mapToInternalMovie({ ...details, media_type: type }));
+        const internalMovie = api.mapToInternalMovie({ ...details, media_type: type });
+        setMovie(internalMovie);
+        if (!internalMovie.logoUrl && internalMovie.title) {
+          const mediaType = type === 'tv' ? 'tv' : 'movie';
+          api.resolveTmdbLogo(mediaType, id).then(async (logo) => {
+            const finalLogo = logo || (await api.resolveTitleLogo(internalMovie.title, mediaType));
+            if (finalLogo && active) {
+              setMovie((prev) => (prev ? { ...prev, logoUrl: finalLogo } : prev));
+            }
+          }).catch(() => {});
+        }
 
         let resolvedImdb = details.external_ids?.imdb_id || details.imdb_id || '';
         if (!resolvedImdb) {
@@ -942,9 +951,20 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
-                  {movie.title}
-                </h1>
+                {movie.logoUrl ? (
+                  <div className="max-w-[140px] sm:max-w-[200px]">
+                    <h1 className="sr-only">{movie.title}</h1>
+                    <img
+                      src={movie.logoUrl}
+                      alt={movie.title}
+                      className="max-h-6 sm:max-h-8 w-auto object-contain object-left drop-shadow-md"
+                    />
+                  </div>
+                ) : (
+                  <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
+                    {movie.title}
+                  </h1>
+                )}
                 {(movie.rating ?? 0) > 0 && (
                   <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
                     <Star className="w-3 h-3 fill-current" /> {movie.rating?.toFixed(1)}
@@ -1170,9 +1190,20 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 )}
 
                 <div className="hidden lg:block min-w-0 ml-1">
-                  <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">
-                    {movie.title}
-                  </h1>
+                  {movie.logoUrl ? (
+                    <div className="max-w-[160px] xl:max-w-[240px] mb-0.5">
+                      <h1 className="sr-only">{movie.title}</h1>
+                      <img
+                        src={movie.logoUrl}
+                        alt={movie.title}
+                        className="max-h-6 xl:max-h-7 w-auto object-contain object-left drop-shadow-md"
+                      />
+                    </div>
+                  ) : (
+                    <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">
+                      {movie.title}
+                    </h1>
+                  )}
                   {type === 'tv' && selectedEpisode && (
                     <p className="text-[10px] sm:text-xs text-brand tracking-wide font-medium truncate max-w-[200px] xl:max-w-[320px]">
                       S{selectedSeason} E{selectedEpisode.episode_number}

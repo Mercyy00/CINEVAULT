@@ -25,10 +25,10 @@ import { useApp, Theme } from '../store';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
 import { navigate, goToWatch } from '../lib/navigation';
 import {
-  DICEBEAR_STYLES,
   PRESET_AVATARS,
   getUserAvatarUrl,
-  getDiceBearUrl,
+  getBoringAvatarUrl,
+  THEME_BEAM_COLORS,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
 
@@ -101,7 +101,8 @@ export function ProfilePage() {
     logout,
     syncNow,
     setAuthModalOpen,
-    setAuthModalMode
+    setAuthModalMode,
+    setOnboardingComplete,
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
@@ -373,6 +374,17 @@ export function ProfilePage() {
                     >
                       Save Changes
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOnboardingComplete(false);
+                        showToast('Re-opening CineVault Welcome & Taste Setup...');
+                      }}
+                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-foreground font-semibold text-xs sm:text-sm rounded-xl border border-white/10 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      title="Relaunch onboarding setup wizard"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-brand" /> Setup Wizard
+                    </button>
                   </div>
                 </div>
               </div>
@@ -445,22 +457,36 @@ export function ProfilePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-brand" /> DiceBear Vector Avatars
+                      <Sparkles className="w-4 h-4 text-brand" /> Boring Avatars • Beam Studio
                     </h3>
-                    <p className="text-xs text-muted-foreground mt-0.5">Choose from official DiceBear 10.x styles and presets</p>
+                    <div className="text-xs text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
+                      <span>CineVault Beam Palette:</span>
+                      <div className="flex items-center -space-x-1">
+                        {THEME_BEAM_COLORS.map((c, i) => (
+                          <span
+                            key={i}
+                            className="w-3 h-3 rounded-full border border-black/50 inline-block shadow-sm"
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+                      <span className="font-mono text-[10px] text-brand bg-brand/10 px-2 py-0.5 rounded-full border border-brand/20">
+                        variant="beam"
+                      </span>
+                    </div>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      const randomStyle = DICEBEAR_STYLES[Math.floor(Math.random() * DICEBEAR_STYLES.length)].id;
                       const randomSeed = 'User_' + Math.floor(Math.random() * 9999);
-                      const newUrl = getDiceBearUrl(randomStyle, randomSeed);
+                      const newUrl = getBoringAvatarUrl('beam', randomSeed, THEME_BEAM_COLORS);
                       updateUserProfile({ avatar: newUrl });
-                      showToast(`Generated random ${randomStyle} avatar`);
+                      showToast('Generated new Beam avatar');
                     }}
-                    className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                    className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" /> Randomize
+                    <RefreshCw className="w-3.5 h-3.5" /> Reroll Face
                   </button>
                 </div>
 

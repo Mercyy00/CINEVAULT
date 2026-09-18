@@ -11,8 +11,8 @@ import {
 import { useApp, ProfileItem } from '../store';
 import { 
   PRESET_AVATARS, 
-  DICEBEAR_STYLES, 
   getUserAvatarUrl, 
+  THEME_BEAM_COLORS,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
 import { navigate } from '../lib/navigation';
@@ -38,18 +38,18 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
 
   // Form State for Add / Edit
   const [formName, setFormName] = useState('');
-  const [formAvatar, setFormAvatar] = useState('constellation-orion');
+  const [formAvatar, setFormAvatar] = useState('beam-director');
   const [formIsKids, setFormIsKids] = useState(false);
   const [formMaxAge, setFormMaxAge] = useState('PG');
-  const [selectedAvatarStyle, setSelectedAvatarStyle] = useState('constellation');
+  const [selectedAvatarStyle, setSelectedAvatarStyle] = useState('beam');
   const [avatarSeed, setAvatarSeed] = useState('Cinephile');
 
   const openCreateModal = () => {
     setFormName('');
-    setFormAvatar('constellation-orion');
+    setFormAvatar('beam-director');
     setFormIsKids(false);
     setFormMaxAge('PG');
-    setSelectedAvatarStyle('constellation');
+    setSelectedAvatarStyle('beam');
     setAvatarSeed(`User_${Math.floor(Math.random() * 1000)}`);
     setIsCreating(true);
   };
@@ -332,29 +332,39 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
                     ))}
                   </div>
 
-                  {/* Custom DiceBear Style Picker */}
-                  <div className="glass border border-white/10 rounded-2xl p-3 bg-white/[0.02]">
-                    <div className="text-xs text-muted-foreground font-medium mb-2">Or pick a dynamic style:</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {DICEBEAR_STYLES.map((st) => (
-                        <button
-                          type="button"
-                          key={st.id}
-                          onClick={() => {
-                            setSelectedAvatarStyle(st.id);
-                            setFormAvatar(`${st.id}:${avatarSeed || formName || 'Cinephile'}`);
-                          }}
-                          className={cn(
-                            "px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer",
-                            selectedAvatarStyle === st.id
-                              ? "bg-brand text-brand-foreground font-bold"
-                              : "bg-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10"
-                          )}
-                        >
-                          {st.name}
-                        </button>
-                      ))}
+                  {/* Beam Theme Showcase & Face Reroll */}
+                  <div className="glass border border-white/10 rounded-2xl p-3.5 bg-white/[0.02] flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-brand" />
+                        CineVault Beam Theme
+                      </div>
+                      <div className="text-[11px] text-muted-foreground flex items-center gap-1.5 mt-1">
+                        <span>Palette:</span>
+                        <div className="flex items-center -space-x-1">
+                          {THEME_BEAM_COLORS.map((c, i) => (
+                            <span
+                              key={i}
+                              className="w-3 h-3 rounded-full border border-black/50 inline-block shadow-sm"
+                              style={{ backgroundColor: c }}
+                              title={c}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSeed = `User_${Math.floor(Math.random() * 9999)}`;
+                        setAvatarSeed(newSeed);
+                        setSelectedAvatarStyle('beam');
+                        setFormAvatar(`beam:${newSeed}`);
+                      }}
+                      className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors cursor-pointer shrink-0"
+                    >
+                      Reroll Face
+                    </button>
                   </div>
                 </div>
 

@@ -89,7 +89,10 @@ export function buildAnimeEmbedUrl({
       if (effectiveMalId) {
         return `https://megaplay.buzz/stream/mal/${effectiveMalId}/${epNum}/${lang}`;
       }
-      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+      if (targetAnilist) {
+        return `https://megaplay.buzz/stream/anilist/${targetAnilist}/${epNum}/${lang}`;
+      }
+      return `https://vidlink.pro/anime/${targetAnilist}/${epNum}/${lang}`;
     }
     case 'videasy': {
       if (isAnimeMovie) {
@@ -109,19 +112,19 @@ export function buildAnimeEmbedUrl({
       if (effectiveMalId) {
         return `https://gogoanime.me.uk/newplayer.php?mal_id=${effectiveMalId}&ep=${epNum}&category=${lang}`;
       }
-      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+      return `https://vidlink.pro/anime/${targetAnilist}/${epNum}/${lang}`;
     }
     case 'screenmirror': {
       if (tmdbId) {
         return `https://rozgarlelo.modiplay.xyz/embed/tmdb/tv?id=${tmdbId}&s=1&e=${epNum}`;
       }
-      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+      return `https://vidlink.pro/anime/${targetAnilist}/${epNum}/${lang}`;
     }
     case 'screenscape': {
       if (tmdbId) {
         return `https://screenscape.me/embed?tmdb=${tmdbId}&type=tv&s=1&e=${epNum}&lan=hindi`;
       }
-      return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
+      return `https://vidlink.pro/anime/${targetAnilist}/${epNum}/${lang}`;
     }
     default:
       return `https://player.videasy.to/anime/${targetAnilist}/${epNum}?color=e8852a`;
@@ -303,6 +306,14 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
 
         setMovie(internalMovie);
         anilistIdRef.current = internalMovie.anilistId || id;
+
+        if (!internalMovie.logoUrl && internalMovie.title) {
+          api.resolveTitleLogo(internalMovie.title, 'anime').then((logo: string | null) => {
+            if (logo && isMounted) {
+              setMovie((prev: any) => (prev ? { ...prev, logoUrl: logo } : prev));
+            }
+          }).catch(() => {});
+        }
         
         const isOnePiece =
           String(id) === '21' ||
@@ -314,9 +325,23 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
         const fallbackImg = internalMovie.backdropUrl || internalMovie.posterUrl || '';
         const streaming = raw.streamingEpisodes || [];
         const seededMap = new Map<number, any>();
+
+        // Detect series-level numbering for sequel cours (e.g., Cour 2 eps numbered 14-26)
+        // and remap to cour-local numbers (1-13) — matches AnimeDetail.tsx and api.ts logic
+        const parsedNums: number[] = [];
+        for (const item of streaming) {
+          const m = item.title?.match(/Episode\s+(\d+)/i);
+          if (m) parsedNums.push(parseInt(m[1], 10));
+        }
+        let seedOffset = 0;
+        if (parsedNums.length > 0 && actualCount > 0 && parsedNums.every((n) => n > actualCount)) {
+          seedOffset = Math.min(...parsedNums) - 1;
+        }
+
         streaming.forEach((item, idx) => {
           const match = item.title?.match(/Episode\s+(\d+)/i);
-          const num = match ? parseInt(match[1], 10) : idx + 1;
+          const rawNum = match ? parseInt(match[1], 10) : idx + 1;
+          const num = rawNum - seedOffset;
           if (num > 0 && (isOnePiece || num <= actualCount)) {
             const cleanTitle = item.title
               ? item.title.replace(/^Episode\s+\d+\s*[-:—]\s*/i, '').trim() || item.title
@@ -1101,9 +1126,20 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
 
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
-                  {movie.title}
-                </h1>
+                {movie.logoUrl ? (
+                  <div className="max-w-[140px] sm:max-w-[200px]">
+                    <h1 className="sr-only">{movie.title}</h1>
+                    <img
+                      src={movie.logoUrl}
+                      alt={movie.title}
+                      className="max-h-6 sm:max-h-8 w-auto object-contain object-left drop-shadow-md"
+                    />
+                  </div>
+                ) : (
+                  <h1 className="text-sm sm:text-base font-bold text-foreground truncate max-w-[180px] sm:max-w-md">
+                    {movie.title}
+                  </h1>
+                )}
                 {(movie.rating ?? 0) > 0 && (
                   <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
                     <Star className="w-3 h-3 fill-current" /> {Number(movie.rating).toFixed(1)}
@@ -1362,7 +1398,18 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                 })()}
 
                 <div className="hidden lg:block min-w-0 ml-1">
-                  <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">{movie.title}</h1>
+                  {movie.logoUrl ? (
+                    <div className="max-w-[160px] xl:max-w-[240px] mb-0.5">
+                      <h1 className="sr-only">{movie.title}</h1>
+                      <img
+                        src={movie.logoUrl}
+                        alt={movie.title}
+                        className="max-h-6 xl:max-h-7 w-auto object-contain object-left drop-shadow-md"
+                      />
+                    </div>
+                  ) : (
+                    <h1 className="text-sm sm:text-base font-bold text-foreground drop-shadow-md truncate max-w-[200px] xl:max-w-[320px]">{movie.title}</h1>
+                  )}
                   {selectedEpisode && (
                     <p className="text-[10px] sm:text-xs text-brand tracking-wide font-medium truncate max-w-[200px] xl:max-w-[320px]">
                       Episode {selectedEpisode.episode}{selectedEpisode.title ? ` — ${selectedEpisode.title}` : ''}
@@ -1712,7 +1759,18 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   <button
                     key={s.id}
                     type="button"
-                    onClick={() => setServer(s.id)}
+                    onClick={() => {
+                      setServer(s.id);
+                      updateIframeSrc(
+                        selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1,
+                        language,
+                        s.id,
+                        movie?.malId,
+                        movie?.title,
+                        tmdbIdRef.current || tmdbId,
+                        anilistIdRef.current || movie?.anilistId
+                      );
+                    }}
                     className={cn(
                       'flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 transition-all border cursor-pointer',
                       isCurrent

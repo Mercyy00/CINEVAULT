@@ -182,9 +182,11 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                 userProfile.logoStyle === 'vault' ? "brand-logo-vault" : "brand-logo-cat"
               )} 
             />
-            <span className="hidden sm:inline text-brand">
-              CineVault
-            </span>
+            {currentPath !== '/' && (
+              <span className="hidden sm:inline text-brand">
+                CineVault
+              </span>
+            )}
           </a>
         )}
 
