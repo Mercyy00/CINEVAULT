@@ -5,9 +5,9 @@ import {
   TRUSTED_ANIME_ORIGINS,
 } from '../../components/AnimePlayer';
 
-describe('animePlayback - ZokoAnime Server Integration', () => {
-  it('makes Zoko the primary server (index 0)', () => {
-    expect(ANIME_SERVERS[0].id).toBe('zokoanime');
+describe('animePlayback - Server Integration', () => {
+  it('makes MegaPlay the primary server (index 0)', () => {
+    expect(ANIME_SERVERS[0].id).toBe('megaplay');
     expect(ANIME_SERVERS[0].name).toContain('Primary');
   });
 

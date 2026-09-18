@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize, Download, Star } from 'lucide-react';
+import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize, Download, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, anilistApi } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -202,6 +202,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
   const serverSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const serverListRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<PlaybackProgress>({
     positionSeconds: 0,
     durationSeconds: null,
@@ -1590,43 +1591,68 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
 
             {/* Server & Audio Controls */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-              {/* Server selector pills */}
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5 max-w-full sm:max-w-[460px] xl:max-w-[560px]">
-                {ANIME_SERVERS.map((s) => {
-                  const isCurrent = s.id === server;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => {
-                        setServer(s.id);
-                        updateIframeSrc(
-                          selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1,
-                          language,
-                          s.id,
-                          movie?.malId,
-                          movie?.title,
-                          tmdbIdRef.current || tmdbId,
-                          anilistIdRef.current || movie?.anilistId
-                        );
-                      }}
-                      className={cn(
-                        'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border cursor-pointer',
-                        isCurrent
-                          ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-bold'
-                          : 'bg-white/5 border-white/10 text-foreground/75 hover:bg-white/10 hover:text-foreground'
-                      )}
-                    >
-                      <span
+              {/* Server selector with < > navigation arrows */}
+              <div className="flex items-center gap-1 min-w-0 max-w-full sm:max-w-[480px] xl:max-w-[580px]">
+                <button
+                  type="button"
+                  onClick={() => serverListRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
+                  className="w-7 h-7 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 text-muted-foreground hover:text-brand flex items-center justify-center cursor-pointer transition-all active:scale-90 shrink-0 shadow-sm"
+                  title="Previous servers (<)"
+                  aria-label="Previous servers"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+
+                <div
+                  ref={serverListRef}
+                  className="flex items-center gap-1.5 overflow-x-auto scroll-smooth scrollbar-none py-0.5"
+                >
+                  {ANIME_SERVERS.map((s) => {
+                    const isCurrent = s.id === server;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          setServer(s.id);
+                          updateIframeSrc(
+                            selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1,
+                            language,
+                            s.id,
+                            movie?.malId,
+                            movie?.title,
+                            tmdbIdRef.current || tmdbId,
+                            anilistIdRef.current || movie?.anilistId
+                          );
+                        }}
                         className={cn(
-                          'w-1.5 h-1.5 rounded-full shrink-0',
-                          isCurrent ? 'bg-background' : 'bg-emerald-400'
+                          'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border cursor-pointer',
+                          isCurrent
+                            ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-bold'
+                            : 'bg-white/5 border-white/10 text-foreground/75 hover:bg-white/10 hover:text-foreground'
                         )}
-                      />
-                      <span>{s.name.replace(' (Primary)', '')}</span>
-                    </button>
-                  );
-                })}
+                      >
+                        <span
+                          className={cn(
+                            'w-1.5 h-1.5 rounded-full shrink-0',
+                            isCurrent ? 'bg-background' : 'bg-emerald-400'
+                          )}
+                        />
+                        <span>{s.name.replace(' (Primary)', '')}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => serverListRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
+                  className="w-7 h-7 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 text-muted-foreground hover:text-brand flex items-center justify-center cursor-pointer transition-all active:scale-90 shrink-0 shadow-sm"
+                  title="Next servers (>)"
+                  aria-label="Next servers"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
               </div>
 
               {/* Sub/Dub Switch */}
@@ -1671,55 +1697,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
               </button>
             </div>
           </div>
-
-          {/* Clean Horizontal Episode Picker */}
-          {episodes.length > 0 && (
-            <div className="space-y-2 pt-1">
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-bold text-foreground/80 uppercase tracking-wider">
-                  Episodes ({episodes.length})
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="text-xs font-semibold text-brand hover:underline cursor-pointer"
-                >
-                  View All & Search
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2 overflow-x-auto scrollbar-none py-1 -mx-1 px-1">
-                {episodes.map((ep: any) => {
-                  const isCurrent = selectedEpisode?.episode === ep.episode || selectedEpisode?.number === ep.number;
-                  return (
-                    <button
-                      key={ep.id || ep.episode}
-                      type="button"
-                      onClick={() => handleEpisodeChange(ep)}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs shrink-0 transition-all border cursor-pointer",
-                        isCurrent
-                          ? "bg-brand text-background font-bold border-brand shadow-lg shadow-brand/20"
-                          : "bg-card/70 border-white/10 text-foreground/80 hover:bg-white/10 hover:text-foreground"
-                      )}
-                    >
-                      {isCurrent ? (
-                        <Play className="w-3 h-3 fill-current shrink-0" />
-                      ) : (
-                        <span className="w-1.5 h-1.5 rounded-full bg-white/30 shrink-0" />
-                      )}
-                      <span>EP {ep.episode || ep.number}</span>
-                      {ep.title && !ep.title.toLowerCase().startsWith('episode') && (
-                        <span className="max-w-[120px] truncate opacity-80 text-[11px] font-normal">
-                          {ep.title}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Overview */}
           {movie?.description && (

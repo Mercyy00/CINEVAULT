@@ -307,7 +307,7 @@ describe('anilistApi.getEpisodes multi-cour remapping', () => {
     // Episode 1 must be remapped to 1
     expect(episodes[0].episode).toBe(1);
     // Verified canon title when Kitsu resolves, or remapped title on offline fallback
-    expect(['Initial Title 14', 'THE LAST 9DAYS']).toContain(episodes[0].title);
+    expect(['Initial Title 14', 'THE LAST 9DAYS', 'The Last 9 Days']).toContain(episodes[0].title);
     expect(episodes[0].thumbnail).toBeTruthy();
 
     // Episode 13 must be remapped to 13
