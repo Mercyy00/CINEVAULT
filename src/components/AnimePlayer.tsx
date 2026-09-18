@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Menu, X, ArrowLeft, Play, Globe, SkipForward, SkipBack, AlertTriangle, ExternalLink, Maximize, Minimize, Download, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, anilistApi } from '../api';
@@ -490,6 +490,28 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
   const handleEpisodeChange = (ep: any) => {
     goToWatch(id, 'anime', undefined, ep.episode, movie?.malId || '0');
   };
+
+  const nextEpisodeNum = useMemo(() => {
+    if (movie?.isAnimeMovie || movie?.type === 'movie') return null;
+    const currentNum = selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1;
+    const currentIndex = episodes.findIndex(
+      (e: any) => (e.episode && e.episode === currentNum) || (e.number && e.number === currentNum)
+    );
+    if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
+      return episodes[currentIndex + 1]?.episode || episodes[currentIndex + 1]?.number || currentNum + 1;
+    }
+    if (movie?.episodeCount && currentNum < movie.episodeCount) {
+      return currentNum + 1;
+    }
+    return null;
+  }, [episodes, selectedEpisode, episode, movie]);
+
+  const handleGoToNextEpisode = useCallback(() => {
+    if (nextEpisodeNum) {
+      setShowNextEpisode(false);
+      goToWatch(id, 'anime', undefined, nextEpisodeNum, movie?.malId || malId || '0');
+    }
+  }, [nextEpisodeNum, id, movie, malId]);
   
   const handleJumpEpisode = (epNumStr: string) => {
     const num = parseInt(epNumStr);
@@ -820,6 +842,13 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
       } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         setPlayerMode('fullscreen');
         toggleFullscreen();
+      } else if (
+        (event.key === '>' || (event.key === '.' && event.shiftKey) || event.key === 'n' || event.key === 'N') &&
+        !event.ctrlKey && !event.metaKey && !event.altKey
+      ) {
+        if (nextEpisodeNum) {
+          handleGoToNextEpisode();
+        }
       } else if (event.key === 'Escape') {
         if (sidebarOpen) {
           setSidebarOpen(false);
@@ -833,7 +862,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [episodes, selectedEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
+  }, [nextEpisodeNum, handleGoToNextEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
 
   // PostMessage handler for live watch telemetry and auto-next prompt
   useEffect(() => {
@@ -1316,6 +1345,22 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                     <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />
                   )}
                 </button>
+
+                {/* Fullscreen-only Next Episode > Arrow in top bar */}
+                {isFullscreen && nextEpisodeNum && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleGoToNextEpisode();
+                    }}
+                    className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand text-background hover:brightness-110 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer shrink-0 shadow-md shadow-brand/25 active:scale-90 font-bold"
+                    title={`Next: Episode ${nextEpisodeNum} (>)`}
+                    aria-label="Next Episode"
+                  >
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5 stroke-[2.5]" />
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
@@ -1352,6 +1397,41 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
             if (serverSlowTimerRef.current) clearTimeout(serverSlowTimerRef.current);
           }}
         />
+
+        {/* Fullscreen-only Floating Next Episode > Arrow Key (Right Screen Edge) */}
+        <AnimatePresence>
+          {isFullscreen && nextEpisodeNum && (
+            <motion.button
+              key="fs-next-arrow-btn"
+              type="button"
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{
+                opacity: showControls ? 1 : 0,
+                scale: showControls ? 1 : 0.8,
+                x: showControls ? 0 : 20,
+              }}
+              exit={{ opacity: 0, scale: 0.8, x: 20 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleGoToNextEpisode();
+              }}
+              className={cn(
+                "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50",
+                "w-10 h-10 sm:w-12 sm:h-12 rounded-full",
+                "bg-black/75 hover:bg-brand text-white hover:text-background",
+                "border border-white/25 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
+                "flex items-center justify-center transition-all duration-200",
+                "hover:scale-110 active:scale-90 cursor-pointer group",
+                !showControls && "pointer-events-none"
+              )}
+              title={`Next Episode: Episode ${nextEpisodeNum} (>)`}
+              aria-label="Next Episode"
+            >
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* Resumption Prompt Overlay */}
         <AnimatePresence>

@@ -200,6 +200,17 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     return index > 0 ? (episodes[index - 1] ?? null) : null;
   }, [type, episodes, selectedEpisode]);
 
+  const nextSeasonInfo = useMemo(() => {
+    if (type !== 'tv' || !selectedEpisode) return null;
+    const currentSeasonIdx = seasons.findIndex((s) => s.season_number === selectedSeason);
+    if (currentSeasonIdx >= 0 && currentSeasonIdx < seasons.length - 1) {
+      return seasons[currentSeasonIdx + 1] ?? null;
+    }
+    return null;
+  }, [type, seasons, selectedSeason, selectedEpisode]);
+
+  const hasNextEpisode = Boolean(nextEpisode || (episodes.length > 0 && nextSeasonInfo));
+
   const nextEpisodeRef = useRef(nextEpisode);
   useEffect(() => {
     nextEpisodeRef.current = nextEpisode;
@@ -649,6 +660,15 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     [id, selectedSeason]
   );
 
+  const handleGoToNextEpisode = useCallback(() => {
+    setShowNextEpisode(false);
+    if (nextEpisode) {
+      goToEpisode(nextEpisode);
+    } else if (nextSeasonInfo) {
+      goToWatch(id, 'tv', nextSeasonInfo.season_number, 1);
+    }
+  }, [nextEpisode, nextSeasonInfo, goToEpisode, id]);
+
   useEffect(() => {
     if (!showNextEpisode) return;
     if (nextCountdown <= 0) {
@@ -799,6 +819,13 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         setPlayerMode('fullscreen');
         toggleFullscreen();
+      } else if (
+        (event.key === '>' || (event.key === '.' && event.shiftKey) || event.key === 'n' || event.key === 'N') &&
+        !event.ctrlKey && !event.metaKey && !event.altKey
+      ) {
+        if (type === 'tv' && hasNextEpisode) {
+          handleGoToNextEpisode();
+        }
       } else if (event.key === 'Escape') {
         if (sidebarOpen) {
           setSidebarOpen(false);
@@ -812,7 +839,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [nextEpisode, goToEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
+  }, [type, hasNextEpisode, handleGoToNextEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
 
   useEffect(() => {
     if (!showNextEpisode) return;
@@ -1123,6 +1150,28 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                     <Maximize className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                   )}
                 </button>
+
+                {/* Fullscreen-only Next Episode > Arrow in top bar */}
+                {isFullscreen && type === 'tv' && hasNextEpisode && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleGoToNextEpisode();
+                    }}
+                    className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand text-background hover:brightness-110 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer shrink-0 shadow-md shadow-brand/25 active:scale-90 font-bold"
+                    title={
+                      nextEpisode
+                        ? `Next: S${selectedSeason} E${nextEpisode.episode_number} (>)`
+                        : nextSeasonInfo
+                        ? `Next: Season ${nextSeasonInfo.season_number} E1 (>)`
+                        : 'Next Episode (>)'
+                    }
+                    aria-label="Next Episode"
+                  >
+                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5 stroke-[2.5]" />
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
@@ -1157,6 +1206,47 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
           />
         )}
+
+        {/* Fullscreen-only Floating Next Episode > Arrow Key (Right Screen Edge) */}
+        <AnimatePresence>
+          {isFullscreen && type === 'tv' && hasNextEpisode && (
+            <motion.button
+              key="fs-next-arrow-btn"
+              type="button"
+              initial={{ opacity: 0, scale: 0.8, x: 20 }}
+              animate={{
+                opacity: showControls ? 1 : 0,
+                scale: showControls ? 1 : 0.8,
+                x: showControls ? 0 : 20,
+              }}
+              exit={{ opacity: 0, scale: 0.8, x: 20 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleGoToNextEpisode();
+              }}
+              className={cn(
+                "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50",
+                "w-10 h-10 sm:w-12 sm:h-12 rounded-full",
+                "bg-black/75 hover:bg-brand text-white hover:text-background",
+                "border border-white/25 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
+                "flex items-center justify-center transition-all duration-200",
+                "hover:scale-110 active:scale-90 cursor-pointer group",
+                !showControls && "pointer-events-none"
+              )}
+              title={
+                nextEpisode
+                  ? `Next Episode: S${selectedSeason} E${nextEpisode.episode_number} (>)`
+                  : nextSeasonInfo
+                  ? `Next Season: S${nextSeasonInfo.season_number} E1 (>)`
+                  : 'Next Episode (>)'
+              }
+              aria-label="Next Episode"
+            >
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+            </motion.button>
+          )}
+        </AnimatePresence>
 
         {/* Resumption Prompt Overlay */}
         <AnimatePresence>
