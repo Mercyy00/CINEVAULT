@@ -413,6 +413,7 @@ function AppContent() {
     if (path === '/profile') return { route: 'profile', query: '' };
     if (path === '/profiles') return { route: 'profiles', query: '' };
     if (path === '/download' || path.startsWith('/download')) return { route: 'download', query: '' };
+    if (path === '/test-error') return { route: 'test-error', query: '' };
 
     // Search: /search or /search/<term> or /search?q=<term>
     if (path === '/search' || path.startsWith('/search/')) {
@@ -971,6 +972,9 @@ function AppContent() {
             <NotFoundPage />
           </motion.div>
         );
+
+      case 'test-error':
+        throw new Error('Preview test error to verify professional error fallback UI.');
 
       default: {
         if (route.startsWith('watch/')) {
