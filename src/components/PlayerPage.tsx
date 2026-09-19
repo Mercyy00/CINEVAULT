@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { watchTrackingService } from '../services/watchTracking';
 import { PosterImage } from './PosterImage';
+import { LemniscateBloom } from './LemniscateBloom';
 import {
   STREAM_SOURCES,
   TRUSTED_PLAYER_ORIGINS,
@@ -541,6 +542,37 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
       const payload = rawPayload as Record<string, any>;
 
+      // Generic fullscreen event handling from embed providers
+      const isFsEvent =
+        payload.type === 'fullscreen' ||
+        payload.event === 'fullscreen' ||
+        payload.event === 'fullscreenchange' ||
+        payload.action === 'fullscreen' ||
+        payload.type === 'FULLSCREEN_CHANGE' ||
+        payload.type === 'toggle_fullscreen';
+
+      if (isFsEvent) {
+        const wantsExit =
+          payload.request === 'exit' ||
+          payload.active === false ||
+          payload.fullscreen === false ||
+          payload.isFullscreen === false ||
+          payload.state === 'exit';
+        const wantsEnter =
+          payload.request === 'enter' ||
+          payload.active === true ||
+          payload.fullscreen === true ||
+          payload.isFullscreen === true ||
+          payload.state === 'enter';
+
+        if (wantsExit && (document.fullscreenElement || isFullscreen)) {
+          void toggleFullscreen();
+        } else if (wantsEnter && !document.fullscreenElement) {
+          void toggleFullscreen();
+        }
+        return;
+      }
+
       // VidLink's `MEDIA_DATA` event nests progress under the media's own id
       // rather than sending flat fields: `{ type: 'MEDIA_DATA', data: { "<id>":
       // { progress: { watched, duration } } } }`. Unwrap that one extra level
@@ -708,12 +740,14 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const toggleFullscreen = useCallback(async () => {
     try {
       const rootEl = containerRef.current || iframeRef.current;
-      if (!document.fullscreenElement) {
+      const isCurrentlyFs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+      if (!isCurrentlyFs) {
         if (rootEl?.requestFullscreen) {
           await rootEl.requestFullscreen();
         } else if ((rootEl as any)?.webkitRequestFullscreen) {
           await (rootEl as any).webkitRequestFullscreen();
         }
+        setIsFullscreen(true);
         try {
           if (screen.orientation && 'lock' in screen.orientation) {
             await (screen.orientation as any).lock('landscape').catch(() => {});
@@ -725,6 +759,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         } else if ((document as any).webkitExitFullscreen) {
           await (document as any).webkitExitFullscreen();
         }
+        setIsFullscreen(false);
+        setPlayerMode('contained');
         try {
           if (screen.orientation && 'unlock' in screen.orientation) {
             screen.orientation.unlock();
@@ -734,13 +770,14 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     } catch (err) {
       console.error('Fullscreen toggle failed:', err);
     }
-  }, []);
+  }, [setPlayerMode]);
 
   useEffect(() => {
     const onFsChange = () => {
-      const fs = !!document.fullscreenElement;
+      const fs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
       setIsFullscreen(fs);
       if (!fs) {
+        setPlayerMode('contained');
         try {
           if (screen.orientation && 'unlock' in screen.orientation) {
             screen.orientation.unlock();
@@ -754,7 +791,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       document.removeEventListener('fullscreenchange', onFsChange);
       document.removeEventListener('webkitfullscreenchange', onFsChange);
     };
-  }, []);
+  }, [setPlayerMode]);
 
   const handleMouseMove = (event: React.MouseEvent) => revealControls(event.clientY);
   const handleTouchStart = (event: React.TouchEvent) =>
@@ -817,7 +854,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         if (isFullscreen) toggleFullscreen();
         setPlayerMode('contained');
       } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        setPlayerMode('fullscreen');
         toggleFullscreen();
       } else if (
         (event.key === '>' || (event.key === '.' && event.shiftKey) || event.key === 'n' || event.key === 'N') &&
@@ -827,7 +863,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           handleGoToNextEpisode();
         }
       } else if (event.key === 'Escape') {
-        if (sidebarOpen) {
+        if (document.fullscreenElement || isFullscreen) {
+          void toggleFullscreen();
+        } else if (sidebarOpen) {
           setSidebarOpen(false);
         } else if (showNextEpisode) {
           setShowNextEpisode(false);
@@ -839,7 +877,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [type, hasNextEpisode, handleGoToNextEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
+  }, [type, hasNextEpisode, handleGoToNextEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed, isFullscreen, toggleFullscreen]);
 
   useEffect(() => {
     if (!showNextEpisode) return;
@@ -1328,12 +1366,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 <p className="text-muted-foreground text-sm">Select an episode to start watching.</p>
               ) : (
                 <>
-                  <div className="relative">
-                    <div className="w-16 h-16 border-4 border-white/10 rounded-full" />
-                    <div className="w-16 h-16 border-4 border-brand border-t-transparent rounded-full animate-spin absolute inset-0" />
-                  </div>
+                  <LemniscateBloom size={88} className="text-brand" ariaLabel={`Loading ${source.name}`} />
                   <p
-                    className="text-foreground/60 text-sm mt-4 tracking-widest uppercase font-medium"
+                    className="text-foreground/75 text-sm mt-5 tracking-widest uppercase font-semibold font-display"
                     aria-live="polite"
                   >
                     Loading {source.name}…

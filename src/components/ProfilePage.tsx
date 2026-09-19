@@ -79,6 +79,7 @@ export function ProfilePage() {
     profiles,
     activeProfile,
     switchProfile,
+    updateProfile,
     showToast,
     theme,
     setTheme,
@@ -93,8 +94,12 @@ export function ProfilePage() {
   } = useApp();
 
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
-  const [nameInput, setNameInput] = useState(userProfile.name || 'Guest');
+  const [nameInput, setNameInput] = useState(activeProfile?.name || userProfile.name || '');
   const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
+
+  useEffect(() => {
+    setNameInput(activeProfile?.name || userProfile.name || '');
+  }, [activeProfile?.id, activeProfile?.name, userProfile.name]);
 
   const handleClose = () => {
     const current = window.location.pathname;
@@ -123,9 +128,13 @@ export function ProfilePage() {
   }, []);
 
   const handleNameSave = () => {
-    if (!nameInput.trim()) return;
-    updateUserProfile({ name: nameInput.trim() });
-    showToast('Profile display name updated');
+    const trimmed = nameInput.trim();
+    if (!trimmed) return;
+    if (activeProfile?.id) {
+      updateProfile(activeProfile.id, { name: trimmed });
+    }
+    updateUserProfile({ name: trimmed });
+    showToast(`Display name updated to "${trimmed}"`);
   };
 
   const handleClearSearch = () => {
@@ -182,14 +191,16 @@ export function ProfilePage() {
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border shadow-sm mb-4">
               <div className="w-10 h-10 rounded-full overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shadow-sm shrink-0">
                 <img
-                  src={getUserAvatarUrl(userProfile.avatar, userProfile.name)}
+                  src={getUserAvatarUrl(activeProfile?.avatar || userProfile.avatar, activeProfile?.name || userProfile.name)}
                   alt="User Avatar"
                   className="w-full h-full object-contain"
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <h4 className="text-sm font-bold text-foreground truncate">{userProfile.name || 'User'}</h4>
-                <p className="text-[11px] text-muted-foreground truncate">{userProfile.isLoggedIn ? userProfile.email : 'Guest'}</p>
+                <h4 className="text-sm font-bold text-foreground truncate">{activeProfile?.name || userProfile.name || 'User'}</h4>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {userProfile.isLoggedIn ? userProfile.email : (activeProfile?.isKids ? 'Kids Profile' : 'Local Profile')}
+                </p>
               </div>
             </div>
 
@@ -251,7 +262,7 @@ export function ProfilePage() {
                 <div className="h-28 bg-gradient-to-r from-brand/25 via-brand/10 to-transparent border-b border-border relative" />
                 <div className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-black/80 shadow-md flex items-center justify-center p-1 overflow-hidden">
                   <img
-                    src={getUserAvatarUrl(userProfile.avatar, userProfile.name)}
+                    src={getUserAvatarUrl(activeProfile?.avatar || userProfile.avatar, activeProfile?.name || userProfile.name)}
                     alt="User Avatar"
                     className="w-full h-full object-contain"
                   />
@@ -260,9 +271,18 @@ export function ProfilePage() {
                 <div className="pt-10 px-6 pb-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
                     <div>
-                      <h3 className="text-xl font-bold text-foreground">{userProfile.name || 'Guest'}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xl font-bold text-foreground">{activeProfile?.name || userProfile.name || 'User'}</h3>
+                        {activeProfile?.isKids && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-pink-500/20 text-pink-400 border border-pink-500/30 uppercase">
+                            Kids Mode
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {userProfile.isLoggedIn ? userProfile.email : 'Not signed in'}
+                        {userProfile.isLoggedIn 
+                          ? `Cloud Account: ${userProfile.email}` 
+                          : 'Active Viewer Profile • Saved on this device'}
                       </p>
                     </div>
 
@@ -387,10 +407,13 @@ export function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
-                      const randomSeed = 'User_' + Math.floor(Math.random() * 9999);
+                      const randomSeed = (activeProfile?.name || userProfile.name || 'User') + '_' + Math.floor(Math.random() * 9999);
                       const newUrl = getBoringAvatarUrl('beam', randomSeed, THEME_BEAM_COLORS);
+                      if (activeProfile?.id) {
+                        updateProfile(activeProfile.id, { avatar: newUrl });
+                      }
                       updateUserProfile({ avatar: newUrl });
-                      showToast('Generated new avatar');
+                      showToast(`Generated new avatar for ${activeProfile?.name || 'profile'}`);
                     }}
                     className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
                   >
@@ -400,14 +423,19 @@ export function ProfilePage() {
 
                 <div className="grid grid-cols-4 sm:grid-cols-8 gap-3 pt-2">
                   {[EMPTY_AVATAR_PRESET, ...PRESET_AVATARS].map((avatar) => {
+                    const currentAvatar = activeProfile?.avatar || userProfile.avatar || DEFAULT_EMPTY_AVATAR;
                     const isSelected =
-                      (userProfile.avatar || DEFAULT_EMPTY_AVATAR) === avatar.url ||
-                      (avatar.id === 'empty-default' && (!userProfile.avatar || userProfile.avatar === DEFAULT_EMPTY_AVATAR || userProfile.avatar === 'empty'));
+                      currentAvatar === avatar.url ||
+                      currentAvatar === avatar.id ||
+                      (avatar.id === 'empty-default' && (!currentAvatar || currentAvatar === DEFAULT_EMPTY_AVATAR || currentAvatar === 'empty'));
                     return (
                       <button
                         key={avatar.id}
                         type="button"
                         onClick={() => {
+                          if (activeProfile?.id) {
+                            updateProfile(activeProfile.id, { avatar: avatar.url });
+                          }
                           updateUserProfile({ avatar: avatar.url });
                           showToast(`Avatar set: ${avatar.name}`);
                         }}

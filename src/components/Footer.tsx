@@ -91,7 +91,7 @@ export function Footer() {
   return (
     <>
       <footer className="w-full border-t border-white/10 mt-20 relative z-20 bg-background/80 backdrop-blur-2xl">
-        <div className="max-w-[1600px] mx-auto px-4 md:px-10 pt-14 pb-28">
+        <div className="w-full px-4 sm:px-8 lg:px-12 pt-14 pb-28">
           {/* Top Section with Brand & Navigation Columns */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-white/10">
             {/* Brand Column */}

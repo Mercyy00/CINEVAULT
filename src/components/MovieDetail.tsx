@@ -23,6 +23,7 @@ import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
 import { ActorModal } from './ActorModal';
 import { Breadcrumbs } from './Breadcrumbs';
+import { LemniscateBloom } from './LemniscateBloom';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 import { navigate, goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 import { triggerHaptic } from '../lib/mobile';
@@ -686,7 +687,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
               {isLoadingEpisodes ? (
                 <div className="py-12 flex justify-center">
-                  <div className="w-10 h-10 border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
+                  <LemniscateBloom size={56} className="text-brand" ariaLabel="Loading episodes" />
                 </div>
               ) : (
                 episodes.map((ep: any) => (

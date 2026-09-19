@@ -22,6 +22,7 @@ import { ROUTE_SEO, updateSeoMetadata } from './lib/seo';
 import { BackToTop } from './components/BackToTop';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
+import { LemniscateBloom } from './components/LemniscateBloom';
 
 const MovieDetail = lazy(() =>
   import('./components/MovieDetail').then((m) => ({ default: m.MovieDetail }))
@@ -72,11 +73,14 @@ const INTRO_KEY = 'cv:introPlayed';
 function RouteLoading() {
   return (
     <div
-      className="min-h-screen flex items-center justify-center bg-background"
+      className="min-h-screen flex flex-col items-center justify-center bg-background gap-4"
       role="status"
       aria-label="Loading page"
     >
-      <div className="w-10 h-10 border-4 border-brand/30 border-t-brand rounded-full animate-spin" />
+      <LemniscateBloom size={76} className="text-brand" ariaLabel="Loading page" />
+      <span className="text-xs font-mono tracking-widest text-muted-foreground uppercase opacity-75 animate-pulse">
+        Loading...
+      </span>
     </div>
   );
 }
@@ -197,7 +201,7 @@ function AppContent() {
   useEffect(() => {
     const handleCloseFloating = () => {
       setActiveWatchInfo(null);
-      setPlayerMode('fullscreen');
+      setPlayerMode('contained');
       if (window.location.pathname.startsWith('/watch/')) {
         navigate(lastBrowseRoute && !lastBrowseRoute.startsWith('watch/') ? lastBrowseRoute : '/');
       }

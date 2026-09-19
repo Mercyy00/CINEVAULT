@@ -87,9 +87,9 @@ export function MovieCard({
       onClick={onClick}
       onKeyDown={handleKeyDown}
       data-movie-card
-      className="relative aspect-[2/3] w-full select-none cursor-pointer group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070a] transition-transform duration-300 ease-out hover:-translate-y-1.5"
+      className="relative aspect-[2/3] w-full select-none cursor-pointer group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070a] transition-transform duration-200 ease-out hover:-translate-y-1 will-change-transform"
     >
-      <div className="double-bezel-card p-[1.5px] rounded-2xl w-full h-full transition-all duration-300 ease-out group-hover:shadow-[0_16px_36px_-8px_rgba(0,0,0,0.8),0_0_24px_var(--theme-accent-glow,rgba(232,133,42,0.3))] group-hover:border-white/25">
+      <div className="double-bezel-card p-[1.5px] rounded-2xl w-full h-full transition-all duration-200 ease-out group-hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] group-hover:border-white/25">
         <div className="aspect-[2/3] w-full double-bezel-inner rounded-[calc(1rem-1.5px)] overflow-hidden relative bg-[#090a0f]">
           {/* Specular top sheen line */}
           <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent z-20 pointer-events-none" />

@@ -380,12 +380,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [telemetryConsent, setTelemetryConsentState] = useState<ConsentState>(getTelemetryConsent);
   const [playerMode, setPlayerModeState] = useState<PlayerMode>(() => {
     const saved = readString(StorageKeys.playerMode, 'contained');
-    return saved === 'floating' ? 'floating' : saved === 'fullscreen' ? 'fullscreen' : 'contained';
+    return saved === 'floating' ? 'floating' : 'contained';
   });
 
   const setPlayerMode = useCallback((mode: PlayerMode) => {
     setPlayerModeState(mode);
-    writeString(StorageKeys.playerMode, mode);
+    if (mode === 'floating' || mode === 'contained') {
+      writeString(StorageKeys.playerMode, mode);
+    }
   }, []);
 
   /* Read during render, persisted in an effect. The previous version called a
@@ -405,8 +407,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
       {},
       (value) => typeof value === 'object' && value !== null
     );
+    const storedProfiles = readJSON<ProfileItem[]>(StorageKeys.profiles, [], Array.isArray);
+    const storedActiveId = readString(StorageKeys.activeProfileId, 'default');
+    const matchedProfile = storedProfiles.find((p) => p.id === storedActiveId) || storedProfiles[0];
+
+    const initialName =
+      stored.name && stored.name !== 'Guest'
+        ? stored.name
+        : matchedProfile?.name && matchedProfile.name !== 'Primary'
+        ? matchedProfile.name
+        : stored.name || fallback.name;
+
+    const initialAvatar =
+      stored.avatar && stored.avatar !== DEFAULT_EMPTY_AVATAR
+        ? stored.avatar
+        : matchedProfile?.avatar
+        ? matchedProfile.avatar
+        : fallback.avatar;
+
     const resolvedLogo = stored.logoStyle === 'vault' ? 'vault' : 'cat';
-    return { ...fallback, ...stored, logoStyle: resolvedLogo, uid: stored.uid || fallback.uid };
+    return {
+      ...fallback,
+      ...stored,
+      name: initialName,
+      avatar: initialAvatar,
+      logoStyle: resolvedLogo,
+      uid: stored.uid || fallback.uid,
+    };
   });
 
   // ── Multi-Profile Management ─────────────────────────────────────────
@@ -975,6 +1002,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
    */
   const updateUserProfile = useCallback((updates: Partial<UserProfile>) => {
     setUserProfile((previous) => ({ ...previous, ...updates }));
+    if (updates.name || updates.avatar) {
+      setProfiles((prev) => {
+        const activeId = latest.current.activeProfileId;
+        return prev.map((p) =>
+          p.id === activeId
+            ? {
+                ...p,
+                ...(updates.name ? { name: updates.name } : {}),
+                ...(updates.avatar ? { avatar: updates.avatar } : {}),
+              }
+            : p
+        );
+      });
+    }
   }, []);
 
   const clearProfile = useCallback(() => {
@@ -1032,6 +1073,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setContinueWatching(target.continueWatching ?? []);
       if (target.theme && isTheme(target.theme)) setThemeState(target.theme);
       if (target.appFont) setAppFontState(normalizeFontId(target.appFont));
+      setUserProfile((prev) => {
+        if (!prev.isLoggedIn) {
+          return {
+            ...prev,
+            name: target.name,
+            avatar: target.avatar,
+          };
+        }
+        return prev;
+      });
       showToast(`Switched to ${target.name}${target.isKids ? ' (Kids Mode)' : ''}`);
     },
     [showToast]
@@ -1061,6 +1112,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProfiles((prev) =>
         prev.map((p) => (p.id === profileId ? { ...p, ...updates } : p))
       );
+      if (latest.current.activeProfileId === profileId) {
+        setUserProfile((prev) => {
+          if (!prev.isLoggedIn) {
+            return {
+              ...prev,
+              ...(updates.name ? { name: updates.name } : {}),
+              ...(updates.avatar ? { avatar: updates.avatar } : {}),
+            };
+          }
+          return prev;
+        });
+      }
       showToast('Profile updated');
     },
     [showToast]

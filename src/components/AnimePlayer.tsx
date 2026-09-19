@@ -9,6 +9,7 @@ import { TRUSTED_PLAYER_ORIGINS } from '../config/servers';
 import { COMPLETION_THRESHOLD, isResumable } from '../lib/playback';
 import { updateSeoMetadata } from '../lib/seo';
 import { goToWatch, goToDetail, goToDownload } from '../lib/navigation';
+import { LemniscateBloom } from './LemniscateBloom';
 
 export type AnimeServerId = 'zokoanime' | 'megaplay' | 'videasy' | 'vidlink' | 'vidstuck' | 'screenmirror' | 'gogoanime' | 'screenscape';
 
@@ -1479,14 +1480,8 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
               exit={{ opacity: 0 }}
               className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-background"
             >
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-white/10 rounded-full"></div>
-                <div className="w-16 h-16 border-4 border-brand border-t-transparent rounded-full animate-spin absolute inset-0"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-2 h-2 bg-brand rounded-full animate-pulse"></div>
-                </div>
-              </div>
-              <p className="text-foreground/60 text-sm mt-4 tracking-widest uppercase font-medium animate-pulse">Loading Episode...</p>
+              <LemniscateBloom size={88} className="text-brand" ariaLabel="Loading Episode" />
+              <p className="text-foreground/75 text-sm mt-5 tracking-widest uppercase font-semibold font-display">Loading Episode...</p>
             </motion.div>
           )}
         </AnimatePresence>

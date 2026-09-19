@@ -103,11 +103,11 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
 
       {/* Loading Skeletons */}
       {loading ? (
-        <div className="flex gap-4 sm:gap-5 overflow-hidden px-4 sm:px-8 lg:px-12">
-          {Array.from({ length: 6 }, (_, i) => (
+        <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12">
+          {Array.from({ length: 8 }, (_, i) => (
             <div
               key={`sched-skel-${i}`}
-              className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] aspect-[2/3] rounded-2xl bg-[#12131b] border border-white/5 relative overflow-hidden skeleton-shimmer"
+              className="flex-shrink-0 w-[125px] sm:w-[145px] md:w-[165px] lg:w-[180px] 2xl:w-[190px] aspect-[2/3] rounded-2xl bg-[#12131b] border border-white/5 relative overflow-hidden skeleton-shimmer"
             />
           ))}
         </div>
@@ -163,7 +163,7 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
           {/* Carousel Track */}
           <ul
             {...scrollerProps}
-            className="flex gap-3.5 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-3 pb-8 -my-2 snap-x select-none list-none m-0 will-change-scroll"
+            className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-3 pb-8 -my-2 snap-x select-none list-none m-0 will-change-scroll"
           >
             {schedule.map((anime) => {
               const airingInfo = anime.nextAiringEpisode
@@ -173,7 +173,7 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
               return (
                 <li
                   key={`sched-${anime.id}`}
-                  className="flex-shrink-0 w-[145px] sm:w-[175px] md:w-[200px] snap-start"
+                  className="flex-shrink-0 w-[125px] sm:w-[145px] md:w-[165px] lg:w-[180px] 2xl:w-[190px] snap-start"
                 >
                   <button
                     type="button"
@@ -183,7 +183,7 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
                     }}
                     className="w-full text-left group/card cursor-pointer focus:outline-none"
                   >
-                    <div className="relative aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 group-hover/card:border-brand/50 transition-all duration-300 shadow-card group-hover/card:shadow-brand/20 group-hover/card:-translate-y-1 bg-[#101118]">
+                    <div className="relative aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 group-hover/card:border-white/25 transition-all duration-200 shadow-card group-hover/card:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] group-hover/card:-translate-y-1 bg-[#101118]">
                       <PosterImage
                         src={anime.posterUrl}
                         sizes={POSTER_SIZES}

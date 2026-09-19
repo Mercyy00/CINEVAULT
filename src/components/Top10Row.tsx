@@ -150,13 +150,13 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
     return (
       <section className="mb-12 sm:mb-16 w-full select-none" aria-busy="true" aria-label="Loading Top 10 Today">
         {heading}
-        <div className="flex gap-4 sm:gap-6 overflow-hidden px-4 sm:px-8 lg:px-12 py-6">
-          {Array.from({ length: 6 }, (_, i) => (
+        <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12 py-6">
+          {Array.from({ length: 8 }, (_, i) => (
             <div key={`top10-skeleton-${i}`} className="flex items-end shrink-0">
-              <div className="top10-numeral-3d text-[110px] sm:text-[160px] md:text-[195px] opacity-20 -mr-6 sm:-mr-10 z-0">
+              <div className="top10-numeral-3d text-[85px] sm:text-[105px] md:text-[125px] lg:text-[145px] xl:text-[160px] opacity-20 -mr-6 sm:-mr-8 md:-mr-10 z-0">
                 {i + 1}
               </div>
-              <div className="w-[145px] sm:w-[175px] md:w-[205px] lg:w-[230px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative z-10 overflow-hidden">
+              <div className="w-[115px] sm:w-[135px] md:w-[155px] lg:w-[170px] xl:w-[180px] 2xl:w-[185px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative z-10 overflow-hidden">
                 <div className="w-full h-full skeleton-shimmer bg-[#12131b] rounded-[calc(1.25rem-1.5px)] p-3 flex flex-col justify-between" />
               </div>
             </div>
@@ -223,7 +223,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
             clicks meant for the rows above and below. */}
         <ul
           {...scrollerProps}
-          className="flex gap-3 sm:gap-6 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-8 sm:pt-10 pb-12 sm:pb-14 -my-6 sm:-my-8 snap-x select-none list-none m-0 items-end will-change-scroll"
+          className="flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-8 sm:pt-10 pb-12 sm:pb-14 -my-6 sm:-my-8 snap-x select-none list-none m-0 items-end will-change-scroll"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;
@@ -256,16 +256,16 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                 <div
                   aria-hidden="true"
                   className={cn(
-                    "top10-numeral-3d -mr-7 sm:-mr-10 md:-mr-12 lg:-mr-14 z-0 relative",
-                    "text-[130px] sm:text-[170px] md:text-[205px] lg:text-[240px]",
+                    "top10-numeral-3d -mr-6 sm:-mr-8 md:-mr-10 lg:-mr-11 xl:-mr-12 z-0 relative",
+                    "text-[95px] sm:text-[115px] md:text-[135px] lg:text-[155px] xl:text-[170px] 2xl:text-[180px]",
                     rankNumeralClass,
-                    rank === 10 && "-mr-9 sm:-mr-13 md:-mr-16 lg:-mr-20 tracking-tighter"
+                    rank === 10 && "-mr-8 sm:-mr-10 md:-mr-12 lg:-mr-14 xl:-mr-15 tracking-tighter"
                   )}
                 >
                   {rank}
                 </div>
 
-                <div className="w-[145px] sm:w-[175px] md:w-[205px] lg:w-[230px] relative z-10 flex flex-col">
+                <div className="w-[115px] sm:w-[135px] md:w-[155px] lg:w-[170px] xl:w-[180px] 2xl:w-[185px] relative z-10 flex flex-col">
                   {rank === 1 && (
                     <div className="mb-2 flex items-center gap-1.5 self-start">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-gradient-to-r from-[#ffcf33]/25 to-[#e8852a]/20 text-[#ffe885] border border-[#ffcf33]/40 backdrop-blur-md shadow-sm">

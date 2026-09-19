@@ -259,7 +259,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
   }
 
   const heading = (
-    <div className="flex items-center justify-between mb-4 px-3 sm:px-6 lg:px-8">
+    <div className="flex items-center justify-between mb-4 px-3 sm:px-8 lg:px-12">
       <div className="flex items-center gap-3">
         {/* Category Accent Pip */}
         <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))]" />
@@ -299,11 +299,11 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
         aria-label={`${title}, loading`}
       >
         {heading}
-        <div className="flex gap-4 sm:gap-5 overflow-hidden px-4 sm:px-8 lg:px-12">
+        <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12">
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="flex-shrink-0 w-[150px] sm:w-[180px] md:w-[210px] lg:w-[240px] xl:w-[260px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
+              className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[170px] lg:w-[185px] xl:w-[200px] 2xl:w-[210px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
             >
               <div className="w-full h-full skeleton-shimmer bg-[#12131b] rounded-[calc(1.25rem-1.5px)] p-3 flex flex-col justify-between">
                 <div className="flex justify-between items-center">
@@ -385,23 +385,23 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
             and below and swallowed clicks meant for them. */}
         <ul
           {...scrollerProps}
-          className="flex gap-3 sm:gap-5 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-10 sm:pb-12 -my-6 sm:-my-8 snap-x select-none list-none m-0 will-change-scroll"
+          className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-10 sm:pb-12 -my-6 sm:-my-8 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[155px] sm:w-[190px] md:w-[220px] lg:w-[245px] xl:w-[270px] relative"
+              className="snap-start flex-shrink-0 w-[130px] sm:w-[150px] md:w-[170px] lg:w-[185px] xl:w-[200px] 2xl:w-[210px] relative"
             >
               <MovieCard
                 movie={movie}
                 onClick={() => onMovieSelect(movie.id, movie.type)}
                 tabIndex={idx === rovingIndex ? 0 : -1}
-                priority={isLeadRow && idx < 5}
+                priority={isLeadRow && idx < 8}
               />
             </li>
           ))}
           {loadingMore && (
-            <li className="flex-shrink-0 w-[155px] sm:w-[190px] md:w-[220px] lg:w-[245px] xl:w-[270px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
+            <li className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[170px] lg:w-[185px] xl:w-[200px] 2xl:w-[210px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
           )}
         </ul>
 

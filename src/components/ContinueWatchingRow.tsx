@@ -89,7 +89,7 @@ export function ContinueWatchingRow() {
               delay: Math.min(idx * 0.06, 0.35),
               ease: [0.16, 1, 0.3, 1],
             }}
-            className="flex-shrink-0 w-[260px] sm:w-[320px] aspect-video rounded-2xl bg-white/5 relative border border-white/10 group cursor-pointer snap-start overflow-hidden transition-all hover:scale-[1.03] hover:border-brand/50 shadow-card"
+            className="flex-shrink-0 w-[200px] sm:w-[240px] md:w-[260px] lg:w-[270px] 2xl:w-[280px] aspect-video rounded-2xl bg-white/5 relative border border-white/10 group cursor-pointer snap-start overflow-hidden transition-all hover:scale-[1.02] hover:border-white/25 shadow-card"
             onClick={() => {
               goToWatch(
                 item.id,
@@ -179,7 +179,7 @@ export function ContinueWatchingRow() {
             {/* High-Visibility Progress Bar */}
             <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/80 z-20 overflow-hidden">
               <div
-                className="h-full bg-brand shadow-[0_0_10px_var(--brand)] transition-all duration-300 rounded-r-full"
+                className="h-full bg-brand transition-all duration-300 rounded-r-full"
                 style={{
                   width: `${Math.max(4, Math.min(100, item.progress_percentage || 0))}%`,
                 }}

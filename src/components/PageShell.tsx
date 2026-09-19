@@ -344,7 +344,7 @@ export function PageShell({
     <div className="pb-12 min-h-screen">
       {!isSearch && <Hero type={defaultType} onMovieSelect={onMovieSelect} />}
 
-      <div className={`max-w-[1600px] mx-auto px-4 md:px-10 ${isSearch ? 'pt-24' : 'pt-8'}`}>
+      <div className={`w-full px-4 sm:px-8 lg:px-12 ${isSearch ? 'pt-24' : 'pt-8'}`}>
         <Breadcrumbs items={[{ label: title }]} />
 
         <div className="mb-8 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
@@ -459,10 +459,10 @@ export function PageShell({
           </div>
         ) : loading && movies.length === 0 ? (
           <div
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3.5 sm:gap-4.5"
             aria-busy="true"
           >
-            {Array.from({ length: 12 }, (_, i) => (
+            {Array.from({ length: 16 }, (_, i) => (
               <div
                 key={`skeleton-${i}`}
                 className="aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
@@ -483,7 +483,7 @@ export function PageShell({
         ) : movies.length > 0 ? (
           <>
             <div
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3.5 sm:gap-4.5"
               role="tabpanel"
               aria-busy={loadingMore}
             >
@@ -495,7 +495,7 @@ export function PageShell({
                   <MovieCard
                     movie={movie}
                     onClick={() => onMovieSelect(movie.id, movie.type)}
-                    priority={index < 6}
+                    priority={index < 8}
                   />
                 </div>
               ))}
