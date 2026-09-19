@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 
 interface Props {
   children?: ReactNode;
@@ -52,40 +53,38 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center text-white font-sans">
-          <div className="text-6xl mb-4 animate-bounce" aria-hidden="true">
-            📽️
-          </div>
-          <h1 className="text-3xl md:text-5xl font-display font-black mb-3 text-[#D4A853]">
-            Something went wrong in the projection room.
-          </h1>
-          <p className="text-sm md:text-base text-gray-400 mb-6 max-w-lg">
-            We encountered a temporary render issue. Try reloading or resetting the scene.
-          </p>
-
-          {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-950/40 border border-red-800/50 text-red-300 font-mono text-xs text-left max-w-lg max-h-32 overflow-auto custom-scrollbar">
-              <p className="font-bold mb-1">Error Trace:</p>
-              <p>{error.message}</p>
+        <div className="min-h-screen bg-[#07080b] flex flex-col items-center justify-center p-6 text-center text-foreground font-sans select-none">
+          <div className="relative mb-6">
+            <div className="absolute inset-0 rounded-full bg-brand/20 filter blur-2xl -z-10" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-card border border-brand/30 flex items-center justify-center shadow-xl shadow-brand/10 backdrop-blur-xl">
+              <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-brand stroke-[1.75]" />
             </div>
-          )}
+          </div>
+          <h1 className="text-2xl sm:text-4xl font-display font-bold text-foreground mb-3 tracking-tight">
+            Unable to Load Application
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground mb-8 max-w-md leading-relaxed">
+            An unexpected error occurred while loading CineVault. Please refresh the page to restore your session.
+          </p>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               type="button"
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-[#D4A853] text-black font-bold rounded-xl hover:bg-yellow-400 transition-all cursor-pointer text-sm shadow-lg"
+              className="flex items-center gap-2 px-6 py-3 bg-brand text-background font-bold rounded-full hover:brightness-110 transition-all cursor-pointer text-sm shadow-lg shadow-brand/20 active:scale-95"
             >
-              Reload App
+              <RefreshCw className="w-4 h-4" />
+              <span>Reload App</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 window.location.href = '/';
               }}
-              className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl transition-all cursor-pointer text-sm border border-white/10"
+              className="flex items-center gap-2 px-6 py-3 bg-card hover:bg-white/10 text-foreground font-semibold rounded-full transition-all cursor-pointer text-sm border border-white/10 active:scale-95"
             >
-              Return to Home
+              <Home className="w-4 h-4" />
+              <span>Return to Home</span>
             </button>
           </div>
         </div>

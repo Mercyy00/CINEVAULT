@@ -23,39 +23,63 @@ import { BackToTop } from './components/BackToTop';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { LemniscateBloom } from './components/LemniscateBloom';
+import { AlertCircle, RefreshCw, Home } from 'lucide-react';
 
-const MovieDetail = lazy(() =>
+function safeLazy<T extends React.ComponentType<any>>(
+  factory: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    try {
+      return await factory();
+    } catch (error: any) {
+      const isChunkError = /Failed to fetch dynamically imported module|error loading dynamically imported module|Loading chunk/i.test(
+        error?.message || ''
+      );
+      if (isChunkError) {
+        const hasReloaded = sessionStorage.getItem('cv_chunk_reload');
+        if (!hasReloaded) {
+          sessionStorage.setItem('cv_chunk_reload', 'true');
+          window.location.reload();
+          return new Promise<{ default: T }>(() => {});
+        }
+      }
+      throw error;
+    }
+  });
+}
+
+const MovieDetail = safeLazy(() =>
   import('./components/MovieDetail').then((m) => ({ default: m.MovieDetail }))
 );
-const AnimeDetail = lazy(() =>
+const AnimeDetail = safeLazy(() =>
   import('./components/AnimeDetail').then((m) => ({ default: m.AnimeDetail }))
 );
-const PlayerPage = lazy(() =>
+const PlayerPage = safeLazy(() =>
   import('./components/PlayerPage').then((m) => ({ default: m.PlayerPage }))
 );
-const AnimePlayer = lazy(() =>
+const AnimePlayer = safeLazy(() =>
   import('./components/AnimePlayer').then((m) => ({ default: m.AnimePlayer }))
 );
-const PageShell = lazy(() =>
+const PageShell = safeLazy(() =>
   import('./components/PageShell').then((m) => ({ default: m.PageShell }))
 );
-const MyList = lazy(() => import('./components/MyList').then((m) => ({ default: m.MyList })));
-const ProfilePage = lazy(() =>
+const MyList = safeLazy(() => import('./components/MyList').then((m) => ({ default: m.MyList })));
+const ProfilePage = safeLazy(() =>
   import('./components/ProfilePage').then((m) => ({ default: m.ProfilePage }))
 );
-const ProfileSwitcher = lazy(() =>
+const ProfileSwitcher = safeLazy(() =>
   import('./components/ProfileSwitcher').then((m) => ({ default: m.ProfileSwitcher }))
 );
-const MoodFinderOverlay = lazy(() =>
+const MoodFinderOverlay = safeLazy(() =>
   import('./components/MoodFinderOverlay').then((m) => ({ default: m.MoodFinderOverlay }))
 );
-const AdminDashboard = lazy(() =>
+const AdminDashboard = safeLazy(() =>
   import('./components/AdminDashboard').then((m) => ({ default: m.AdminDashboard }))
 );
-const NotFoundPage = lazy(() =>
+const NotFoundPage = safeLazy(() =>
   import('./components/NotFoundPage').then((m) => ({ default: m.NotFoundPage }))
 );
-const DownloadPage = lazy(() =>
+const DownloadPage = safeLazy(() =>
   import('./components/DownloadPage').then((m) => ({ default: m.DownloadPage }))
 );
 
@@ -94,28 +118,53 @@ function RouteLoading() {
  * This keeps the chrome intact and offers a way out that isn't a reload.
  */
 function RouteError({ error, onRetry }: { error: Error; onRetry: () => void }) {
-  return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center px-6 py-20 text-center">
-      <div className="text-5xl mb-5" aria-hidden="true">
-        🎬
-      </div>
-      <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3">
-        This page didn’t load.
-      </h1>
-      <p className="text-sm text-muted-foreground max-w-md mb-6">
-        Something in this view failed to render. The rest of CineVault is still working — try again,
-        or head back to the home page.
-      </p>
+  const isChunkError = /Failed to fetch dynamically imported module|error loading dynamically imported module|Loading chunk/i.test(
+    error?.message || ''
+  );
 
-      <p className="mb-8 max-w-lg font-mono text-xs text-red-300/80 break-words">{error.message}</p>
+  useEffect(() => {
+    if (isChunkError) {
+      const hasReloaded = sessionStorage.getItem('cv_chunk_reload');
+      if (!hasReloaded) {
+        sessionStorage.setItem('cv_chunk_reload', 'true');
+        window.location.reload();
+      }
+    }
+  }, [isChunkError]);
+
+  return (
+    <div className="min-h-[65vh] flex flex-col items-center justify-center px-4 py-16 text-center select-none">
+      <div className="relative mb-6">
+        <div className="absolute inset-0 rounded-full bg-brand/20 filter blur-xl -z-10" />
+        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-card/90 border border-brand/30 flex items-center justify-center shadow-xl shadow-brand/10 backdrop-blur-xl">
+          <AlertCircle className="w-8 h-8 sm:w-10 sm:h-10 text-brand stroke-[1.75]" />
+        </div>
+      </div>
+
+      <h1 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3 tracking-tight">
+        Unable to Load Content
+      </h1>
+
+      <p className="text-sm sm:text-base text-muted-foreground max-w-md mb-8 leading-relaxed">
+        {isChunkError
+          ? 'A newer version of CineVault is available. Please refresh to load the latest updates.'
+          : 'We encountered an unexpected issue while loading this section. Please try again or return to browse our catalog.'}
+      </p>
 
       <div className="flex flex-wrap items-center justify-center gap-3">
         <button
           type="button"
-          onClick={onRetry}
-          className="px-6 py-3 bg-brand text-background font-bold rounded-full text-sm hover:brightness-110 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white"
+          onClick={() => {
+            if (isChunkError) {
+              window.location.reload();
+            } else {
+              onRetry();
+            }
+          }}
+          className="flex items-center gap-2 px-6 py-3 bg-brand text-background font-bold rounded-full text-sm hover:brightness-110 active:scale-95 transition-all cursor-pointer shadow-lg shadow-brand/20 outline-none"
         >
-          Try again
+          <RefreshCw className="w-4 h-4" />
+          <span>{isChunkError ? 'Refresh Page' : 'Try Again'}</span>
         </button>
         <button
           type="button"
@@ -123,9 +172,10 @@ function RouteError({ error, onRetry }: { error: Error; onRetry: () => void }) {
             onRetry();
             navigate('/');
           }}
-          className="px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-bold rounded-full text-sm transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          className="flex items-center gap-2 px-6 py-3 bg-card/80 hover:bg-white/10 border border-white/10 text-foreground font-semibold rounded-full text-sm transition-all cursor-pointer active:scale-95"
         >
-          Back to home
+          <Home className="w-4 h-4" />
+          <span>Back to Home</span>
         </button>
       </div>
     </div>
