@@ -1153,16 +1153,25 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   </button>
                 )}
 
-                {type === 'tv' && nextEpisode && (
+                {type === 'tv' && hasNextEpisode && (
                   <button
                     type="button"
-                    onClick={() => goToEpisode(nextEpisode)}
+                    onClick={handleGoToNextEpisode}
                     className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
-                    title={`Next: S${selectedSeason} E${nextEpisode.episode_number}`}
+                    title={
+                      nextEpisode
+                        ? `Next: S${selectedSeason} E${nextEpisode.episode_number} (Shortcut: N or >)`
+                        : nextSeasonInfo
+                        ? `Next: Season ${nextSeasonInfo.season_number} E1 (Shortcut: N or >)`
+                        : 'Next Episode (Shortcut: N or >)'
+                    }
                   >
                     <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
                     <span className="hidden md:inline">Next Episode</span>
                     <span className="md:hidden">Next</span>
+                    <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-brand/25 text-[9px] font-mono font-bold text-brand border border-brand/30">
+                      N
+                    </kbd>
                   </button>
                 )}
 
@@ -1214,28 +1223,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                     <Maximize className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                   )}
                 </button>
-
-                {/* Next Episode > Arrow in top bar */}
-                {type === 'tv' && hasNextEpisode && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleGoToNextEpisode();
-                    }}
-                    className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-brand text-background hover:brightness-110 flex items-center justify-center transition-all backdrop-blur-md cursor-pointer shrink-0 shadow-md shadow-brand/25 active:scale-90 font-bold"
-                    title={
-                      nextEpisode
-                        ? `Next: S${selectedSeason} E${nextEpisode.episode_number} (>)`
-                        : nextSeasonInfo
-                        ? `Next: Season ${nextSeasonInfo.season_number} E1 (>)`
-                        : 'Next Episode (>)'
-                    }
-                    aria-label="Next Episode"
-                  >
-                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 ml-0.5 stroke-[2.5]" />
-                  </button>
-                )}
               </div>
             </motion.div>
           )}
@@ -1269,54 +1256,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
             allowFullScreen
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
           />
-        )}
-
-        {/* Floating Next Episode Button & Right-Edge Hover Zone */}
-        {type === 'tv' && hasNextEpisode && (
-          <div
-            className="absolute right-0 top-0 bottom-0 w-24 sm:w-36 z-50 flex items-center justify-end pr-3 sm:pr-6 pointer-events-none group/next"
-            onMouseEnter={() => {
-              revealControls();
-              window.focus();
-            }}
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleGoToNextEpisode();
-              }}
-              onMouseEnter={() => {
-                revealControls();
-                window.focus();
-              }}
-              className={cn(
-                "pointer-events-auto flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full",
-                "bg-[#08090d]/90 hover:bg-brand text-white hover:text-background",
-                "border border-white/20 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
-                "transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer group",
-                showControls
-                  ? "opacity-100 translate-x-0"
-                  : "opacity-60 hover:opacity-100 translate-x-1 sm:translate-x-2 hover:translate-x-0"
-              )}
-              title={
-                nextEpisode
-                  ? `Next Episode: S${selectedSeason} E${nextEpisode.episode_number} (N / >)`
-                  : nextSeasonInfo
-                  ? `Next Season: S${nextSeasonInfo.season_number} E1 (N / >)`
-                  : 'Next Episode (N / >)'
-              }
-              aria-label="Next Episode"
-            >
-              <span className="text-xs sm:text-sm font-bold tracking-tight">
-                Next <span className="hidden sm:inline">Episode</span>
-              </span>
-              <kbd className="hidden xs:inline-block px-1.5 py-0.5 rounded bg-white/15 text-[10px] font-mono font-bold text-white/90 group-hover:bg-background/20 group-hover:text-background">
-                N
-              </kbd>
-              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 -ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
-            </button>
-          </div>
         )}
 
         {/* Resumption Prompt Overlay */}
@@ -1752,6 +1691,13 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                       className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none"
                       aria-hidden="true"
                     />
+                  </div>
+
+                  <div className="flex items-center justify-between px-1 mb-2">
+                    <span className="text-xs font-bold text-foreground">Episodes</span>
+                    <span className="font-mono text-[10px] text-muted-foreground/80 flex items-center gap-1">
+                      Next: <kbd className="px-1 py-0.5 rounded bg-white/10 text-foreground font-bold">N</kbd> or <kbd className="px-1 py-0.5 rounded bg-white/10 text-foreground font-bold">&gt;</kbd>
+                    </span>
                   </div>
 
                   <ul className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar list-none m-0 p-0">
