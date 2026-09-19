@@ -191,13 +191,19 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
   const nextEpisode = useMemo(() => {
     if (type !== 'tv' || !selectedEpisode) return null;
-    const index = episodes.findIndex((entry) => entry.id === selectedEpisode.id);
-    return index >= 0 ? (episodes[index + 1] ?? null) : null;
+    const currentNum = selectedEpisode.episode_number;
+    const index = episodes.findIndex(
+      (entry) => (entry.episode_number && entry.episode_number === currentNum) || entry.id === selectedEpisode.id
+    );
+    return index >= 0 && index < episodes.length - 1 ? (episodes[index + 1] ?? null) : null;
   }, [type, episodes, selectedEpisode]);
 
   const prevEpisode = useMemo(() => {
     if (type !== 'tv' || !selectedEpisode) return null;
-    const index = episodes.findIndex((entry) => entry.id === selectedEpisode.id);
+    const currentNum = selectedEpisode.episode_number;
+    const index = episodes.findIndex(
+      (entry) => (entry.episode_number && entry.episode_number === currentNum) || entry.id === selectedEpisode.id
+    );
     return index > 0 ? (episodes[index - 1] ?? null) : null;
   }, [type, episodes, selectedEpisode]);
 
@@ -210,7 +216,11 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     return null;
   }, [type, seasons, selectedSeason, selectedEpisode]);
 
-  const hasNextEpisode = Boolean(nextEpisode || (episodes.length > 0 && nextSeasonInfo));
+  const hasNextEpisode = Boolean(
+    nextEpisode ||
+    (episodes.length > 0 && nextSeasonInfo) ||
+    (type === 'tv' && selectedEpisode && selectedEpisode.episode_number > 0)
+  );
 
   const nextEpisodeRef = useRef(nextEpisode);
   useEffect(() => {
@@ -698,8 +708,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       goToEpisode(nextEpisode);
     } else if (nextSeasonInfo) {
       goToWatch(id, 'tv', nextSeasonInfo.season_number, 1);
+    } else if (type === 'tv' && selectedEpisode) {
+      goToWatch(id, 'tv', selectedSeason, selectedEpisode.episode_number + 1);
     }
-  }, [nextEpisode, nextSeasonInfo, goToEpisode, id]);
+  }, [nextEpisode, nextSeasonInfo, goToEpisode, id, type, selectedEpisode, selectedSeason]);
 
   useEffect(() => {
     if (!showNextEpisode) return;
@@ -793,6 +805,16 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     };
   }, [setPlayerMode]);
 
+  useEffect(() => {
+    const handleWindowMouseMove = () => {
+      if (document.activeElement === iframeRef.current) {
+        window.focus();
+      }
+    };
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    return () => window.removeEventListener('mousemove', handleWindowMouseMove);
+  }, []);
+
   const handleMouseMove = (event: React.MouseEvent) => revealControls(event.clientY);
   const handleTouchStart = (event: React.TouchEvent) =>
     revealControls(event.touches[0]?.clientY);
@@ -803,12 +825,23 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if (target?.isContentEditable) return;
 
-      if (event.key === 's' || event.key === 'S' || event.key === 'm' || event.key === 'M') {
+      if (event.key === 's' || event.key === 'S') {
         setSidebarOpen((open) => !open);
+      } else if (
+        (event.key === '>' ||
+          (event.key === '.' && event.shiftKey) ||
+          event.key === 'n' ||
+          event.key === 'N' ||
+          event.key === ']') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        if (type === 'tv' && hasNextEpisode) {
+          handleGoToNextEpisode();
+        }
       } else if (event.key === 'f' || event.key === 'F') {
         void toggleFullscreen();
-      } else if ((event.key === 'n' || event.key === 'N') && nextEpisode) {
-        goToEpisode(nextEpisode);
       } else if (event.key === 'm' || event.key === 'M') {
         try {
           iframeRef.current?.contentWindow?.postMessage(
@@ -855,13 +888,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         setPlayerMode('contained');
       } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         toggleFullscreen();
-      } else if (
-        (event.key === '>' || (event.key === '.' && event.shiftKey) || event.key === 'n' || event.key === 'N') &&
-        !event.ctrlKey && !event.metaKey && !event.altKey
-      ) {
-        if (type === 'tv' && hasNextEpisode) {
-          handleGoToNextEpisode();
-        }
       } else if (event.key === 'Escape') {
         if (document.fullscreenElement || isFullscreen) {
           void toggleFullscreen();
@@ -1189,8 +1215,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   )}
                 </button>
 
-                {/* Fullscreen-only Next Episode > Arrow in top bar */}
-                {isFullscreen && type === 'tv' && hasNextEpisode && (
+                {/* Next Episode > Arrow in top bar */}
+                {type === 'tv' && hasNextEpisode && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1245,46 +1271,53 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           />
         )}
 
-        {/* Fullscreen-only Floating Next Episode > Arrow Key (Right Screen Edge) */}
-        <AnimatePresence>
-          {isFullscreen && type === 'tv' && hasNextEpisode && (
-            <motion.button
-              key="fs-next-arrow-btn"
+        {/* Floating Next Episode Button & Right-Edge Hover Zone */}
+        {type === 'tv' && hasNextEpisode && (
+          <div
+            className="absolute right-0 top-0 bottom-0 w-24 sm:w-36 z-50 flex items-center justify-end pr-3 sm:pr-6 pointer-events-none group/next"
+            onMouseEnter={() => {
+              revealControls();
+              window.focus();
+            }}
+          >
+            <button
               type="button"
-              initial={{ opacity: 0, scale: 0.8, x: 20 }}
-              animate={{
-                opacity: showControls ? 1 : 0,
-                scale: showControls ? 1 : 0.8,
-                x: showControls ? 0 : 20,
-              }}
-              exit={{ opacity: 0, scale: 0.8, x: 20 }}
-              transition={{ duration: 0.2 }}
               onClick={(e) => {
                 e.stopPropagation();
                 handleGoToNextEpisode();
               }}
+              onMouseEnter={() => {
+                revealControls();
+                window.focus();
+              }}
               className={cn(
-                "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50",
-                "w-10 h-10 sm:w-12 sm:h-12 rounded-full",
-                "bg-black/75 hover:bg-brand text-white hover:text-background",
-                "border border-white/25 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
-                "flex items-center justify-center transition-all duration-200",
-                "hover:scale-110 active:scale-90 cursor-pointer group",
-                !showControls && "pointer-events-none"
+                "pointer-events-auto flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full",
+                "bg-[#08090d]/90 hover:bg-brand text-white hover:text-background",
+                "border border-white/20 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
+                "transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer group",
+                showControls
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-60 hover:opacity-100 translate-x-1 sm:translate-x-2 hover:translate-x-0"
               )}
               title={
                 nextEpisode
-                  ? `Next Episode: S${selectedSeason} E${nextEpisode.episode_number} (>)`
+                  ? `Next Episode: S${selectedSeason} E${nextEpisode.episode_number} (N / >)`
                   : nextSeasonInfo
-                  ? `Next Season: S${nextSeasonInfo.season_number} E1 (>)`
-                  : 'Next Episode (>)'
+                  ? `Next Season: S${nextSeasonInfo.season_number} E1 (N / >)`
+                  : 'Next Episode (N / >)'
               }
               aria-label="Next Episode"
             >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+              <span className="text-xs sm:text-sm font-bold tracking-tight">
+                Next <span className="hidden sm:inline">Episode</span>
+              </span>
+              <kbd className="hidden xs:inline-block px-1.5 py-0.5 rounded bg-white/15 text-[10px] font-mono font-bold text-white/90 group-hover:bg-background/20 group-hover:text-background">
+                N
+              </kbd>
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 -ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
 
         {/* Resumption Prompt Overlay */}
         <AnimatePresence>

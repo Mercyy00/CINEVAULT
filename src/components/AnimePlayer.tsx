@@ -781,21 +781,38 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
   }, []);
 
   useEffect(() => {
+    const handleWindowMouseMove = () => {
+      if (document.activeElement === iframeRef.current) {
+        window.focus();
+      }
+    };
+    window.addEventListener('mousemove', handleWindowMouseMove);
+    return () => window.removeEventListener('mousemove', handleWindowMouseMove);
+  }, []);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return;
       if (target?.isContentEditable) return;
 
-      if (event.key === 's' || event.key === 'S' || event.key === 'm' || event.key === 'M') {
+      if (event.key === 's' || event.key === 'S') {
         setSidebarOpen((open) => !open);
+      } else if (
+        (event.key === '>' ||
+          (event.key === '.' && event.shiftKey) ||
+          event.key === 'n' ||
+          event.key === 'N' ||
+          event.key === ']') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        if (nextEpisodeNum) {
+          handleGoToNextEpisode();
+        }
       } else if (event.key === 'f' || event.key === 'F') {
         void toggleFullscreen();
-      } else if (event.key === 'n' || event.key === 'N') {
-        const currentIndex = episodes.findIndex((e) => e.episode === selectedEpisode?.episode);
-        if (currentIndex !== -1 && currentIndex < episodes.length - 1) {
-          const nextEp = episodes[currentIndex + 1];
-          if (nextEp) handleEpisodeChange(nextEp);
-        }
       } else if (event.key === 'm' || event.key === 'M') {
         try {
           iframeRef.current?.contentWindow?.postMessage(
@@ -843,13 +860,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
       } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         setPlayerMode('fullscreen');
         toggleFullscreen();
-      } else if (
-        (event.key === '>' || (event.key === '.' && event.shiftKey) || event.key === 'n' || event.key === 'N') &&
-        !event.ctrlKey && !event.metaKey && !event.altKey
-      ) {
-        if (nextEpisodeNum) {
-          handleGoToNextEpisode();
-        }
       } else if (event.key === 'Escape') {
         if (sidebarOpen) {
           setSidebarOpen(false);
@@ -1347,8 +1357,8 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   )}
                 </button>
 
-                {/* Fullscreen-only Next Episode > Arrow in top bar */}
-                {isFullscreen && nextEpisodeNum && (
+                {/* Next Episode > Arrow in top bar */}
+                {Boolean(nextEpisodeNum) && (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -1399,40 +1409,47 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           }}
         />
 
-        {/* Fullscreen-only Floating Next Episode > Arrow Key (Right Screen Edge) */}
-        <AnimatePresence>
-          {isFullscreen && nextEpisodeNum && (
-            <motion.button
-              key="fs-next-arrow-btn"
+        {/* Floating Next Episode Button & Right-Edge Hover Zone */}
+        {Boolean(nextEpisodeNum) && (
+          <div
+            className="absolute right-0 top-0 bottom-0 w-24 sm:w-36 z-50 flex items-center justify-end pr-3 sm:pr-6 pointer-events-none group/next"
+            onMouseEnter={() => {
+              handlePointerMove();
+              window.focus();
+            }}
+          >
+            <button
               type="button"
-              initial={{ opacity: 0, scale: 0.8, x: 20 }}
-              animate={{
-                opacity: showControls ? 1 : 0,
-                scale: showControls ? 1 : 0.8,
-                x: showControls ? 0 : 20,
-              }}
-              exit={{ opacity: 0, scale: 0.8, x: 20 }}
-              transition={{ duration: 0.2 }}
               onClick={(e) => {
                 e.stopPropagation();
                 handleGoToNextEpisode();
               }}
+              onMouseEnter={() => {
+                handlePointerMove();
+                window.focus();
+              }}
               className={cn(
-                "absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-50",
-                "w-10 h-10 sm:w-12 sm:h-12 rounded-full",
-                "bg-black/75 hover:bg-brand text-white hover:text-background",
-                "border border-white/25 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
-                "flex items-center justify-center transition-all duration-200",
-                "hover:scale-110 active:scale-90 cursor-pointer group",
-                !showControls && "pointer-events-none"
+                "pointer-events-auto flex items-center gap-2 px-3 py-2 sm:px-4 sm:py-2.5 rounded-full",
+                "bg-[#08090d]/90 hover:bg-brand text-white hover:text-background",
+                "border border-white/20 hover:border-brand shadow-[0_8px_32px_rgba(0,0,0,0.85)] backdrop-blur-xl",
+                "transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer group",
+                showControls
+                  ? "opacity-100 translate-x-0"
+                  : "opacity-60 hover:opacity-100 translate-x-1 sm:translate-x-2 hover:translate-x-0"
               )}
-              title={`Next Episode: Episode ${nextEpisodeNum} (>)`}
+              title={`Next Episode: Episode ${nextEpisodeNum} (N / >)`}
               aria-label="Next Episode"
             >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
-            </motion.button>
-          )}
-        </AnimatePresence>
+              <span className="text-xs sm:text-sm font-bold tracking-tight">
+                Next <span className="hidden sm:inline">Episode</span>
+              </span>
+              <kbd className="hidden xs:inline-block px-1.5 py-0.5 rounded bg-white/15 text-[10px] font-mono font-bold text-white/90 group-hover:bg-background/20 group-hover:text-background">
+                N
+              </kbd>
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 -ml-0.5 stroke-[2.5] group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </div>
+        )}
 
         {/* Resumption Prompt Overlay */}
         <AnimatePresence>
