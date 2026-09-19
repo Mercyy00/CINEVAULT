@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, SkipForward, SkipBack, X, Download, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, X, Download, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -206,6 +206,22 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     );
     return index > 0 ? (episodes[index - 1] ?? null) : null;
   }, [type, episodes, selectedEpisode]);
+
+  const prevSeasonInfo = useMemo(() => {
+    if (type !== 'tv' || !selectedEpisode) return null;
+    const currentSeasonIdx = seasons.findIndex((s) => s.season_number === selectedSeason);
+    if (currentSeasonIdx > 0) {
+      return seasons[currentSeasonIdx - 1] ?? null;
+    }
+    return null;
+  }, [type, seasons, selectedSeason, selectedEpisode]);
+
+  const hasPrevEpisode = Boolean(
+    prevEpisode ||
+    prevSeasonInfo ||
+    (type === 'tv' && selectedEpisode && selectedEpisode.episode_number > 1) ||
+    (type === 'tv' && selectedSeason > 1)
+  );
 
   const nextSeasonInfo = useMemo(() => {
     if (type !== 'tv' || !selectedEpisode) return null;
@@ -713,6 +729,17 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     }
   }, [nextEpisode, nextSeasonInfo, goToEpisode, id, type, selectedEpisode, selectedSeason]);
 
+  const handleGoToPrevEpisode = useCallback(() => {
+    setShowNextEpisode(false);
+    if (prevEpisode) {
+      goToEpisode(prevEpisode);
+    } else if (type === 'tv' && selectedEpisode && selectedEpisode.episode_number > 1) {
+      goToWatch(id, 'tv', selectedSeason, selectedEpisode.episode_number - 1);
+    } else if (type === 'tv' && selectedSeason > 1 && prevSeasonInfo) {
+      goToWatch(id, 'tv', prevSeasonInfo.season_number, 1);
+    }
+  }, [prevEpisode, type, selectedEpisode, selectedSeason, prevSeasonInfo, id, goToEpisode]);
+
   useEffect(() => {
     if (!showNextEpisode) return;
     if (nextCountdown <= 0) {
@@ -840,6 +867,19 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         if (type === 'tv' && hasNextEpisode) {
           handleGoToNextEpisode();
         }
+      } else if (
+        (event.key === '<' ||
+          (event.key === ',' && event.shiftKey) ||
+          event.key === 'p' ||
+          event.key === 'P' ||
+          event.key === '[') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        if (type === 'tv' && hasPrevEpisode) {
+          handleGoToPrevEpisode();
+        }
       } else if (event.key === 'f' || event.key === 'F') {
         void toggleFullscreen();
       } else if (event.key === 'm' || event.key === 'M') {
@@ -903,7 +943,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [type, hasNextEpisode, handleGoToNextEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed, isFullscreen, toggleFullscreen]);
+  }, [type, hasNextEpisode, handleGoToNextEpisode, hasPrevEpisode, handleGoToPrevEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed, isFullscreen, toggleFullscreen]);
 
   useEffect(() => {
     if (!showNextEpisode) return;
@@ -1141,40 +1181,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   )}
                 </button>
 
-                {type === 'tv' && prevEpisode && (
-                  <button
-                    type="button"
-                    onClick={() => goToEpisode(prevEpisode)}
-                    className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
-                    title={`Previous: S${selectedSeason} E${prevEpisode.episode_number}`}
-                  >
-                    <SkipBack className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
-                    <span className="hidden md:inline">Prev</span>
-                  </button>
-                )}
-
-                {type === 'tv' && hasNextEpisode && (
-                  <button
-                    type="button"
-                    onClick={handleGoToNextEpisode}
-                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
-                    title={
-                      nextEpisode
-                        ? `Next: S${selectedSeason} E${nextEpisode.episode_number} (Shortcut: N or >)`
-                        : nextSeasonInfo
-                        ? `Next: Season ${nextSeasonInfo.season_number} E1 (Shortcut: N or >)`
-                        : 'Next Episode (Shortcut: N or >)'
-                    }
-                  >
-                    <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" aria-hidden="true" />
-                    <span className="hidden md:inline">Next Episode</span>
-                    <span className="md:hidden">Next</span>
-                    <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-brand/25 text-[9px] font-mono font-bold text-brand border border-brand/30">
-                      N
-                    </kbd>
-                  </button>
-                )}
-
                 <div className="hidden lg:block min-w-0 ml-1">
                   {movie.logoUrl ? (
                     <div className="max-w-[160px] xl:max-w-[240px] mb-0.5">
@@ -1198,6 +1204,57 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   )}
                 </div>
               </div>
+
+              {/* Center: Small Prev & Next Circles for TV Shows */}
+              {type === 'tv' && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                  <button
+                    type="button"
+                    onClick={handleGoToPrevEpisode}
+                    disabled={!hasPrevEpisode}
+                    className={cn(
+                      "w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all backdrop-blur-md border shadow-md",
+                      hasPrevEpisode
+                        ? "bg-card/85 hover:bg-brand/20 border-white/10 hover:border-brand/50 text-foreground hover:text-brand hover:scale-105 active:scale-95 cursor-pointer"
+                        : "bg-white/5 border-white/5 text-muted-foreground/30 opacity-40 cursor-not-allowed pointer-events-none"
+                    )}
+                    title={
+                      prevEpisode
+                        ? `Previous: S${selectedSeason} E${prevEpisode.episode_number} (Shortcut: P or <)`
+                        : 'Previous Episode (Shortcut: P or <)'
+                    }
+                    aria-label="Previous Episode"
+                  >
+                    <ChevronLeft className="w-4 h-4 -ml-0.5" />
+                  </button>
+
+                  <div className="px-2.5 py-1 rounded-full bg-card/80 border border-white/10 backdrop-blur-md text-[10px] sm:text-xs font-mono font-bold text-foreground/90 tracking-wide select-none shadow-sm whitespace-nowrap">
+                    S{selectedSeason} E{selectedEpisode?.episode_number || episodeNumber}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoToNextEpisode}
+                    disabled={!hasNextEpisode}
+                    className={cn(
+                      "w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all backdrop-blur-md border shadow-md",
+                      hasNextEpisode
+                        ? "bg-brand text-background hover:brightness-110 border-brand/50 shadow-brand/25 hover:scale-105 active:scale-95 cursor-pointer font-bold"
+                        : "bg-white/5 border-white/5 text-muted-foreground/30 opacity-40 cursor-not-allowed pointer-events-none"
+                    )}
+                    title={
+                      nextEpisode
+                        ? `Next: S${selectedSeason} E${nextEpisode.episode_number} (Shortcut: N or >)`
+                        : nextSeasonInfo
+                        ? `Next: Season ${nextSeasonInfo.season_number} E1 (Shortcut: N or >)`
+                        : 'Next Episode (Shortcut: N or >)'
+                    }
+                    aria-label="Next Episode"
+                  >
+                    <ChevronRight className="w-4 h-4 ml-0.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Right side: Download & Fullscreen */}
               <div className="flex items-center gap-2 pointer-events-auto">

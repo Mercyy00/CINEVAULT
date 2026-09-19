@@ -1077,6 +1077,14 @@ export function ProfilePage() {
                     <kbd className="px-2 py-0.5 rounded bg-muted font-mono text-[10px] text-foreground border border-border">S</kbd>
                   </div>
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+                    <span className="text-muted-foreground">Previous Episode</span>
+                    <div className="flex items-center gap-1 font-mono text-[10px]">
+                      <kbd className="px-1.5 py-0.5 rounded bg-muted text-foreground border border-border font-bold">P</kbd>
+                      <span className="text-muted-foreground">or</span>
+                      <kbd className="px-1.5 py-0.5 rounded bg-muted text-foreground border border-border font-bold">&lt;</kbd>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
                     <span className="text-muted-foreground">Next Episode</span>
                     <div className="flex items-center gap-1 font-mono text-[10px]">
                       <kbd className="px-1.5 py-0.5 rounded bg-muted text-foreground border border-border font-bold">N</kbd>
@@ -1087,6 +1095,10 @@ export function ProfilePage() {
                   <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
                     <span className="text-muted-foreground">Fullscreen</span>
                     <kbd className="px-2 py-0.5 rounded bg-muted font-mono text-[10px] text-foreground border border-border">F</kbd>
+                  </div>
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border">
+                    <span className="text-muted-foreground">Play / Pause</span>
+                    <kbd className="px-2 py-0.5 rounded bg-muted font-mono text-[10px] text-foreground border border-border">Space</kbd>
                   </div>
                 </div>
               </div>

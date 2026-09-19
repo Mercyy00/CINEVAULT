@@ -507,12 +507,37 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
     return null;
   }, [episodes, selectedEpisode, episode, movie]);
 
+  const prevEpisodeNum = useMemo(() => {
+    if (movie?.isAnimeMovie || movie?.type === 'movie') return null;
+    const currentNum = selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1;
+    const currentIndex = episodes.findIndex(
+      (e: any) => (e.episode && e.episode === currentNum) || (e.number && e.number === currentNum)
+    );
+    if (currentIndex > 0) {
+      return episodes[currentIndex - 1]?.episode || episodes[currentIndex - 1]?.number || currentNum - 1;
+    }
+    if (currentNum > 1) {
+      return currentNum - 1;
+    }
+    return null;
+  }, [episodes, selectedEpisode, episode, movie]);
+
+  const hasPrevEpisode = Boolean(prevEpisodeNum);
+  const hasNextEpisode = Boolean(nextEpisodeNum);
+
   const handleGoToNextEpisode = useCallback(() => {
     if (nextEpisodeNum) {
       setShowNextEpisode(false);
       goToWatch(id, 'anime', undefined, nextEpisodeNum, movie?.malId || malId || '0');
     }
   }, [nextEpisodeNum, id, movie, malId]);
+
+  const handleGoToPrevEpisode = useCallback(() => {
+    if (prevEpisodeNum) {
+      setShowNextEpisode(false);
+      goToWatch(id, 'anime', undefined, prevEpisodeNum, movie?.malId || malId || '0');
+    }
+  }, [prevEpisodeNum, id, movie, malId]);
   
   const handleJumpEpisode = (epNumStr: string) => {
     const num = parseInt(epNumStr);
@@ -811,6 +836,19 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
         if (nextEpisodeNum) {
           handleGoToNextEpisode();
         }
+      } else if (
+        (event.key === '<' ||
+          (event.key === ',' && event.shiftKey) ||
+          event.key === 'p' ||
+          event.key === 'P' ||
+          event.key === '[') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        if (prevEpisodeNum) {
+          handleGoToPrevEpisode();
+        }
       } else if (event.key === 'f' || event.key === 'F') {
         void toggleFullscreen();
       } else if (event.key === 'm' || event.key === 'M') {
@@ -873,7 +911,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [nextEpisodeNum, handleGoToNextEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
+  }, [nextEpisodeNum, handleGoToNextEpisode, prevEpisodeNum, handleGoToPrevEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed]);
 
   // PostMessage handler for live watch telemetry and auto-next prompt
   useEffect(() => {
@@ -1270,50 +1308,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                 </button>
 
 
-                {/* Prev & Next Episode Navigation */}
-                {(() => {
-                  const currentIndex = episodes.findIndex(e => e.episode === selectedEpisode?.episode);
-                  const currentNum = selectedEpisode?.episode || parseInt(episode) || 1;
-                  const prevEpNum = currentIndex > 0 ? (episodes[currentIndex - 1]?.episode || currentNum - 1) : (currentNum > 1 ? currentNum - 1 : null);
-                  const nextEpNum = (currentIndex !== -1 && currentIndex < episodes.length - 1) ? (episodes[currentIndex + 1]?.episode || currentNum + 1) : (movie?.episodeCount && currentNum < movie.episodeCount ? currentNum + 1 : null);
-
-                  return (
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {prevEpNum && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            goToWatch(id, 'anime', undefined, prevEpNum, movie?.malId || '0');
-                          }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-[11px] sm:text-xs font-bold text-foreground/80 hover:text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shrink-0"
-                          title={`Previous: Episode ${prevEpNum}`}
-                        >
-                          <SkipBack className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">Prev</span>
-                        </button>
-                      )}
-
-                      {nextEpNum && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            goToWatch(id, 'anime', undefined, nextEpNum, movie?.malId || '0');
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-brand/20 hover:bg-brand/30 border border-brand/40 text-[11px] sm:text-xs font-bold text-brand backdrop-blur-md transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/10 shrink-0"
-                          title={`Next: Episode ${nextEpNum} (Shortcut: N or >)`}
-                        >
-                          <SkipForward className="w-3.5 h-3.5" />
-                          <span className="hidden md:inline">Next Episode</span>
-                          <span className="md:hidden">Next</span>
-                          <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded bg-brand/25 text-[9px] font-mono font-bold text-brand border border-brand/30">
-                            N
-                          </kbd>
-                        </button>
-                      )}
-                    </div>
-                  );
-                })()}
-
                 <div className="hidden lg:block min-w-0 ml-1">
                   {movie.logoUrl ? (
                     <div className="max-w-[160px] xl:max-w-[240px] mb-0.5">
@@ -1334,6 +1328,55 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   )}
                 </div>
               </div>
+
+              {/* Center: Small Prev & Next Circles for Anime */}
+              {Boolean(!movie?.isAnimeMovie && movie?.type !== 'movie' && (selectedEpisode || episode)) && (
+                <div className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+                  <button
+                    type="button"
+                    onClick={handleGoToPrevEpisode}
+                    disabled={!hasPrevEpisode}
+                    className={cn(
+                      "w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all backdrop-blur-md border shadow-md",
+                      hasPrevEpisode
+                        ? "bg-card/85 hover:bg-brand/20 border-white/10 hover:border-brand/50 text-foreground hover:text-brand hover:scale-105 active:scale-95 cursor-pointer"
+                        : "bg-white/5 border-white/5 text-muted-foreground/30 opacity-40 cursor-not-allowed pointer-events-none"
+                    )}
+                    title={
+                      prevEpisodeNum
+                        ? `Previous: Episode ${prevEpisodeNum} (Shortcut: P or <)`
+                        : 'Previous Episode (Shortcut: P or <)'
+                    }
+                    aria-label="Previous Episode"
+                  >
+                    <ChevronLeft className="w-4 h-4 -ml-0.5" />
+                  </button>
+
+                  <div className="px-2.5 py-1 rounded-full bg-card/80 border border-white/10 backdrop-blur-md text-[10px] sm:text-xs font-mono font-bold text-foreground/90 tracking-wide select-none shadow-sm whitespace-nowrap">
+                    Ep {selectedEpisode?.episode || selectedEpisode?.number || episode}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGoToNextEpisode}
+                    disabled={!hasNextEpisode}
+                    className={cn(
+                      "w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center transition-all backdrop-blur-md border shadow-md",
+                      hasNextEpisode
+                        ? "bg-brand text-background hover:brightness-110 border-brand/50 shadow-brand/25 hover:scale-105 active:scale-95 cursor-pointer font-bold"
+                        : "bg-white/5 border-white/5 text-muted-foreground/30 opacity-40 cursor-not-allowed pointer-events-none"
+                    )}
+                    title={
+                      nextEpisodeNum
+                        ? `Next: Episode ${nextEpisodeNum} (Shortcut: N or >)`
+                        : 'Next Episode (Shortcut: N or >)'
+                    }
+                    aria-label="Next Episode"
+                  >
+                    <ChevronRight className="w-4 h-4 ml-0.5" />
+                  </button>
+                </div>
+              )}
 
               {/* Top bar right side: Download, Theater Box, Mini-Player & Fullscreen toggles */}
               <div className="flex items-center gap-2 pointer-events-auto">
