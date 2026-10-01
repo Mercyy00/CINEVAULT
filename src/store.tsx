@@ -18,7 +18,6 @@ import { COMPLETION_THRESHOLD } from './lib/playback';
 import { DEFAULT_EMPTY_AVATAR } from './lib/avatars';
 import {
   getTelemetryConsent,
-  hasTelemetryConsent,
   setSignedInHint,
   setTelemetryConsent as persistTelemetryConsent,
   type ConsentState,
@@ -695,15 +694,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   /**
    * Directory entry for the current identity.
    *
-   * Gated three ways where it used to be unconditional: the uid must be a real
-   * Firebase uid (never the offline `local_` fallback), the cloud must be
-   * reachable, and telemetry must be permitted. A guest who has not opted in now
-   * gets no Firestore document at all -- previously every first paint wrote one.
+   * Written for every identity with a real Firebase uid, guest or signed-in, so
+   * the admin directory captures all visitors. The uid must be a real Firebase
+   * uid (never the offline `local_` fallback) and the cloud must be reachable.
    */
   useEffect(() => {
     const uid = userProfile.uid;
     if (!cloudAvailable || !uid || isLocalOnlyUid(uid)) return;
-    if (!hasTelemetryConsent(Boolean(userProfile.isLoggedIn))) return;
     void watchTrackingService.recordUser({
       uid,
       displayName: userProfile.name || (userProfile.isLoggedIn ? 'User' : 'Guest Viewer'),

@@ -12,7 +12,6 @@ import {
   where,
 } from 'firebase/firestore';
 import { getFirebase } from './firebase';
-import { remoteTelemetryAllowed } from '../lib/consent';
 import { StorageKeys, readJSON, writeJSON } from '../lib/storage';
 
 /**
@@ -33,8 +32,11 @@ import { StorageKeys, readJSON, writeJSON } from '../lib/storage';
  *   pause/complete.
  * - **Errors are not silently swallowed.** Six empty `catch {}` blocks meant a
  *   permissions failure looked identical to success.
- * - **Remote writes are consent-gated.** See `lib/consent.ts`. Local history
- *   still works with telemetry declined; only the cloud copy is skipped.
+ * - **Capture is unconditional.** Every watch session and user directory entry
+ *   is recorded for every visitor -- guest or signed-in -- so the admin
+ *   dashboard reflects all activity. (This replaces the earlier consent gate.)
+ *   Guests must be *anonymously authenticated* for the Firestore rules to
+ *   accept their writes; enable Anonymous Auth in the Firebase console.
  * - **A permanent failure stops retrying.** The error path used to delete the
  *   throttle entry so the next tick would try again -- which, for a
  *   `permission-denied` that will never succeed, meant a write attempt every
@@ -165,8 +167,8 @@ export const watchTrackingService = {
     const since = now - (lastWriteAt.get(sessionId) ?? 0);
     if (!flush && since < WRITE_THROTTLE_MS) return;
 
-    // Local history above is unconditional; only the cloud copy needs consent.
-    if (!remoteTelemetryAllowed()) return;
+    // Capture is unconditional: the remote copy is written for everyone,
+    // guests included. Local history above is always kept regardless.
     if (abandonedSessions.has(sessionId)) return;
 
     const { db } = getFirebase();
@@ -196,9 +198,8 @@ export const watchTrackingService = {
   /**
    * Upserts the user's (or guest's) directory entry.
    *
-   * Only fields the user has provided are stored, and only when telemetry is
-   * permitted -- a guest who has declined (or has not been asked) gets no
-   * Firestore document at all.
+   * Written for every visitor, guest or signed-in, so the admin directory is
+   * complete. Only fields the user has provided are stored.
    */
   async recordUser(user: {
     uid: string;
@@ -207,7 +208,6 @@ export const watchTrackingService = {
     isGuest?: boolean;
   }): Promise<void> {
     if (!user.uid) return;
-    if (!remoteTelemetryAllowed()) return;
 
     const { db } = getFirebase();
     if (!db) return;
