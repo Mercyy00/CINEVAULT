@@ -4,7 +4,7 @@ import { cn } from '../lib/utils';
 import { useApp, Theme } from '../store';
 import { APP_FONTS, APP_FONT_IDS, loadAppFont } from '../lib/fonts';
 import { getUserAvatarUrl, getFallbackAvatarDataUri } from '../lib/avatars';
-import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, Users, ShieldCheck } from 'lucide-react';
+import { Search, Palette, Settings, LogOut, Home, Film, Tv, Sparkles, Bookmark, User, Download, Type, Users, ShieldCheck, Moon, Sun, Dice5 } from 'lucide-react';
 import { navigate } from '../lib/navigation';
 
 interface ThemeOption {
@@ -221,7 +221,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                             themeModeFilter === 'dark' ? "bg-brand text-background font-bold shadow-sm" : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          🌙 Dark ({darkThemes.length})
+                          <Moon className="w-3 h-3" /> Dark ({darkThemes.length})
                         </button>
                         <button
                           onClick={() => setThemeModeFilter('light')}
@@ -230,7 +230,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                             themeModeFilter === 'light' ? "bg-brand text-background font-bold shadow-sm" : "text-muted-foreground hover:text-foreground"
                           )}
                         >
-                          ☀️ Light ({lightThemes.length})
+                          <Sun className="w-3 h-3" /> Light ({lightThemes.length})
                         </button>
                       </div>
 
@@ -239,7 +239,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         <div className="flex flex-col gap-1.5 pt-1">
                           <div className="flex items-center justify-between px-1">
                             <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1">
-                              🌙 Dark Themes
+                              <Moon className="w-3 h-3" /> Dark Themes
                             </span>
                             <span className="text-[10px] text-muted-foreground font-mono">{darkThemes.length}</span>
                           </div>
@@ -277,7 +277,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         <div className="flex flex-col gap-1.5 pt-1.5">
                           <div className="flex items-center justify-between px-1">
                             <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground flex items-center gap-1">
-                              ☀️ Light Themes
+                              <Sun className="w-3 h-3" /> Light Themes
                             </span>
                             <span className="text-[10px] text-muted-foreground font-mono">{lightThemes.length}</span>
                           </div>
@@ -576,7 +576,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     }} 
                     className="w-full flex items-center gap-3 px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors text-left cursor-pointer"
                   >
-                    <span className="text-base leading-none">🎲</span> Surprise Me
+                    <Dice5 className="w-4 h-4" /> Surprise Me
                   </button>
 
                   {userProfile.isLoggedIn ? (
@@ -609,7 +609,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
         aria-label="Main Navigation"
         className="fixed bottom-0 inset-x-0 sm:bottom-7 sm:left-1/2 sm:-translate-x-1/2 sm:inset-x-auto z-[100] pointer-events-auto select-none safe-bottom"
       >
-          <div className="w-full sm:w-auto px-1.5 py-1 sm:p-2 sm:rounded-full flex items-center justify-around sm:justify-start gap-0.5 sm:gap-2 border-t sm:border border-white/10 sm:border-white/20 shadow-[0_-8px_30px_rgba(0,0,0,0.85)] sm:shadow-[0_20px_50px_rgba(0,0,0,0.8),inset_0_1px_1px_rgba(255,255,255,0.25)] backdrop-blur-3xl bg-[#0a0b10]/95 sm:bg-[#0a0b10]/85 sm:ring-1 sm:ring-brand/30 transition-all duration-300">
+          <div className="w-full sm:w-auto px-1.5 py-1 sm:p-2 sm:rounded-full flex items-center justify-around sm:justify-start gap-0.5 sm:gap-2 border-t sm:border border-white/10 sm:border-white/12 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] sm:shadow-dock backdrop-blur-3xl bg-[#0a0b10]/95 sm:bg-[#0a0b10]/80 transition-all duration-300">
             {navLinks.map((link) => {
               const isActive = link.href === '/' ? currentPath === '/' : currentPath.startsWith(link.href);
               const Icon = link.icon;
@@ -631,7 +631,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   {isActive && (
                     <motion.div
                       layoutId="active-dock-pill"
-                      className="hidden sm:block absolute inset-0 rounded-full bg-brand shadow-[0_0_24px_var(--theme-accent-glow,rgba(232,133,42,0.6))] ring-1 ring-brand/50"
+                      className="hidden sm:block absolute inset-0 rounded-full bg-brand"
                       transition={{
                         type: "spring",
                         stiffness: 400,
@@ -644,7 +644,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   {isActive && (
                     <motion.div
                       layoutId="active-mobile-bar"
-                      className="sm:hidden absolute top-0 inset-x-2 h-0.5 rounded-full bg-brand shadow-[0_0_8px_var(--theme-accent-glow,rgba(232,133,42,0.9))]"
+                      className="sm:hidden absolute top-0 inset-x-2 h-0.5 rounded-full bg-brand"
                     />
                   )}
 

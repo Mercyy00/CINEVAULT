@@ -203,7 +203,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
   const serverSlowTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const serverListRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<PlaybackProgress>({
     positionSeconds: 0,
     durationSeconds: null,
@@ -361,7 +360,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           }
         });
 
-        let episodesData: any[] = [];
+        const episodesData: any[] = [];
         const totalBaseline = Math.max(actualCount, parseInt(episode) || 1);
         for (let i = 1; i <= totalBaseline; i++) {
           if (seededMap.has(i)) {
@@ -383,7 +382,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
         setEpisodes(episodesData);
 
         const epNum = parseInt(episode) || 1;
-        let targetEp = episodesData.find((e: any) => e.number === epNum) || {
+        const targetEp = episodesData.find((e: any) => e.number === epNum) || {
           id: `ep-${epNum}`,
           season: 1,
           episode: epNum,
@@ -761,7 +760,10 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           if (screen.orientation && 'lock' in screen.orientation) {
             await (screen.orientation as any).lock('landscape').catch(() => {});
           }
-        } catch {}
+        } catch {
+          // Orientation lock is a progressive enhancement; unsupported on
+          // desktop and some browsers reject it outside a user gesture.
+        }
       } else {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
@@ -772,7 +774,9 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           if (screen.orientation && 'unlock' in screen.orientation) {
             screen.orientation.unlock();
           }
-        } catch {}
+        } catch {
+          // Orientation unlock is best-effort; unsupported on some platforms.
+        }
       }
     } catch (err) {
       console.error('Fullscreen toggle failed:', err);
@@ -788,14 +792,18 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           if (screen.orientation && 'unlock' in screen.orientation) {
             screen.orientation.unlock();
           }
-        } catch {}
+        } catch {
+          // Orientation unlock is best-effort; unsupported on some platforms.
+        }
       }
       try {
         iframeRef.current?.contentWindow?.postMessage(
           { channel: 'zokoanime', type: 'fullscreen', active: fs },
           'https://zokoanime.video'
         );
-      } catch {}
+      } catch {
+        // Cross-origin postMessage to the embed can throw; non-critical.
+      }
     };
     document.addEventListener('fullscreenchange', onFsChange);
     document.addEventListener('webkitfullscreenchange', onFsChange);
@@ -849,7 +857,13 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
         if (prevEpisodeNum) {
           handleGoToPrevEpisode();
         }
-      } else if (event.key === 'f' || event.key === 'F') {
+      } else if (
+        (event.key === 'f' || event.key === 'F') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        setPlayerMode('fullscreen');
         void toggleFullscreen();
       } else if (event.key === 'm' || event.key === 'M') {
         try {
@@ -895,9 +909,6 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
       } else if ((event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         if (isFullscreen) toggleFullscreen();
         setPlayerMode('contained');
-      } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        setPlayerMode('fullscreen');
-        toggleFullscreen();
       } else if (event.key === 'Escape') {
         if (sidebarOpen) {
           setSidebarOpen(false);
@@ -1231,7 +1242,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
 
             <div className="flex items-center justify-between pointer-events-auto">
               <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-black/60 border border-white/10 text-white/80">
-                {ANIME_SERVERS.find(s => s.id === server)?.name.split(' ')[0] || 'Server'} • {language.toUpperCase()}
+                {language.toUpperCase()}
               </span>
               <button
                 type="button"
@@ -1289,23 +1300,36 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   <Menu className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSidebarOpen(true);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
-                  title="Change streaming server"
-                >
-                  <Globe className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" />
-                  <span className="max-w-[80px] sm:max-w-[120px] truncate">
-                    {ANIME_SERVERS.find(s => s.id === server)?.name.split(' ')[0] || 'Server'}
-                  </span>
-                  <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
-                    {ANIME_SERVERS.find(s => s.id === server)?.quality || 'HD'}
-                  </span>
-                </button>
+                {/* Primary language control: Sub / Dub. Server selection is tucked
+                    into the drawer's "Try another source" fallback. */}
+                <div className="inline-flex bg-card/80 p-0.5 rounded-full border border-white/10 backdrop-blur-md shrink-0">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); if (language !== 'sub') toggleLanguage(); }}
+                    className={cn(
+                      'px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-full transition-all cursor-pointer',
+                      language === 'sub'
+                        ? 'bg-brand text-background shadow-md shadow-brand/20'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    title="Subtitled"
+                  >
+                    SUB
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); if (language !== 'dub') toggleLanguage(); }}
+                    className={cn(
+                      'px-3 py-1 sm:py-1.5 text-[11px] sm:text-xs font-bold rounded-full transition-all cursor-pointer',
+                      language === 'dub'
+                        ? 'bg-brand text-background shadow-md shadow-brand/20'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                    title="English Dubbed"
+                  >
+                    DUB
+                  </button>
+                </div>
 
 
                 <div className="hidden lg:block min-w-0 ml-1">
@@ -1504,38 +1528,22 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
               <div className="flex items-center gap-2.5 min-w-0">
                 <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
                 <p className="text-xs sm:text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">
-                    {ANIME_SERVERS.find((s) => s.id === server)?.name || 'Server'}
-                  </span>{' '}
-                  slow or content blocked? Switch server or pop out:
+                  Still loading. Give it a moment, or try another source.
                 </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:ml-auto shrink-0">
-                {ANIME_SERVERS.filter((s) => s.id !== server).map((alt) => (
-                  <button
-                    key={alt.id}
-                    type="button"
-                    onClick={() => {
-                      setServer(alt.id);
-                      if (selectedEpisode) {
-                        updateIframeSrc(
-                          selectedEpisode.episode || selectedEpisode.number,
-                          language,
-                          alt.id,
-                          movie?.malId,
-                          movie?.title,
-                          tmdbIdRef.current || tmdbId,
-                          anilistIdRef.current || movie?.anilistId
-                        );
-                      }
-                    }}
-                    className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 transition-all cursor-pointer"
-                    title={`Switch to ${alt.name}`}
-                  >
-                    {alt.name.split(' ')[0]}
-                  </button>
-                ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsServerSlow(false);
+                    setSidebarOpen(true);
+                  }}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-brand/15 text-brand border border-brand/30 hover:bg-brand/25 transition-all cursor-pointer"
+                  title="Try another source"
+                >
+                  Try another source
+                </button>
                 {currentIframeSrc && currentIframeSrc !== 'about:blank' && (
                   <a
                     href={currentIframeSrc}
@@ -1552,7 +1560,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   type="button"
                   onClick={() => setIsServerSlow(false)}
                   className="text-xs text-muted-foreground hover:text-foreground px-1 py-1 cursor-pointer"
-                  title="Dismiss warning"
+                  title="Dismiss"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1669,72 +1677,9 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
               )}
             </div>
 
-            {/* Server & Audio Controls */}
+            {/* Audio & Episode Controls — server selection lives in the drawer's
+                "Try another source" fallback; Sub/Dub is the front-facing control. */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-              {/* Server selector with < > navigation arrows */}
-              <div className="flex items-center gap-1 min-w-0 max-w-full sm:max-w-[480px] xl:max-w-[580px]">
-                <button
-                  type="button"
-                  onClick={() => serverListRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
-                  className="w-7 h-7 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 text-muted-foreground hover:text-brand flex items-center justify-center cursor-pointer transition-all active:scale-90 shrink-0 shadow-sm"
-                  title="Previous servers (<)"
-                  aria-label="Previous servers"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                </button>
-
-                <div
-                  ref={serverListRef}
-                  className="flex items-center gap-1.5 overflow-x-auto scroll-smooth scrollbar-none py-0.5"
-                >
-                  {ANIME_SERVERS.map((s) => {
-                    const isCurrent = s.id === server;
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => {
-                          setServer(s.id);
-                          updateIframeSrc(
-                            selectedEpisode?.episode || selectedEpisode?.number || parseInt(episode) || 1,
-                            language,
-                            s.id,
-                            movie?.malId,
-                            movie?.title,
-                            tmdbIdRef.current || tmdbId,
-                            anilistIdRef.current || movie?.anilistId
-                          );
-                        }}
-                        className={cn(
-                          'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border cursor-pointer',
-                          isCurrent
-                            ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-bold'
-                            : 'bg-white/5 border-white/10 text-foreground/75 hover:bg-white/10 hover:text-foreground'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'w-1.5 h-1.5 rounded-full shrink-0',
-                            isCurrent ? 'bg-background' : 'bg-emerald-400'
-                          )}
-                        />
-                        <span>{s.name.replace(' (Primary)', '')}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => serverListRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
-                  className="w-7 h-7 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 text-muted-foreground hover:text-brand flex items-center justify-center cursor-pointer transition-all active:scale-90 shrink-0 shadow-sm"
-                  title="Next servers (>)"
-                  aria-label="Next servers"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
               {/* Sub/Dub Switch */}
               <div className="inline-flex bg-white/5 p-0.5 rounded-xl border border-white/10 shrink-0">
                 <button
@@ -1928,11 +1873,15 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
                   </div>
                 </div>
 
-                {/* Server Selection */}
+                {/* Try another source — the quiet fallback when a stream won't load.
+                    Sub/Dub stays the front-facing language control. */}
               <div className="px-6 mt-6">
-                <h3 className="text-foreground font-bold mb-2 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-brand" /> Stream Servers
+                <h3 className="text-foreground font-bold mb-1 flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-brand" /> Try another source
                 </h3>
+                <p className="text-xs text-muted-foreground/70 mb-3 leading-relaxed">
+                  Playback picks a working source automatically. Only switch here if the video won't load.
+                </p>
                 <div className="flex flex-col gap-2">
                   {ANIME_SERVERS.map((srv) => (
                     <button

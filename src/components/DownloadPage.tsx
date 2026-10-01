@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   Zap,
+  Landmark,
   X,
 } from 'lucide-react';
 import { api, anilistApi } from '../api';
@@ -78,7 +79,7 @@ export function DownloadPage() {
       try {
         let title = '';
         let resolvedImdb = imdbParam;
-        let resolvedTmdb = id;
+        const resolvedTmdb = id;
         let poster = '';
         let backdrop = '';
         let year = '';
@@ -752,7 +753,9 @@ export function DownloadPage() {
             {data?.isIndian && (
               <div className="mb-6 p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-orange-500/15 via-amber-500/10 to-card border border-orange-500/30 flex items-center justify-between gap-4 flex-wrap shadow-lg">
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <span className="text-3xl shrink-0">🇮🇳</span>
+                  <div className="w-11 h-11 rounded-2xl bg-orange-500/15 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
+                    <Film className="w-5 h-5" aria-hidden="true" />
+                  </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-foreground">
@@ -784,7 +787,8 @@ export function DownloadPage() {
                         : "bg-orange-500/15 hover:bg-orange-500/25 text-orange-400 border-orange-500/30"
                     )}
                   >
-                    <span>{audioFilter === 'hindi' ? '✓ Showing Hindi Audio' : 'Filter Hindi Only'}</span>
+                    {audioFilter === 'hindi' && <Check className="w-3.5 h-3.5" aria-hidden="true" />}
+                    <span>{audioFilter === 'hindi' ? 'Showing Hindi Audio' : 'Filter Hindi Only'}</span>
                   </button>
                 </div>
               </div>
@@ -818,8 +822,8 @@ export function DownloadPage() {
                         : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
                     )}
                   >
-                    <Zap className="w-3 h-3 fill-current" />
-                    <span>⚡ 1-Click ({data?.downloads.filter((d) => d.isOneClick).length || 0})</span>
+                    <Zap className="w-3 h-3 fill-current" aria-hidden="true" />
+                    <span>1-Click ({data?.downloads.filter((d) => d.isOneClick).length || 0})</span>
                   </button>
                 )}
 
@@ -834,7 +838,8 @@ export function DownloadPage() {
                         : "bg-orange-500/10 border-orange-500/20 text-orange-400 hover:bg-orange-500/20"
                     )}
                   >
-                    <span>🇮🇳 Bollywood</span>
+                    <Film className="w-3 h-3" aria-hidden="true" />
+                    <span>Bollywood</span>
                   </button>
                 )}
 
@@ -849,7 +854,8 @@ export function DownloadPage() {
                         : "bg-amber-500/10 border-amber-500/20 text-amber-300 hover:bg-amber-500/20"
                     )}
                   >
-                    <span>🏛️ Classics</span>
+                    <Landmark className="w-3 h-3" aria-hidden="true" />
+                    <span>Classics</span>
                   </button>
                 )}
 
@@ -1033,8 +1039,9 @@ export function DownloadPage() {
                             {item.name}
                           </p>
                           {isVidVault && (
-                            <span className="hidden sm:inline-flex px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-brand text-background shrink-0">
-                              ⚡ VIDVAULT 1-CLICK
+                            <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-brand text-background shrink-0">
+                              <Zap className="w-2.5 h-2.5 fill-current" aria-hidden="true" />
+                              VIDVAULT 1-CLICK
                             </span>
                           )}
                           {isScreenScape && (
@@ -1224,7 +1231,7 @@ export function DownloadPage() {
                     <Download className="w-3.5 h-3.5 text-amber-400" /> 2. ScreenScape In-Player
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Click <strong>Launch Downloader</strong> to open the player. Click the <strong>Download (⬇️)</strong> button in the bottom control bar to access <strong>Sealx</strong> & <strong>HDHub</strong> direct MP4 links.
+                    Click <strong>Launch Downloader</strong> to open the player. Click the <strong>Download</strong> button in the bottom control bar to access <strong>Sealx</strong> & <strong>HDHub</strong> direct MP4 links.
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-1">
@@ -1232,7 +1239,7 @@ export function DownloadPage() {
                     <HardDrive className="w-3.5 h-3.5 text-amber-400" /> 3. Archive.org Direct MP4
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    For vintage and classic cinema, <strong>📥 1-Click Direct MP4</strong> streams and downloads genuine high-bitrate video files directly to your storage with resume support.
+                    For vintage and classic cinema, <strong>1-Click Direct MP4</strong> streams and downloads genuine high-bitrate video files directly to your storage with resume support.
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-1">
@@ -1292,7 +1299,7 @@ export function DownloadPage() {
                   <div className="px-4 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-xs text-amber-200/90 flex items-center gap-2.5">
                     <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
                     <span>
-                      <strong>How to grab download:</strong> Once the player loads, click the <strong>Download (⬇️)</strong> button on the bottom control bar to open <strong>"DOWNLOAD SOURCES"</strong> (Sealx, Mamba, HDHub) with instant 1-click download links!
+                      <strong>How to grab download:</strong> Once the player loads, click the <strong>Download</strong> button on the bottom control bar to open <strong>"DOWNLOAD SOURCES"</strong> (Sealx, Mamba, HDHub) with instant 1-click download links!
                     </span>
                   </div>
 

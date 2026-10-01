@@ -247,7 +247,9 @@ export async function fetchDownloads({
         return parsed.data;
       }
     }
-  } catch {}
+  } catch {
+    // Corrupt or unreadable cache entry: ignore and fall through to a fresh fetch.
+  }
 
   const nxshaDlUrl = type === 'tv'
     ? `https://nxsha.space/dl/tv/${imdbId || id}/${season}/${episode}`
@@ -341,7 +343,9 @@ export async function fetchDownloads({
             description: '100% direct, ad-free legal MP4 download from Internet Archive. Downloads directly in your browser with 1 click.',
           });
         }
-      } catch {}
+      } catch {
+        // Internet Archive lookup is optional; skip it if the request fails.
+      }
     }
   }
 
@@ -719,7 +723,9 @@ export async function fetchDownloads({
         data: result,
       })
     );
-  } catch {}
+  } catch {
+    // Cache write is best-effort (quota exceeded / private mode); non-fatal.
+  }
 
   return result;
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, User, Sparkles } from 'lucide-react';
+import { X, User, Sparkles, MapPin, Cake, Clapperboard } from 'lucide-react';
 import { api } from '../api';
 import { Movie } from '../types';
 import { PosterImage } from './PosterImage';
@@ -146,12 +146,21 @@ export function ActorModal({
               <div className="flex-1 space-y-3">
                 <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground font-mono">
                   {details?.place_of_birth && (
-                    <span>📍 {details.place_of_birth}</span>
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5" aria-hidden="true" />
+                      {details.place_of_birth}
+                    </span>
                   )}
                   {details?.birthday && (
-                    <span>🎂 Born {details.birthday}</span>
+                    <span className="flex items-center gap-1.5">
+                      <Cake className="w-3.5 h-3.5" aria-hidden="true" />
+                      Born {details.birthday}
+                    </span>
                   )}
-                  <span className="text-brand">🎬 {movies.length} Known Works</span>
+                  <span className="flex items-center gap-1.5 text-brand">
+                    <Clapperboard className="w-3.5 h-3.5" aria-hidden="true" />
+                    {movies.length} Known Works
+                  </span>
                 </div>
 
                 {details?.biography ? (

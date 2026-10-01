@@ -26,13 +26,21 @@ interface ConsentBannerProps {
 }
 
 export function ConsentBanner({ route }: ConsentBannerProps) {
-  const { telemetryConsent, setTelemetryConsent, authStatus } = useApp();
+  const {
+    telemetryConsent,
+    setTelemetryConsent,
+    authStatus,
+    authModalOpen,
+  } = useApp();
 
+  // Sync only means something once there's an account to sync to, so this is
+  // shown exclusively to signed-in users whose choice is still unset. Guests
+  // are never nagged -- they stay local-only until they choose to sign in.
   const suppressed =
     HIDDEN_ROUTES.some((prefix) => route === prefix || route.startsWith(prefix)) ||
-    authStatus === 'loading';
+    authModalOpen;
 
-  const open = telemetryConsent === 'unset' && !suppressed;
+  const open = authStatus === 'signed-in' && telemetryConsent === 'unset' && !suppressed;
 
   return (
     <AnimatePresence>
@@ -56,7 +64,6 @@ export function ConsentBanner({ route }: ConsentBannerProps) {
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 Your watchlist and progress are always saved in this browser. Allowing sync also
                 stores them against your CineVault account so they follow you to other devices.
-                {authStatus === 'signed-out' && ' Guests stay local-only until you allow it.'}
               </p>
             </div>
 

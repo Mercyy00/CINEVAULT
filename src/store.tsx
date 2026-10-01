@@ -96,6 +96,8 @@ export interface UserProfile {
   isLoggedIn?: boolean;
   language?: string;
   defaultServer?: string;
+  /** Preferred audio language for the movie/TV player's language chooser. */
+  languagePreference?: 'auto' | 'hindi' | 'english';
   audioPreference?: 'sub' | 'dub';
   filmGrain?: boolean;
   logoStyle?: 'vault' | 'cat';
@@ -252,18 +254,21 @@ export function sanitizeUserPreferences(raw: unknown): UserPreference[] {
         results.push({ label, genres: item, type: item === '16' ? 'tv' : 'movie' });
       }
     } else if (typeof item === 'object') {
-      const rawLabel = (item as any).label;
-      const rawName = (item as any).name;
-      
+      const record = item as Record<string, unknown>;
+      const rawLabel = record.label;
+      const rawName = record.name;
+
       let rawGenres = '';
-      if (typeof (item as any).genres === 'string' || typeof (item as any).genres === 'number') {
-        rawGenres = String((item as any).genres);
-      } else if ((item as any).genres && typeof (item as any).genres === 'object') {
-        rawGenres = String((item as any).genres.id || (item as any).genres.genres || '');
-      } else if (typeof (item as any).id === 'string' || typeof (item as any).id === 'number') {
-        rawGenres = String((item as any).id);
+      const genresField = record.genres;
+      if (typeof genresField === 'string' || typeof genresField === 'number') {
+        rawGenres = String(genresField);
+      } else if (genresField && typeof genresField === 'object') {
+        const nested = genresField as Record<string, unknown>;
+        rawGenres = String(nested.id ?? nested.genres ?? '');
+      } else if (typeof record.id === 'string' || typeof record.id === 'number') {
+        rawGenres = String(record.id);
       }
-      
+
       const label =
         typeof rawLabel === 'string' && rawLabel.trim() && rawLabel !== 'undefined'
           ? rawLabel.trim()
@@ -271,7 +276,7 @@ export function sanitizeUserPreferences(raw: unknown): UserPreference[] {
             ? rawName.trim()
             : GENRE_MAP[rawGenres] || null;
 
-      const type = (item as any).type === 'tv' ? 'tv' : 'movie';
+      const type = record.type === 'tv' ? 'tv' : 'movie';
 
       if (label && label !== 'undefined') {
         results.push({ label, genres: rawGenres || label, type });
@@ -325,6 +330,7 @@ function buildDefaultProfile(uid: string): UserProfile {
     isLoggedIn: false,
     language: 'English (US)',
     defaultServer: 'auto',
+    languagePreference: 'auto',
     audioPreference: 'sub',
     filmGrain: true,
     logoStyle: 'cat',
@@ -360,8 +366,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [deferredInstallPrompt, setDeferredInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
 
+  // Onboarding is opt-in only. New visitors default to "complete" so they land
+  // straight on the catalogue — the setup flow is re-entered explicitly from
+  // Profile ("Personalize home") or the ?setup=true / ?onboarding=true params.
   const [onboardingComplete, setOnboardingCompleteState] = useState<boolean>(
-    () => readString(StorageKeys.onboardingComplete, 'false') === 'true'
+    () => readString(StorageKeys.onboardingComplete, 'true') === 'true'
   );
 
   const [ambientColor, setAmbientColor] = useState<string | null>(null);
@@ -725,7 +734,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setProfiles(cloud.profiles);
         const targetId = cloud.activeProfileId || cloud.profiles[0].id;
         setActiveProfileId(targetId);
-        const active = cloud.profiles.find((p: any) => p.id === targetId) || cloud.profiles[0];
+        const active = cloud.profiles.find((p) => p.id === targetId) || cloud.profiles[0];
         setWatchlist(active.watchlist || []);
         setContinueWatching(active.continueWatching || []);
       } else {

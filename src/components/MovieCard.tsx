@@ -91,9 +91,6 @@ export function MovieCard({
     >
       <div className="double-bezel-card p-[1.5px] rounded-2xl w-full h-full transition-all duration-200 ease-out group-hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] group-hover:border-white/25">
         <div className="aspect-[2/3] w-full double-bezel-inner rounded-[calc(1rem-1.5px)] overflow-hidden relative bg-[#090a0f]">
-          {/* Specular top sheen line */}
-          <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/20 to-transparent z-20 pointer-events-none" />
-
           {/* Responsive poster: `srcSet` means a 150px phone card no longer
               downloads the same w500 file as a 500px desktop one. */}
           <PosterImage
@@ -110,14 +107,14 @@ export function MovieCard({
 
           {/* Media type (Top-Right). Not a quality claim. */}
           <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xl text-white/90 border border-white/15 shadow-sm">
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xl text-white/90 border border-white/15">
               {typeLabel}
             </span>
           </div>
 
           {/* Rating pill (Top-Left). Renders an em dash when unrated. */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xl px-2 py-0.5 rounded-full border border-white/15 shadow-sm">
-            <Star className="w-3 h-3 text-[#f5a54a] fill-[#f5a54a]" aria-hidden="true" />
+          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xl px-2 py-0.5 rounded-full border border-white/15">
+            <Star className="w-3 h-3 text-white/80 fill-white/80" aria-hidden="true" />
             <span className="text-[10px] font-bold text-white font-mono">
               {formatRating(movie.rating)}
             </span>
@@ -176,7 +173,7 @@ export function MovieCard({
                 {/* Omitted entirely when affinity is unknown, rather than
                     substituting a plausible-looking number. */}
                 {matchScore !== null && (
-                  <span className="text-emerald-400 text-[10px] font-mono font-bold">
+                  <span className="text-white/60 text-[10px] font-mono font-bold">
                     {matchScore}% Match
                   </span>
                 )}

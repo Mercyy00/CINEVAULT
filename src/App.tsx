@@ -23,7 +23,7 @@ import { BackToTop } from './components/BackToTop';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { LemniscateBloom } from './components/LemniscateBloom';
-import { AlertCircle, RefreshCw, Home } from 'lucide-react';
+import { AlertCircle, RefreshCw, Home, Dice5, AlertTriangle } from 'lucide-react';
 
 function safeLazy<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -1136,9 +1136,7 @@ function AppContent() {
                 transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                 className="w-32 h-48 bg-gradient-to-br from-brand to-orange-600 rounded-xl shadow-glow mb-8 flex items-center justify-center border-2 border-white/20"
               >
-                <span className="text-5xl" aria-hidden="true">
-                  🎲
-                </span>
+                <Dice5 className="w-14 h-14 text-white" aria-hidden="true" />
               </motion.div>
               <h2 className="text-3xl md:text-5xl font-display font-bold text-white text-center">
                 Shuffling…
@@ -1166,9 +1164,7 @@ function AppContent() {
                 className="w-full max-w-md glass border border-red-500/30 rounded-2xl p-8 relative text-center"
               >
                 <div className="w-16 h-16 rounded-full bg-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-6">
-                  <span className="text-3xl" aria-hidden="true">
-                    ⚠️
-                  </span>
+                  <AlertTriangle className="w-8 h-8" aria-hidden="true" />
                 </div>
                 <h3
                   id="reset-modal-title"

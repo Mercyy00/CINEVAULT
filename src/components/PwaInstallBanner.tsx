@@ -39,7 +39,10 @@ export function PwaInstallBanner() {
     triggerHaptic('light');
     try {
       localStorage.setItem(DISMISS_KEY, String(Date.now()));
-    } catch {}
+    } catch {
+      // Private-mode browsers throw on localStorage writes; dismissal just
+      // won't persist across sessions, which is an acceptable degradation.
+    }
   };
 
   const handleInstall = async () => {

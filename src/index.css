@@ -198,9 +198,10 @@
     --theme-glass-border: rgba(229, 9, 20, 0.15);
     --theme-glass-bg: rgba(12, 12, 12, 0.88);
 
-    --shadow-card: 0 8px 30px -8px rgba(0, 0, 0, 0.7);
-    --shadow-dock: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
-    --shadow-glow: 0 0 60px rgba(229, 9, 20, 0.35);
+    /* Monochrome editorial: hairline-ring "glow", restrained card depth, no red halo */
+    --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.03), 0 10px 30px -18px rgba(0, 0, 0, 0.85);
+    --shadow-dock: 0 8px 32px -14px rgba(0, 0, 0, 0.75);
+    --shadow-glow: 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -648,7 +649,7 @@
     padding-bottom: env(safe-area-inset-bottom, 20px);
   }
 
-  /* Film Grain Overlay */
+  /* Film Grain Overlay — off by default for the editorial look (opt-in via settings) */
   .bg-noise {
     position: fixed;
     top: 0;
@@ -657,7 +658,8 @@
     height: 100vh;
     pointer-events: none;
     z-index: 9999;
-    opacity: 0.03;
+    display: none;
+    opacity: 0;
     mix-blend-mode: overlay;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
     animation: film-grain 0.5s steps(1) infinite;
@@ -1024,31 +1026,26 @@
 }
 
 .gradient-text {
-  background: linear-gradient(135deg, #e8852a, #ff4d6d, #f5a623);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: var(--color-foreground);
+  -webkit-text-fill-color: currentColor;
 }
 
 .gradient-text-shimmer {
-  background: linear-gradient(90deg, #e8852a, #ff4d6d, #f5a623, #e8852a, #ff4d6d);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmerText 3s linear infinite;
+  color: var(--color-foreground);
+  -webkit-text-fill-color: currentColor;
+  animation: none;
 }
 
 .glow-gold {
-  text-shadow: 0 0 20px rgba(232, 133, 42, 0.5), 0 0 40px rgba(232, 133, 42, 0.3);
+  text-shadow: none;
 }
 
 .glow-rose {
-  text-shadow: 0 0 20px rgba(255, 77, 109, 0.5), 0 0 40px rgba(255, 77, 109, 0.3);
+  text-shadow: none;
 }
 
 .glow-both {
-  text-shadow: 0 0 20px rgba(232, 133, 42, 0.4), 0 0 30px rgba(255, 77, 109, 0.4), 0 0 60px rgba(232, 133, 42, 0.2);
+  text-shadow: none;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1056,55 +1053,34 @@
    ═══════════════════════════════════════════════════════ */
 .double-bezel-card {
   position: relative;
-  border-radius: 1.25rem;
-  padding: 2px;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.18) 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    rgba(232, 133, 42, 0.25) 100%
-  );
-  box-shadow: 0 12px 36px -10px rgba(0, 0, 0, 0.65);
-  transition: all 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  border-radius: 1rem;
+  padding: 0;
+  background: transparent;
+  border: 1px solid var(--theme-border);
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.3s cubic-bezier(0.32, 0.72, 0, 1), transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .double-bezel-card:hover {
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.25) 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.04) 100%
-  );
-  box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.75);
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: var(--shadow-card);
 }
 
 .double-bezel-inner {
-  border-radius: calc(1.25rem - 2px);
+  border-radius: calc(1rem - 1px);
   position: relative;
   overflow: hidden;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  box-shadow: none;
 }
 
-/* Specular Sheen on Hover */
+/* Specular Sheen on Hover — disabled for the editorial look */
 .sheen-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: linear-gradient(
-    105deg,
-    transparent 20%,
-    rgba(255, 255, 255, 0.12) 45%,
-    rgba(255, 255, 255, 0.22) 50%,
-    rgba(255, 255, 255, 0.12) 55%,
-    transparent 80%
-  );
-  transform: translateX(-100%) skewX(-15deg);
-  transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
-  z-index: 15;
+  display: none;
 }
 
 .group:hover .sheen-layer {
-  transform: translateX(100%) skewX(-15deg);
+  transform: none;
 }
 
 /* Horizontal Row Edge Fade Masks */
@@ -1125,13 +1101,13 @@
   );
 }
 
-/* Ambient Stage Glow Orbs */
+/* Ambient Stage Glow Orbs — dimmed for the editorial look */
 .ambient-glow-orb {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(80px);
+  filter: blur(90px);
   pointer-events: none;
-  opacity: 0.4;
+  opacity: 0.12;
   animation: pulse-glow 8s ease-in-out infinite alternate;
 }
 
@@ -1233,6 +1209,17 @@ input,
 select,
 textarea {
   touch-action: manipulation;
+}
+
+/* Prevent iOS Safari from zooming when a text field is focused. Inputs below
+   16px trigger an automatic zoom that then leaves the layout scrolled and
+   misaligned — the single most common "unpolished on mobile" tell. */
+@media (max-width: 640px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* Hardware notch / home bar safe-area insets */

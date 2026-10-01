@@ -41,7 +41,9 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
         if (!slide.logoUrl) {
           try {
             slide.logoUrl = await api.resolveTitleLogo(slide.title, 'anime');
-          } catch {}
+          } catch {
+            // Logo is decorative; fall back to the text title on any failure.
+          }
         }
       })
     );
@@ -65,11 +67,15 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
         const mediaType = slide.type === 'tv' ? 'tv' : 'movie';
         try {
           slide.logoUrl = await api.resolveTmdbLogo(mediaType, slide.id);
-        } catch {}
+        } catch {
+          // Logo is decorative; fall back to the text title on any failure.
+        }
         if (!slide.logoUrl) {
           try {
             slide.logoUrl = await api.resolveTitleLogo(slide.title, mediaType);
-          } catch {}
+          } catch {
+            // Logo is decorative; fall back to the text title on any failure.
+          }
         }
       }
     })
@@ -286,12 +292,16 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
       if (mediaType !== 'anime') {
         try {
           logo = await api.resolveTmdbLogo(mediaType, slide.id);
-        } catch {}
+        } catch {
+          // Logo is decorative; fall back to the text title on any failure.
+        }
       }
       if (!logo) {
         try {
           logo = await api.resolveTitleLogo(slide.title, mediaType);
-        } catch {}
+        } catch {
+          // Logo is decorative; fall back to the text title on any failure.
+        }
       }
       if (logo && active) {
         setMovies((prev) =>
@@ -442,9 +452,8 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
       aria-roledescription="carousel"
       aria-label={`${typeLabel}: ${current.title}`}
     >
-      {/* Dynamic Ambient Mesh Glow Orbs */}
-      <div className="ambient-glow-orb -top-20 -left-20 w-[450px] h-[450px] bg-brand/30 z-0" />
-      <div className="ambient-glow-orb top-1/3 right-0 w-[500px] h-[500px] bg-[#ffd066]/20 z-0" />
+      {/* Dynamic Ambient Mesh Glow Orb — single, dimmed, monochrome */}
+      <div className="ambient-glow-orb -top-20 -left-20 w-[450px] h-[450px] bg-white/20 z-0" />
 
       {/* Backdrop. The LCP element on both the home page and every catalogue
           page, so it is eager, high priority, and width-appropriate; `alt` is
@@ -501,15 +510,6 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
       <div className="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/50 to-transparent" />
       <div className="absolute inset-0 z-10 bg-gradient-to-r from-background/90 via-background/40 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-40 z-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
-
-      {/* Floating Particles Overlay */}
-      <div
-        className="absolute inset-0 z-10 pointer-events-none opacity-20 mix-blend-screen"
-        style={{
-          backgroundImage: 'radial-gradient(circle, var(--theme-accent) 1px, transparent 1px)',
-          backgroundSize: '80px 80px',
-        }}
-      />
 
       {/* Main Hero Content */}
       <div className="relative z-20 max-w-5xl w-full pb-24 sm:pb-28 px-4 sm:px-10 lg:px-14">
@@ -585,7 +585,7 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
             <button
               type="button"
               onClick={handlePlay}
-              className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-5 pr-2 py-2 text-xs sm:text-base font-bold shadow-[0_10px_30px_-5px_var(--theme-accent-glow,rgba(232,133,42,0.5))] hover:scale-105 active:scale-95 transition-all duration-300 cursor-pointer"
+              className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-5 pr-2 py-2 text-xs sm:text-base font-bold shadow-card hover:scale-[1.03] active:scale-95 transition-all duration-300 cursor-pointer"
             >
               <span>Watch Now</span>
               <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">

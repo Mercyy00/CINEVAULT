@@ -2,16 +2,15 @@
 
 # 🎬 CineVault
 
-**A high-performance full-stack streaming platform and AI-powered entertainment hub.**
+**A fast, ad-free discovery hub for films, TV, and anime — with a personalized watchlist that follows you across devices.**
 
 [![React 19](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.8-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
-[![Express.js](https://img.shields.io/badge/Express-4.21-000000?style=for-the-badge&logo=express&logoColor=white)](https://expressjs.com/)
-[![SQLite](https://img.shields.io/badge/SQLite-3-003B57?style=for-the-badge&logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Google Gemini](https://img.shields.io/badge/Gemini_AI-API-4285F4?style=for-the-badge&logo=google&logoColor=white)](https://ai.google.dev/)
+[![Vite](https://img.shields.io/badge/Vite-6-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vite.dev/)
+[![Firebase](https://img.shields.io/badge/Firebase-12-FFCA28?style=for-the-badge&logo=firebase&logoColor=black)](https://firebase.google.com/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4.1-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
-[**Explore Live Demo »**](https://cinevault-stream.vercel.app) · [Report Bug](https://github.com/Mercyy00/CINEVAULT/issues) · [Request Feature](https://github.com/Mercyy00/CINEVAULT/issues)
+[Report Bug](https://github.com/Mercyy00/CINEVAULT/issues) · [Request Feature](https://github.com/Mercyy00/CINEVAULT/issues)
 
 </div>
 
@@ -19,98 +18,122 @@
 
 ## 📖 Overview
 
-**CineVault** is a modern, responsive streaming web application engineered to deliver an ad-free, cinematic experience. It combines real-time TMDB catalog ingestion, multi-server video stream resolution (with automatic TMDB-to-IMDb fallback), an AI-driven **MoodFinder** recommendation engine powered by Google Gemini, and secure SQLite-backed authentication with cross-device watch progress tracking.
+**CineVault** is a client-only single-page application for discovering movies, TV series, and anime. It pulls catalog metadata live from **TMDB** and **AniList**, lets visitors build a watchlist and track watch progress, and syncs that library across devices for signed-in users via **Firebase Auth + Firestore**.
+
+There is no custom application server. The app talks directly to the public metadata APIs from the browser, and all user state is persisted to `localStorage` first (so guests get a full experience offline) and mirrored to Firestore when signed in. An optional serverless proxy can be pointed at TMDB to keep the API key off the client.
 
 ---
 
 ## ✨ Key Features
 
-- 🎯 **AI-Powered "MoodFinder" Engine**: Real-time film recommendations curated via Google Gemini API based on user sentiment, vibe, and genre preferences.
-- ⚡ **Multi-Server Streaming Failover**: Dynamic streaming pipeline with support for multi-language Hindi/English ad-free streaming servers (ScreenScape, ModiPlay, MbPly) and automatic IMDb identifier resolution.
-- 📺 **Custom HTML5 Video Player**: Synchronized watch progress tracking, auto-resume functionality, custom subtitle styling, and keyboard shortcut navigation.
-- 🔐 **Secure Full-Stack Authentication**: JWT session handling with bcrypt password hashing, SQLite (better-sqlite3) persistence, and Firebase Auth integration.
-- 📱 **Fluid 60fps Responsive UI**: Crafted with React 19, Motion (Framer Motion), and Tailwind CSS v4 with adaptive layouts for Mobile, Tablet, and Desktop screens.
-- 🛡️ **Role-Based Admin Dashboard**: Analytics overview, user session metrics, and live stream server health monitoring.
+- 🎯 **Personalized rows** — "Because you watched…" and "Because you like…" rows derived from a genre-affinity model built from your onboarding answers and watchlist. Match scores are shown only when there's enough signal to be meaningful (no fabricated "% match").
+- 🎲 **Surprise Me & Find by Mood** — quick discovery entry points for when you don't know what to watch.
+- 📺 **Custom playback experience** — resume-where-you-left-off, next-episode shortcuts, keyboard controls, picture-in-picture / floating player, and orientation handling on mobile.
+- 👥 **Multiple profiles** — including a Kids Mode that filters the catalog to family-friendly content, each with its own watchlist, theme, and font.
+- ☁️ **Cross-device sync** — debounced, consent-gated Firestore writes with local-first fallback. Signed-out visitors run entirely from `localStorage`.
+- 🎨 **15 themes + display fonts**, PWA install, offline-aware network banner, and a cinematic intro.
+- ♿ **Accessibility & resilience** — per-route error boundaries, skip links, keyboard-navigable cards, scroll restoration, and reduced-motion support.
+- 🛡️ **Admin dashboard** — gated by a server-minted Firebase `admin` custom claim (never an email allowlist), for viewing user/session metrics.
 
 ---
 
 ## 🛠️ Tech Stack
 
-### **Frontend**
-- **Core Framework**: React 19, TypeScript, Vite
-- **Styling**: Tailwind CSS v4, Motion (Framer Motion v12), Lucide React
-- **State & Utilities**: Context API, `use-debounce`, `react-focus-lock`, `@hello-pangea/dnd`
+- **Framework**: React 19, TypeScript, Vite 6
+- **Styling & motion**: Tailwind CSS v4, Motion (Framer Motion v12), Lucide React
+- **State**: React Context (`store.tsx`), `use-debounce`
+- **Auth & sync**: Firebase Auth (email/password, Google, anonymous guests) + Cloud Firestore
+- **Data sources**: TMDB (films & TV), AniList (anime), optional OMDb (IMDb / Rotten Tomatoes / Metacritic ratings)
+- **UX libraries**: `@hello-pangea/dnd` (watchlist reorder), `react-focus-lock`
+- **Testing**: Vitest, Testing Library, jsdom
 
-### **Backend & APIs**
-- **Server**: Node.js, Express.js, TSX
-- **Database**: SQLite (`better-sqlite3`), Firebase Firestore
-- **Authentication**: JSON Web Tokens (JWT), Bcrypt.js, Firebase Auth
-- **External APIs**: TMDB API, Google Gemini GenAI API, IMDb ID Resolvers
+> **Note on streaming:** video is embedded from third-party providers via iframe; CineVault hosts no media and stores no stream URLs of its own.
 
 ---
 
 ## 🚀 Getting Started
 
 ### Prerequisites
-- Node.js (v18.0.0 or higher)
-- npm, yarn, or bun
+- Node.js **20.19+**
+- npm
 
 ### Installation
 
-1. **Clone the repository:**
+1. **Clone and install:**
    ```bash
    git clone https://github.com/Mercyy00/CINEVAULT.git
    cd CINEVAULT
-   ```
-
-2. **Install dependencies:**
-   ```bash
    npm install
    ```
 
-3. **Configure Environment Variables:**
-   Create a `.env` file in the root directory:
+2. **Configure environment variables:** copy `.env.example` to `.env.local` and fill in your keys.
    ```env
-   PORT=3005
-   JWT_SECRET=your_jwt_secret_key
+   # TMDB — provide the key directly, OR point at a proxy that appends it server-side (recommended)
    VITE_TMDB_API_KEY=your_tmdb_api_key
-   GEMINI_API_KEY=your_gemini_api_key
+   # VITE_TMDB_PROXY_URL=https://your-proxy.example.com/tmdb
+
+   # Firebase (optional — omit entirely to run local-only with no cloud sync)
+   VITE_FIREBASE_API_KEY=...
+   VITE_FIREBASE_AUTH_DOMAIN=...
+   VITE_FIREBASE_PROJECT_ID=...
+   VITE_FIREBASE_STORAGE_BUCKET=...
+   VITE_FIREBASE_MESSAGING_SENDER_ID=...
+   VITE_FIREBASE_APP_ID=...
+
+   # Optional external ratings
+   # VITE_OMDB_API_KEY=...
    ```
+   Firebase config is read **only** from build-time env vars — there are no hardcoded fallbacks. If Firebase is not configured, the app runs entirely from `localStorage`.
 
-4. **Start the Development Servers:**
+3. **Run the dev server:**
    ```bash
-   # Start the Express backend server
-   npm run server
-
-   # Start the Vite frontend dev server
    npm run dev
    ```
 
-5. Open your browser and navigate to `http://localhost:3005`.
+4. Open the URL Vite prints (default `http://localhost:5173`).
+
+### Useful scripts
+
+| Script | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite dev server |
+| `npm run build` | Type-check then produce a production build |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run lint` | ESLint (zero-warning gate) |
+| `npm run test` | Run the Vitest suite |
+| `npm run ci` | typecheck + lint + tests |
 
 ---
 
-## 🏗️ Project Architecture
+## 🏗️ Project Structure
 
 ```plaintext
 cinevault/
-├── server/               # Express.js REST API & Database Layer
-│   ├── api.ts            # Auth & data endpoints
-│   ├── auth.ts           # JWT generation & password hashing
-│   ├── db.ts             # SQLite schema and query setup
-│   └── index.ts          # Server entry point
 ├── src/
-│   ├── components/       # Reusable UI components & modals
-│   ├── context/          # React context providers (Auth, Theme)
-│   ├── services/         # Firebase & Watch tracking services
-│   ├── api.ts            # TMDB & Backend API integration
-│   ├── types.ts          # TypeScript type definitions
-│   └── App.tsx           # Main application router and state
-└── package.json
+│   ├── components/     # UI components, modals, players, pages
+│   ├── services/       # Firebase, auth, cross-device sync, watch tracking, downloads
+│   ├── hooks/          # Carousel, scroll restoration
+│   ├── lib/            # Storage, navigation, playback, SEO, consent, utils
+│   ├── config/         # Server list, anime genre maps
+│   ├── api.ts          # TMDB + AniList access layer (cached, deduped, retried)
+│   ├── store.tsx       # App-wide state, cloud sync, profiles, match scoring
+│   ├── types.ts        # Shared type definitions
+│   └── App.tsx         # Routing + layout shell
+├── firestore.rules     # Deny-by-default security rules (per-uid scoping)
+├── firebase.json
+└── index.html
 ```
+
+---
+
+## 🔐 Security Notes
+
+- **Firestore rules are deny-by-default.** Users may only read/write documents scoped to their own uid. Admin access comes from a server-minted `admin` custom claim, and privilege-escalation fields (`role`, `isAdmin`, `claims`) are explicitly rejected on client writes.
+- **Guests are Firebase anonymous sessions** with real uids, so they're covered by owner-scoped rules rather than a world-readable wildcard.
+- **No secrets are committed** — `.env*` is gitignored except `.env.example`.
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Licensed under the MIT License — see [LICENSE](LICENSE).

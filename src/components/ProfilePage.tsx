@@ -16,7 +16,9 @@ import {
   RefreshCw,
   ShieldCheck,
   Sliders,
-  Users
+  Users,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { useApp, Theme } from '../store';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
@@ -259,7 +261,7 @@ export function ProfilePage() {
 
               {/* Profile Card with Banner */}
               <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card relative">
-                <div className="h-28 bg-gradient-to-r from-brand/25 via-brand/10 to-transparent border-b border-border relative" />
+                <div className="h-28 bg-gradient-to-r from-white/[0.06] via-white/[0.02] to-transparent border-b border-border relative" />
                 <div className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-black/80 shadow-md flex items-center justify-center p-1 overflow-hidden">
                   <img
                     src={getUserAvatarUrl(activeProfile?.avatar || userProfile.avatar, activeProfile?.name || userProfile.name)}
@@ -288,13 +290,13 @@ export function ProfilePage() {
 
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium self-start sm:self-center border",
-                      userProfile.isLoggedIn 
-                        ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-600 dark:text-emerald-400"
-                        : "bg-amber-500/10 border-amber-500/25 text-amber-600 dark:text-amber-400"
+                      userProfile.isLoggedIn
+                        ? "bg-white/[0.04] border-white/15 text-foreground"
+                        : "bg-white/[0.02] border-white/10 text-muted-foreground"
                     )}>
                       <span className={cn(
                         "w-2 h-2 rounded-full",
-                        userProfile.isLoggedIn ? "bg-emerald-500 animate-pulse" : "bg-amber-500 animate-pulse"
+                        userProfile.isLoggedIn ? "bg-white animate-pulse" : "bg-muted-foreground"
                       )} />
                       {userProfile.isLoggedIn ? 'Live Cloud Sync Active' : 'Saved on this device only'}
                     </div>
@@ -464,7 +466,7 @@ export function ProfilePage() {
                 <div className="p-6 rounded-2xl bg-card border border-border shadow-card flex flex-col gap-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-base font-bold text-foreground">
-                      <ShieldCheck className="w-5 h-5 text-emerald-500" />
+                      <ShieldCheck className="w-5 h-5 text-foreground" />
                       <span>Cloud Account Active</span>
                     </div>
                     <span className="text-[11px] text-muted-foreground font-mono">
@@ -712,7 +714,7 @@ export function ProfilePage() {
                         themeFilter === 'dark' ? "bg-brand text-brand-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      🌙 Dark ({darkThemes.length})
+                      <span className="inline-flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" aria-hidden="true" /> Dark ({darkThemes.length})</span>
                     </button>
                     <button
                       onClick={() => setThemeFilter('light')}
@@ -721,14 +723,14 @@ export function ProfilePage() {
                         themeFilter === 'light' ? "bg-brand text-brand-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      ☀️ Light ({lightThemes.length})
+                      <span className="inline-flex items-center gap-1.5"><Sun className="w-3.5 h-3.5" aria-hidden="true" /> Light ({lightThemes.length})</span>
                     </button>
                   </div>
                 </div>
 
                 {(themeFilter === 'all' || themeFilter === 'dark') && (
                   <div className="space-y-2 pt-2">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">🌙 Dark Themes</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider inline-flex items-center gap-1.5"><Moon className="w-3.5 h-3.5" aria-hidden="true" /> Dark Themes</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                       {darkThemes.map((t) => {
                         const isSelected = theme === t.id;
@@ -757,7 +759,7 @@ export function ProfilePage() {
 
                 {(themeFilter === 'all' || themeFilter === 'light') && (
                   <div className="space-y-2 pt-3">
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">☀️ Light Themes</span>
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider inline-flex items-center gap-1.5"><Sun className="w-3.5 h-3.5" aria-hidden="true" /> Light Themes</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                       {lightThemes.map((t) => {
                         const isSelected = theme === t.id;
@@ -819,7 +821,7 @@ export function ProfilePage() {
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
                 <div>
                   <h3 className="text-base font-bold text-foreground flex items-center gap-2">
-                    <span>✨</span> Title Logo Style
+                    <Sparkles className="w-4 h-4" aria-hidden="true" /> Title Logo Style
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">Select which title logo emblem appears in the header and splash screen</p>
                 </div>

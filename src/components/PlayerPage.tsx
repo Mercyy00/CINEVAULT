@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, X, Download, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronDown, Maximize, Menu, Minimize, Play, Signal, X, Download, Star, ChevronLeft, ChevronRight, Languages, Check } from 'lucide-react';
 import { api, type TmdbEpisode, type TmdbSeason } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -51,6 +51,32 @@ const serverProbeCache = new Map<string, { reachable: boolean; latencyMs: number
 
 type EmbedState = 'idle' | 'loading' | 'ready' | 'slow';
 
+/**
+ * Audio-language chooser for the movie/TV player.
+ *
+ * The viewer never picks a provider by hand in the normal flow — they pick a
+ * language and the player auto-selects (and silently fails over between) the
+ * sources that advertise it. `sourcesForLanguage` turns a language into an
+ * ordered candidate pool: titles in the requested language first, then the
+ * `multi` sources as a fallback, so a pool is never empty. `auto` keeps the
+ * full reachability-ranked list.
+ */
+type AudioLanguage = 'auto' | 'hindi' | 'english';
+
+const LANGUAGE_OPTIONS: { key: AudioLanguage; label: string }[] = [
+  { key: 'auto', label: 'Auto' },
+  { key: 'hindi', label: 'Hindi' },
+  { key: 'english', label: 'English' },
+];
+
+function sourcesForLanguage(sources: StreamSource[], lang: AudioLanguage): StreamSource[] {
+  if (lang === 'auto') return sources;
+  const inLanguage = sources.filter((s) => s.language === lang);
+  const multi = sources.filter((s) => s.language === 'multi');
+  return [...inLanguage, ...multi];
+}
+
+
 interface PlayerPageProps {
   type: 'movie' | 'tv';
   id: string;
@@ -65,18 +91,27 @@ interface PlaybackProgress {
 }
 
 export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
-  const { updateContinueWatching, continueWatching, userProfile, isMobileView, playerMode, setPlayerMode } = useApp();
+  const { updateContinueWatching, continueWatching, userProfile, updateUserProfile, isMobileView, playerMode, setPlayerMode } = useApp();
 
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [serversOpen, setServersOpen] = useState(true);
+  const [languagePreference, setLanguagePreference] = useState<AudioLanguage>(
+    () => userProfile.languagePreference ?? 'auto'
+  );
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [rankedSources, setRankedSources] = useState<StreamSource[]>(STREAM_SOURCES);
   const [failedSources, setFailedSources] = useState<Set<string>>(new Set());
   const [source, setSource] = useState<StreamSource>(() => {
-    const pref = readString(StorageKeys.preferredServer, '');
-    return findSource(pref) ?? findSource('vidlink') ?? STREAM_SOURCES[0];
+    const lang = userProfile.languagePreference ?? 'auto';
+    const pool = sourcesForLanguage(STREAM_SOURCES, lang);
+    if (lang === 'auto') {
+      const pref = readString(StorageKeys.preferredServer, '');
+      return findSource(pref) ?? pool[0] ?? STREAM_SOURCES[0];
+    }
+    return pool[0] ?? STREAM_SOURCES[0];
   });
   const [embedState, setEmbedState] = useState<EmbedState>('idle');
   const [retryToken, setRetryToken] = useState(0);
@@ -179,7 +214,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const controlsTimeout = useRef<number | null>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const serverListRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<PlaybackProgress>({
     positionSeconds: 0,
     durationSeconds: null,
@@ -420,15 +454,16 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
   useEffect(() => {
     if (embedState === 'slow') {
-      const nextSource = rankedSources.find(s => !failedSources.has(s.id) && s.id !== source.id && s.status !== 'maintenance');
+      const pool = sourcesForLanguage(rankedSources, languagePreference);
+      const nextSource = pool.find(s => !failedSources.has(s.id) && s.id !== source.id && s.status !== 'maintenance');
       if (nextSource) {
-        setFailoverMessage(`Source unavailable — trying ${nextSource.name}…`);
+        setFailoverMessage('Still loading — switching for you…');
         setSource(nextSource);
       } else {
-        setFailoverMessage('All sources failed. Please try again later.');
+        setFailoverMessage('Having trouble reaching this title. Try another source below.');
       }
     }
-  }, [embedState, failedSources, rankedSources, source.id]);
+  }, [embedState, failedSources, rankedSources, source.id, languagePreference]);
 
   useEffect(() => {
     if (embedState === 'ready') {
@@ -756,6 +791,21 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     setSource(next);
   };
 
+  const handleLanguageChange = (lang: AudioLanguage) => {
+    setLanguagePreference(lang);
+    setLanguageMenuOpen(false);
+    updateUserProfile({ languagePreference: lang });
+    // A fresh language choice deserves a clean slate — forget prior failures so
+    // the full pool is reconsidered, then jump to the best source in it.
+    setFailedSources(new Set());
+    setFailoverMessage(null);
+    const pool = sourcesForLanguage(rankedSources, lang);
+    const next = pool.find((s) => s.status !== 'maintenance') ?? pool[0];
+    if (next && next.id !== source.id) {
+      setSource(next);
+    }
+  };
+
   /* ---------------------------------------------------------------------- */
   /* Controls auto-hide                                                     */
   /* ---------------------------------------------------------------------- */
@@ -791,7 +841,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           if (screen.orientation && 'lock' in screen.orientation) {
             await (screen.orientation as any).lock('landscape').catch(() => {});
           }
-        } catch {}
+        } catch {
+          // Orientation lock is a progressive enhancement; unsupported on
+          // desktop and some browsers reject it outside a user gesture.
+        }
       } else {
         if (document.exitFullscreen) {
           await document.exitFullscreen();
@@ -804,7 +857,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           if (screen.orientation && 'unlock' in screen.orientation) {
             screen.orientation.unlock();
           }
-        } catch {}
+        } catch {
+          // Orientation unlock is best-effort; unsupported on some platforms.
+        }
       }
     } catch (err) {
       console.error('Fullscreen toggle failed:', err);
@@ -821,7 +876,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           if (screen.orientation && 'unlock' in screen.orientation) {
             screen.orientation.unlock();
           }
-        } catch {}
+        } catch {
+          // Orientation unlock is best-effort; unsupported on some platforms.
+        }
       }
     };
     document.addEventListener('fullscreenchange', onFsChange);
@@ -880,7 +937,12 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
         if (type === 'tv' && hasPrevEpisode) {
           handleGoToPrevEpisode();
         }
-      } else if (event.key === 'f' || event.key === 'F') {
+      } else if (
+        (event.key === 'f' || event.key === 'F') &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
         void toggleFullscreen();
       } else if (event.key === 'm' || event.key === 'M') {
         try {
@@ -926,8 +988,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       } else if ((event.key === 't' || event.key === 'T') && !event.ctrlKey && !event.metaKey && !event.altKey) {
         if (isFullscreen) toggleFullscreen();
         setPlayerMode('contained');
-      } else if ((event.key === 'f' || event.key === 'F') && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        toggleFullscreen();
       } else if (event.key === 'Escape') {
         if (document.fullscreenElement || isFullscreen) {
           void toggleFullscreen();
@@ -1166,20 +1226,82 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   <Menu className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                 </button>
 
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer shrink-0"
-                  title="Change server source"
-                >
-                  <Signal className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-brand" aria-hidden="true" />
-                  <span className="max-w-[75px] sm:max-w-[120px] truncate">{source.name}</span>
-                  {source.quality && (
-                    <span className="text-[9px] sm:text-[10px] px-1 py-0.5 rounded bg-brand/20 text-brand uppercase font-mono">
-                      {source.quality}
+                <div className="relative shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setLanguageMenuOpen((o) => !o)}
+                    aria-label="Choose audio language"
+                    aria-haspopup="menu"
+                    aria-expanded={languageMenuOpen}
+                    className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-full bg-card/80 hover:bg-brand/20 border border-white/10 text-[11px] sm:text-xs font-bold text-foreground backdrop-blur-md transition-colors cursor-pointer"
+                  >
+                    <Languages className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand" aria-hidden="true" />
+                    <span>
+                      {LANGUAGE_OPTIONS.find((o) => o.key === languagePreference)?.label ?? 'Auto'}
                     </span>
-                  )}
-                </button>
+                    <ChevronDown
+                      className={cn(
+                        'w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted-foreground transition-transform',
+                        languageMenuOpen && 'rotate-180'
+                      )}
+                      aria-hidden="true"
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {languageMenuOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setLanguageMenuOpen(false)}
+                          aria-hidden="true"
+                        />
+                        <motion.div
+                          initial={{ opacity: 0, y: -6, scale: 0.97 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -6, scale: 0.97 }}
+                          transition={{ duration: 0.14 }}
+                          role="menu"
+                          aria-label="Audio language"
+                          className="absolute left-0 top-full mt-2 z-50 w-44 p-1.5 rounded-2xl bg-[#0b0c12]/95 backdrop-blur-2xl border border-white/12 shadow-2xl"
+                        >
+                          {LANGUAGE_OPTIONS.map((option) => (
+                            <button
+                              key={option.key}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={languagePreference === option.key}
+                              onClick={() => handleLanguageChange(option.key)}
+                              className={cn(
+                                'w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors cursor-pointer',
+                                languagePreference === option.key
+                                  ? 'bg-brand/20 text-brand'
+                                  : 'text-foreground hover:bg-white/8'
+                              )}
+                            >
+                              <span>{option.label}</span>
+                              {languagePreference === option.key && (
+                                <Check className="w-3.5 h-3.5" aria-hidden="true" />
+                              )}
+                            </button>
+                          ))}
+                          <div className="my-1 h-px bg-white/8" />
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setLanguageMenuOpen(false);
+                              setSidebarOpen(true);
+                            }}
+                            className="w-full px-3 py-2 rounded-xl text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-white/8 transition-colors cursor-pointer text-left leading-snug"
+                          >
+                            Playback issue? Try another source
+                          </button>
+                        </motion.div>
+                      </>
+                    )}
+                  </AnimatePresence>
+                </div>
 
                 <div className="hidden lg:block min-w-0 ml-1">
                   {movie.logoUrl ? (
@@ -1536,69 +1658,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               )}
             </div>
 
-            {/* Server & TV Controls */}
+            {/* TV Controls — source selection lives in the player's Language menu now */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
-              {/* Server selector with < > navigation arrows */}
-              <div className="flex items-center gap-1 min-w-0 max-w-full sm:max-w-[480px] xl:max-w-[580px]">
-                <button
-                  type="button"
-                  onClick={() => serverListRef.current?.scrollBy({ left: -160, behavior: 'smooth' })}
-                  className="w-7 h-7 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 text-muted-foreground hover:text-brand flex items-center justify-center cursor-pointer transition-all active:scale-90 shrink-0 shadow-sm"
-                  title="Previous servers (<)"
-                  aria-label="Previous servers"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                </button>
-
-                <div
-                  ref={serverListRef}
-                  className="flex items-center gap-1.5 overflow-x-auto scroll-smooth scrollbar-none py-0.5"
-                >
-                  {rankedSources.map((s) => {
-                    const isCurrent = s.id === source.id;
-                    const probe = serverProbeCache.get(s.id);
-                    const isFailed = failedSources.has(s.id);
-                    return (
-                      <button
-                        key={s.id}
-                        type="button"
-                        onClick={() => handleSourceChange(s)}
-                        className={cn(
-                          'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold shrink-0 transition-all border cursor-pointer',
-                          isCurrent
-                            ? 'bg-brand text-background border-brand shadow-md shadow-brand/20 font-bold'
-                            : 'bg-white/5 border-white/10 text-foreground/75 hover:bg-white/10 hover:text-foreground'
-                        )}
-                      >
-                        <span
-                          className={cn(
-                            'w-1.5 h-1.5 rounded-full shrink-0',
-                            isCurrent
-                              ? 'bg-background'
-                              : isFailed
-                              ? 'bg-amber-400'
-                              : probe?.reachable
-                              ? 'bg-emerald-400'
-                              : 'bg-white/40'
-                          )}
-                        />
-                        <span>{s.name}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => serverListRef.current?.scrollBy({ left: 160, behavior: 'smooth' })}
-                  className="w-7 h-7 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 text-muted-foreground hover:text-brand flex items-center justify-center cursor-pointer transition-all active:scale-90 shrink-0 shadow-sm"
-                  title="Next servers (>)"
-                  aria-label="Next servers"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
               {/* Season Selector for TV */}
               {type === 'tv' && seasons.length > 1 && (
                 <select
@@ -1828,7 +1889,8 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 </div>
               )}
 
-              {/* Sources */}
+              {/* Try another source — the quiet fallback for when auto-select and
+                  silent failover have run out of road for a given title. */}
               <div className="mt-8 px-6 pb-8 border-t border-white/10 pt-6">
                 <button
                   type="button"
@@ -1838,7 +1900,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   className="w-full text-foreground font-bold flex items-center justify-between gap-2 group cursor-pointer"
                 >
                   <span className="flex items-center gap-2">
-                    <Signal className="w-5 h-5 text-brand" aria-hidden="true" /> Sources
+                    <Signal className="w-5 h-5 text-brand" aria-hidden="true" /> Try another source
                   </span>
                   <ChevronDown
                     className={cn(
@@ -1848,6 +1910,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                     aria-hidden="true"
                   />
                 </button>
+                <p className="text-xs text-muted-foreground/70 mt-1.5 leading-relaxed">
+                  Playback picks a working source automatically. Only switch here if the video won't load.
+                </p>
 
                 {/* State-driven, rather than reaching into
                     document.getElementById and mutating el.style.maxHeight. */}

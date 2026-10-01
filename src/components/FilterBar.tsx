@@ -113,7 +113,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
       }}
       className={cn(
         "w-full text-left px-3.5 py-2 text-xs sm:text-sm rounded-lg transition-all flex items-center gap-2.5 cursor-pointer",
-        active ? "text-brand font-bold bg-brand/10" : "text-foreground hover:bg-white/10"
+        active ? "text-foreground font-semibold bg-white/10" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
       )}
     >
       {children}
@@ -122,8 +122,8 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
 
   return (
     <div className="px-4 sm:px-8 lg:px-10 py-3 sm:py-5 flex items-center gap-2 sm:gap-6 border-b border-white/5 relative z-30 select-none overflow-x-auto sm:overflow-visible scrollbar-none">
-      <div className="flex items-center gap-1.5 text-xs font-mono font-bold uppercase tracking-wider text-muted-foreground mr-1 shrink-0">
-        <SlidersHorizontal className="w-3.5 h-3.5 text-brand" />
+      <div className="flex items-center gap-1.5 text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mr-1 shrink-0">
+        <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
         <span>Filters</span>
       </div>
 
@@ -137,7 +137,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/[0.03] hover:bg-white/[0.06] text-foreground border border-white/10 hover:border-white/25 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Type:</span>
           <span>{TYPES.find((t) => t.id === type)?.name}</span>
@@ -150,7 +150,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-44 bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+              className="absolute top-full left-0 mt-2 w-44 bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/10 shadow-card z-50"
             >
               {TYPES.map((t) => (
                 <DropdownItem
@@ -179,7 +179,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/[0.03] hover:bg-white/[0.06] text-foreground border border-white/10 hover:border-white/25 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Region:</span>
           <span>{COUNTRIES.find((c) => c.code === country)?.name}</span>
@@ -192,7 +192,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-48 bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+              className="absolute top-full left-0 mt-2 w-48 bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/10 shadow-card z-50"
             >
               {COUNTRIES.map((c) => (
                 <DropdownItem
@@ -221,7 +221,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowCountry(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/[0.03] hover:bg-white/[0.06] text-foreground border border-white/10 hover:border-white/25 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Network:</span>
           <span className="truncate max-w-[120px]">
@@ -236,7 +236,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+              className="absolute top-full left-0 mt-2 w-60 max-h-72 overflow-y-auto custom-scrollbar bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/10 shadow-card z-50"
             >
               <DropdownItem
                 active={providerId === ''}
@@ -282,7 +282,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowCountry(false);
             setShowProviders(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-semibold bg-white/5 hover:bg-white/10 text-foreground border border-white/15 hover:border-brand/40 flex items-center gap-2 transition-all shadow-sm cursor-pointer whitespace-nowrap"
+          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/[0.03] hover:bg-white/[0.06] text-foreground border border-white/10 hover:border-white/25 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
         >
           <span className="text-muted-foreground text-xs font-normal">Sort:</span>
           <span>{SORT_OPTIONS.find((s) => s.id === sortBy)?.name || 'Popularity'}</span>
@@ -295,7 +295,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-44 bg-[#12131a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/15 shadow-2xl z-50"
+              className="absolute top-full left-0 mt-2 w-44 bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/10 shadow-card z-50"
             >
               {SORT_OPTIONS.map((s) => (
                 <DropdownItem

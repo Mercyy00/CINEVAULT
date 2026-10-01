@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Calendar, Clock, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { Calendar, Clock, ChevronLeft, ChevronRight, Play, Star } from 'lucide-react';
 import { anilistApi, POSTER_SIZES } from '../api';
 import type { Movie } from '../types';
 import { PosterImage } from './PosterImage';
@@ -228,7 +228,7 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
                       </h3>
                       <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-muted-foreground font-mono">
                         {anime.rating !== null && (
-                          <span className="text-brand font-bold">★ {Number(anime.rating).toFixed(1)}</span>
+                          <span className="text-brand font-bold inline-flex items-center gap-0.5"><Star className="w-3 h-3 fill-current" aria-hidden="true" /> {Number(anime.rating).toFixed(1)}</span>
                         )}
                         {anime.genres?.[0] && (
                           <>

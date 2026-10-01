@@ -13,6 +13,7 @@ import {
   Download,
   X,
   Clapperboard,
+  AlertTriangle,
 } from 'lucide-react';
 import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
@@ -388,7 +389,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               )}
               {movie.rtRating && (
                 <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-300 font-bold text-[10px] font-mono">
-                  <span>🍅</span>
+                  <Star className="w-3 h-3 fill-current" aria-hidden="true" />
                   <span>{movie.rtRating}</span>
                 </div>
               )}
@@ -459,7 +460,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
 
             {movie.genres?.includes('Animation') && type === 'tv' && (
               <div className="mb-4 p-3 bg-purple-500/10 border border-purple-500/30 rounded-xl text-purple-200 text-xs sm:text-sm flex items-start gap-2.5 backdrop-blur-md">
-                <span className="text-base">⚠️</span>
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-purple-200" aria-hidden="true" />
                 <p>
                   <strong>Note:</strong> Streaming servers for Anime may vary here. Check the dedicated{' '}
                   <strong>Anime tab</strong> for guaranteed playback.
@@ -474,7 +475,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             )}
 
             <div className="hidden sm:flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-foreground/80 mb-6">
-              <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-xl border border-brand/25 font-mono shadow-sm">
+              <div className="flex items-center gap-1.5 text-foreground bg-white/[0.04] px-3 py-1 rounded-xl border border-white/10 font-mono">
                 <Star className="w-3.5 h-3.5 fill-current" />
                 <span className="font-bold tracking-wide">
                   {formatRating(movie.rating)}{' '}
@@ -483,22 +484,22 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               </div>
 
               {movie.imdbRating && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-[#f5c518]/15 border border-[#f5c518]/35 text-[#f5c518] font-bold text-xs font-mono shadow-sm">
-                  <span className="bg-[#f5c518] text-black text-[9px] font-black px-1 py-0.5 rounded leading-none">IMDb</span>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.04] border border-white/10 text-foreground font-bold text-xs font-mono">
+                  <span className="bg-white/15 text-foreground text-[9px] font-black px-1 py-0.5 rounded leading-none tracking-wide">IMDb</span>
                   <span>{movie.imdbRating}</span>
                 </div>
               )}
 
               {movie.rtRating && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-rose-500/15 border border-rose-500/35 text-rose-300 font-bold text-xs font-mono shadow-sm">
-                  <span className="text-sm leading-none">🍅</span>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.04] border border-white/10 text-foreground font-bold text-xs font-mono">
+                  <Star className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
                   <span>{movie.rtRating}</span>
                 </div>
               )}
 
               {movie.metacriticRating && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 font-bold text-xs font-mono shadow-sm">
-                  <span className="bg-emerald-500 text-black text-[9px] font-black px-1 py-0.5 rounded leading-none">META</span>
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/[0.04] border border-white/10 text-foreground font-bold text-xs font-mono">
+                  <span className="bg-white/15 text-foreground text-[9px] font-black px-1 py-0.5 rounded leading-none tracking-wide">META</span>
                   <span>{movie.metacriticRating}</span>
                 </div>
               )}
@@ -818,7 +819,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   }
                   className="flex flex-col items-center text-center group cursor-pointer w-24 sm:w-28 shrink-0 relative"
                 >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-brand group-hover:shadow-[0_0_25px_var(--theme-accent-glow)] transition-all mb-2.5 relative">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-white/40 transition-all mb-2.5 relative">
                     <PosterImage
                       src={actor.photoUrl}
                       title={actor.name}
@@ -903,7 +904,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                       <h4 className="font-bold text-sm text-foreground line-clamp-1">{review.user}</h4>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                         <span className="flex items-center gap-1">
-                          <Star className="w-3 h-3 text-[#f5a54a] fill-[#f5a54a]" />
+                          <Star className="w-3 h-3 text-white/80 fill-white/80" />
                           {review.rating ? `${review.rating}/10` : '—'}
                         </span>
                         {review.createdAt && <span>• {new Date(review.createdAt).toLocaleDateString()}</span>}
@@ -924,7 +925,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           {movie.recommendations && movie.recommendations.length > 0 ? (
             <div className="mb-14 w-full">
               <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5 px-3 sm:px-6 lg:px-8">
-                <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))] inline-block mr-3 align-middle" />
+                <span className="w-1.5 h-5 rounded-full bg-brand inline-block mr-3 align-middle" />
                 More Like This
               </h3>
               <div className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none pb-8 px-4 sm:px-8 lg:px-12 -mx-4 lg:-mx-8">
@@ -937,7 +938,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     <div className="aspect-[2/3] rounded-[1.25rem] overflow-hidden border border-white/10 group-hover:border-brand transition-all relative shadow-card mb-2">
                       <PosterImage src={rec.posterUrl} title={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white flex items-center gap-1">
-                         <Star className="w-2.5 h-2.5 text-[#f5a54a] fill-[#f5a54a]" />
+                         <Star className="w-2.5 h-2.5 text-white/80 fill-white/80" />
                          <span>{formatRating(rec.rating)}</span>
                       </div>
                       <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/70 backdrop-blur-md border border-white/10 text-[9px] font-mono uppercase font-bold text-white/90">

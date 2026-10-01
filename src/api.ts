@@ -1252,7 +1252,7 @@ export function findMatchingSeason(
     if (!name) return '';
     return name
       .toLowerCase()
-      .replace(/^season\s+\d+\s*[:\-]?\s*/i, '')
+      .replace(/^season\s+\d+\s*[:-]?\s*/i, '')
       .replace(/\s*arc$/i, '')
       .trim();
   };
