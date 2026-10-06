@@ -818,17 +818,17 @@ function AppContent() {
             <div className="relative z-10 -mt-10 pb-24 w-full px-4 sm:px-8 lg:px-12">
               <ContinueWatchingRow />
 
-              <div className="flex flex-col md:flex-row gap-4 justify-between items-center mb-8">
-                <div className="w-full md:w-auto">
+              <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center mb-8">
+                <div className="w-full lg:w-auto">
                   <FilterBar defaultType="movie" onFilterChange={setHomeFilters} />
                 </div>
-                <div className="flex items-center gap-3 w-full md:w-auto mt-4 md:mt-0">
+                <div className="flex items-center gap-2.5 w-full lg:w-auto">
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('trigger-surprise-me'))}
-                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/50 text-foreground rounded-full font-bold transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-[#f3f0ea] rounded-full text-xs font-mono uppercase tracking-wider transition-all cursor-pointer"
                   >
-                    <span className="text-xl" aria-hidden="true">
+                    <span className="text-sm" aria-hidden="true">
                       🎲
                     </span>
                     Surprise me
@@ -836,9 +836,9 @@ function AppContent() {
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('trigger-mood-finder'))}
-                    className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white/5 hover:bg-purple-500/20 border border-white/10 hover:border-purple-500/50 text-foreground rounded-full font-bold transition-all hover:scale-105 backdrop-blur-md cursor-pointer"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-[#f3f0ea] rounded-full text-xs font-mono uppercase tracking-wider transition-all cursor-pointer"
                   >
-                    <span className="text-xl" aria-hidden="true">
+                    <span className="text-sm" aria-hidden="true">
                       🎭
                     </span>
                     Find by mood

@@ -215,15 +215,15 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   key={link.name}
                   href={link.href}
                   className={cn(
-                    'relative px-4 py-2 font-body text-[13px] font-bold transition-colors select-none',
-                    isActive ? 'active text-[#111]' : 'text-white/75 hover:text-[#f3f0ea]'
+                    'relative px-4 h-[38px] inline-flex items-center justify-center font-body text-[13px] font-bold transition-colors select-none rounded-full',
+                    isActive ? 'active text-[#0b0b0d]' : 'text-white/75 hover:text-[#f3f0ea]'
                   )}
                   aria-current={isActive ? 'page' : undefined}
                 >
                   {isActive && (
                     <motion.span
                       layoutId="7movies-nav-indicator"
-                      className="nav-indicator inset-0 w-full"
+                      className="nav-indicator"
                       transition={{
                         type: 'spring',
                         stiffness: 420,
@@ -231,7 +231,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                       }}
                     />
                   )}
-                  <span className="relative z-10">{link.name}</span>
+                  <span className="relative z-10 leading-none">{link.name}</span>
                 </a>
               );
             })}
@@ -483,7 +483,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   setShowCustomizer(false);
                 }}
                 className={cn(
-                  'w-8 h-8 rounded-full border overflow-hidden flex items-center justify-center transition-all cursor-pointer relative',
+                  'w-9 h-9 rounded-full border overflow-hidden flex items-center justify-center transition-all cursor-pointer relative shrink-0',
                   showProfile
                     ? 'border-white ring-2 ring-white/30'
                     : isKidsMode
