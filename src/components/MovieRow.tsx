@@ -259,30 +259,25 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
   }
 
   const heading = (
-    <div className="flex items-center justify-between mb-4 px-3 sm:px-8 lg:px-12">
-      <div className="flex items-center gap-3">
-        {/* Category Accent Pip */}
-        <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))]" />
-
-        <h2 className="font-display text-lg sm:text-2xl lg:text-3xl font-bold tracking-tight text-foreground">
+    <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12">
+      <div>
+        <p className="eyebrow">Selection</p>
+        <h3 className="font-display font-medium text-base sm:text-lg lg:text-xl tracking-tight text-[#f3f0ea] m-0">
           {title}
-        </h2>
+        </h3>
       </div>
 
-      {/* `Explore All →` was a <span>: it looked like a link and did nothing.
-          It is now a real button when the row has somewhere to go, and the
-          loaded count when it doesn't. */}
       {onExploreAll ? (
         <button
           type="button"
           onClick={onExploreAll}
-          className="text-[11px] font-mono tracking-wider uppercase text-muted-foreground/70 hover:text-brand focus-visible:text-brand rounded-full px-2 py-1 outline-none focus-visible:ring-2 focus-visible:ring-brand transition-colors cursor-pointer hidden sm:inline-block"
+          className="text-[11px] font-mono tracking-wider uppercase text-[#929093] hover:text-[#f3f0ea] transition-colors cursor-pointer hidden sm:inline-block"
         >
-          {`Explore all ${title} →`}
+          {`Explore all →`}
         </button>
       ) : (
         movies.length > 0 && (
-          <span className="text-[11px] font-mono text-muted-foreground/70 tracking-wider uppercase hidden sm:inline-block">
+          <span className="text-[10px] font-mono text-[#77737a] tracking-wider uppercase hidden sm:inline-block">
             {movies.length} {movies.length === 1 ? 'title' : 'titles'}
           </span>
         )
@@ -294,7 +289,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
     return (
       <section
         ref={sectionRef}
-        className="mb-10 sm:mb-14 w-full"
+        className="rail mb-10 sm:mb-14 w-full"
         aria-busy="true"
         aria-label={`${title}, loading`}
       >
@@ -303,18 +298,9 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
           {Array.from({ length: 8 }, (_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[170px] lg:w-[185px] xl:w-[200px] 2xl:w-[210px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
+              className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[165px] lg:w-[175px] aspect-[2/3] rounded-[12px] bg-[#141417] border border-white/5 relative overflow-hidden"
             >
-              <div className="w-full h-full skeleton-shimmer bg-[#12131b] rounded-[calc(1.25rem-1.5px)] p-3 flex flex-col justify-between">
-                <div className="flex justify-between items-center">
-                  <div className="w-10 h-4 rounded-full bg-white/10" />
-                  <div className="w-8 h-4 rounded-full bg-white/10" />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="w-3/4 h-3.5 rounded bg-white/10" />
-                  <div className="w-1/2 h-2.5 rounded bg-white/5" />
-                </div>
-              </div>
+              <div className="w-full h-full skeleton-shimmer bg-[#1b191c] rounded-[12px]" />
             </div>
           ))}
         </div>
@@ -327,18 +313,18 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
       <section
         ref={sectionRef}
         aria-label={title}
-        className="mb-10 sm:mb-14 w-full px-3 sm:px-6 lg:px-8"
+        className="rail mb-10 sm:mb-14 w-full px-3 sm:px-6 lg:px-8"
       >
         {heading}
         <div
           role="alert"
-          className="w-full py-12 glass border border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4 shadow-card"
+          className="w-full py-12 bg-[#141417] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4"
         >
-          <p className="text-sm sm:text-base font-medium">Couldn’t load {title}.</p>
+          <p className="text-sm sm:text-base font-medium text-[#f3f0ea]">Couldn’t load {title}.</p>
           <button
             type="button"
             onClick={() => setReloadToken((value) => value + 1)}
-            className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-xs sm:text-sm font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            className="secondary-btn text-xs"
           >
             Try again
           </button>
@@ -353,11 +339,8 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
     return <section ref={sectionRef} aria-hidden="true" className="h-px w-full" />;
   }
 
-  const arrowClasses =
-    'hidden sm:flex absolute top-1/2 -translate-y-1/2 z-[90] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0a0f]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100';
-
   return (
-    <section ref={sectionRef} className="mb-8 sm:mb-10 relative group/row w-full" aria-label={title}>
+    <section ref={sectionRef} className="rail mb-8 sm:mb-10 relative group/row w-full" aria-label={title}>
       {heading}
 
       <div className="relative w-full">
@@ -365,32 +348,27 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
           {showLeftArrow && (
             <motion.button
               type="button"
-              initial={{ opacity: 0, scale: 0.8, x: -10 }}
-              animate={{ opacity: 1, scale: 1, x: 0 }}
-              exit={{ opacity: 0, scale: 0.8, x: -10 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
               onClick={() => scrollByPage('left')}
               aria-label={`Scroll ${title} left`}
-              className={`${arrowClasses} left-2 sm:left-4`}
+              className="rail-arrow rail-arrow-left left-2 sm:left-4"
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
+              <ChevronLeft className="w-5 h-5" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>
 
-        {/* Touch scrolling is left to the browser: the JS drag handler fought
-            momentum scrolling and disabled the platform's own click suppression.
-            Vertical padding is only as deep as the hover lift needs -- it used to
-            be pt-14/pb-20 pulled back by -my-10, which overlapped the rows above
-            and below and swallowed clicks meant for them. */}
         <ul
           {...scrollerProps}
-          className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-6 sm:pt-8 pb-10 sm:pb-12 -my-6 sm:-my-8 snap-x select-none list-none m-0 will-change-scroll"
+          className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[130px] sm:w-[150px] md:w-[170px] lg:w-[185px] xl:w-[200px] 2xl:w-[210px] relative"
+              className="snap-start flex-shrink-0 w-[130px] sm:w-[150px] md:w-[165px] lg:w-[175px] relative"
             >
               <MovieCard
                 movie={movie}
@@ -401,7 +379,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
             </li>
           ))}
           {loadingMore && (
-            <li className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[170px] lg:w-[185px] xl:w-[200px] 2xl:w-[210px] aspect-[2/3] rounded-2xl skeleton-shimmer border border-white/5" />
+            <li className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[165px] lg:w-[175px] aspect-[2/3] rounded-[12px] skeleton-shimmer bg-[#1b191c] border border-white/5" />
           )}
         </ul>
 
@@ -409,15 +387,15 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
           {showRightArrow && (
             <motion.button
               type="button"
-              initial={{ opacity: 0, scale: 0.8, x: 10 }}
-              animate={{ opacity: 1, scale: 1, x: 0 }}
-              exit={{ opacity: 0, scale: 0.8, x: 10 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
               onClick={() => scrollByPage('right')}
               aria-label={`Scroll ${title} right`}
-              className={`${arrowClasses} right-2 sm:right-4`}
+              className="rail-arrow rail-arrow-right right-2 sm:right-4"
             >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
+              <ChevronRight className="w-5 h-5" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>

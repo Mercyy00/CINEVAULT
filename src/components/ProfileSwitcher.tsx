@@ -266,10 +266,10 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
           <button
             onClick={() => setIsManaging(!isManaging)}
             className={cn(
-              "px-8 py-3 rounded-2xl font-bold text-sm tracking-wide transition-all uppercase border cursor-pointer",
+              "px-8 py-3 rounded-2xl font-mono font-bold text-xs tracking-wider transition-all uppercase border cursor-pointer",
               isManaging
-                ? "bg-brand text-brand-foreground border-brand hover:opacity-90 shadow-lg shadow-brand/20"
-                : "glass border-white/20 text-muted-foreground hover:text-foreground hover:border-white/40"
+                ? "bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] shadow-lg"
+                : "bg-white/5 border-white/10 text-[#929093] hover:text-[#f3f0ea] hover:border-white/20"
             )}
           >
             {isManaging ? 'Done' : 'Manage Profiles'}

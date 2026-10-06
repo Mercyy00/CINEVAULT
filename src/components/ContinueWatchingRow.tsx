@@ -64,8 +64,7 @@ export function ContinueWatchingRow() {
   return (
     <div className="mb-12 md:mb-16 px-3 sm:px-6 lg:px-8">
       <div className="flex items-center gap-3 mb-4">
-        <span className="w-1.5 h-5 rounded-full bg-brand shadow-[0_0_10px_var(--theme-accent-glow,rgba(232,133,42,0.8))]" />
-        <h2 className="text-xl md:text-2xl font-bold text-foreground font-display">
+        <h2 className="rail-heading text-lg sm:text-xl font-bold text-foreground">
           Continue Watching
         </h2>
       </div>
@@ -89,7 +88,7 @@ export function ContinueWatchingRow() {
               delay: Math.min(idx * 0.06, 0.35),
               ease: [0.16, 1, 0.3, 1],
             }}
-            className="flex-shrink-0 w-[200px] sm:w-[240px] md:w-[260px] lg:w-[270px] 2xl:w-[280px] aspect-video rounded-2xl bg-white/5 relative border border-white/10 group cursor-pointer snap-start overflow-hidden transition-all hover:scale-[1.02] hover:border-white/25 shadow-card"
+            className="flex-shrink-0 w-[200px] sm:w-[240px] md:w-[260px] lg:w-[270px] 2xl:w-[280px] aspect-video rounded-2xl bg-[#141417] relative border border-white/[0.08] group cursor-pointer snap-start overflow-hidden transition-all hover:scale-[1.02] hover:border-white/20 shadow-xl"
             onClick={() => {
               goToWatch(
                 item.id,
@@ -131,21 +130,21 @@ export function ContinueWatchingRow() {
               className="w-full h-full object-cover group-hover:opacity-60 transition-opacity"
             />
 
-            <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-black via-black/40 to-transparent">
+            <div className="absolute inset-0 flex flex-col justify-end p-4 bg-gradient-to-t from-[#0b0b0d] via-[#0b0b0d]/50 to-transparent">
               <div className="flex items-center justify-center absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="w-12 h-12 rounded-full bg-brand/20 flex items-center justify-center backdrop-blur-md border border-brand shadow-lg">
-                  <Play className="w-6 h-6 text-brand fill-current ml-1" />
+                <div className="w-11 h-11 rounded-full bg-[#f3f0ea] flex items-center justify-center shadow-lg">
+                  <Play className="w-5 h-5 text-[#0b0b0d] fill-current ml-0.5" />
                 </div>
               </div>
-              <h3 className="text-white font-bold truncate drop-shadow-md z-10">{item.title}</h3>
+              <h3 className="text-white font-bold truncate drop-shadow-md z-10 text-sm sm:text-base font-display tracking-tight">{item.title}</h3>
               {item.media_type === 'tv' && item.season_number && item.episode_number && (
-                <p className="text-brand text-xs font-medium z-10">
+                <p className="text-[#f3f0ea] text-xs font-mono font-medium z-10 mt-0.5">
                   S{item.season_number} E{item.episode_number}
                 </p>
               )}
               {item.media_type === 'anime' && item.episode_number && (
-                <p className="text-brand text-xs font-medium z-10">
-                  Continue E{item.episode_number}
+                <p className="text-[#f3f0ea] text-xs font-mono font-medium z-10 mt-0.5">
+                  Continue EP {item.episode_number}
                 </p>
               )}
             </div>
@@ -171,15 +170,15 @@ export function ContinueWatchingRow() {
 
             {/* Progress Percentage Badge */}
             {item.progress_percentage > 0 && (
-              <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-brand shadow-sm">
+              <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-[#f3f0ea] shadow-sm">
                 {Math.round(item.progress_percentage)}%
               </div>
             )}
 
             {/* High-Visibility Progress Bar */}
-            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-black/80 z-20 overflow-hidden">
+            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/80 z-20 overflow-hidden">
               <div
-                className="h-full bg-brand transition-all duration-300 rounded-r-full"
+                className="h-full bg-[#f3f0ea] transition-all duration-300 rounded-r-full"
                 style={{
                   width: `${Math.max(4, Math.min(100, item.progress_percentage || 0))}%`,
                 }}

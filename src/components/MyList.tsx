@@ -93,14 +93,14 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
 
   const renderEmptyWatchlist = () => (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-      <div className="w-24 h-24 rounded-full bg-card border border-brand/20 flex items-center justify-center mb-6">
-        <Bookmark className="w-10 h-10 text-brand opacity-50" />
+      <div className="w-20 h-20 rounded-2xl bg-[#141417] border border-white/10 flex items-center justify-center mb-6 shadow-xl">
+        <Bookmark className="w-8 h-8 text-[#929093]" />
       </div>
-      <h2 className="text-3xl font-display font-bold text-foreground mb-4">Your Watchlist is Empty</h2>
-      <p className="text-muted-foreground mb-8 max-w-md">Keep track of movies and TV shows you want to watch. Add items to your list by clicking the plus icon on any title.</p>
+      <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3 tracking-tight">Your Watchlist is Empty</h2>
+      <p className="text-[#929093] mb-8 max-w-md text-sm leading-relaxed">Keep track of movies and TV shows you want to watch. Add items to your list by clicking the plus icon on any title.</p>
       <button
         onClick={() => goToHome()}
-        className="px-8 py-3 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors"
+        className="px-7 py-3 bg-[#f3f0ea] text-[#0b0b0d] font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-white transition-all shadow-md cursor-pointer"
       >
         Start Exploring
       </button>
@@ -109,14 +109,14 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
 
   const renderEmptyHistory = () => (
     <div className="flex flex-col items-center justify-center min-h-[50vh] text-center px-4">
-      <div className="w-24 h-24 rounded-full bg-card border border-brand/20 flex items-center justify-center mb-6">
-        <History className="w-10 h-10 text-brand opacity-50" />
+      <div className="w-20 h-20 rounded-2xl bg-[#141417] border border-white/10 flex items-center justify-center mb-6 shadow-xl">
+        <History className="w-8 h-8 text-[#929093]" />
       </div>
-      <h2 className="text-3xl font-display font-bold text-foreground mb-4">No Watch History Yet</h2>
-      <p className="text-muted-foreground mb-8 max-w-md">Start watching movies, TV shows, or anime — your progress will appear here automatically, even without an account.</p>
+      <h2 className="text-2xl sm:text-3xl font-display font-bold text-foreground mb-3 tracking-tight">No Watch History Yet</h2>
+      <p className="text-[#929093] mb-8 max-w-md text-sm leading-relaxed">Start watching movies, TV shows, or anime — your progress will appear here automatically, even without an account.</p>
       <button
         onClick={() => goToHome()}
-        className="px-8 py-3 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors"
+        className="px-7 py-3 bg-[#f3f0ea] text-[#0b0b0d] font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-white transition-all shadow-md cursor-pointer"
       >
         Browse Catalogue
       </button>
@@ -145,7 +145,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
             <div
               {...provided.droppableProps}
               ref={provided.innerRef}
-              className="grid gap-4"
+              className="grid gap-3.5"
             >
               <AnimatePresence>
                 {displayedItems.map((item, index) => (
@@ -163,8 +163,8 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                           ease: [0.16, 1, 0.3, 1],
                         }}
                         className={cn(
-                          "glass rounded-xl p-4 flex items-center gap-4 group transition-transform duration-300 ease-in-out",
-                          snapshot.isDragging ? "dragging-card" : "hover:border-brand/50 hover:bg-white/5"
+                          "bg-[#141417] border border-white/[0.08] rounded-2xl p-4 flex items-center gap-4 group transition-all duration-300 ease-in-out",
+                          snapshot.isDragging ? "dragging-card shadow-2xl border-white/20" : "hover:border-white/20 hover:bg-[#18191e]"
                         )}
                         style={provided.draggableProps.style}
                       >
@@ -173,7 +173,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                         </div>
 
                         <div
-                          className="w-16 md:w-24 aspect-[2/3] rounded overflow-hidden cursor-pointer shrink-0"
+                          className="w-16 md:w-20 aspect-[2/3] rounded-xl overflow-hidden cursor-pointer shrink-0 border border-white/10"
                           onClick={() => onMovieSelect(item.movieId, item.movie.type)}
                         >
                           <PosterImage
@@ -188,12 +188,12 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
 
                         <div className="flex-1 min-w-0">
                           <h3
-                            className="font-display text-lg md:text-xl font-bold text-foreground truncate cursor-pointer hover:text-brand transition-colors inline-block"
+                            className="font-display text-base md:text-lg font-bold text-foreground truncate cursor-pointer hover:text-white transition-colors inline-block tracking-tight"
                             onClick={() => onMovieSelect(item.movieId, item.movie.type)}
                           >
                             {item.movie.title}
                           </h3>
-                          <div className="flex items-center gap-3 text-xs md:text-sm text-muted-foreground mt-1">
+                          <div className="flex items-center gap-2.5 text-xs font-mono text-[#929093] mt-1">
                             <span>{item.movie.year}</span>
                             <span>•</span>
                             <span>{item.movie.duration}</span>
@@ -208,10 +208,10 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                                   setItems(items.map(i => i.movieId === item.movieId ? { ...i, status } : i));
                                 }}
                                 className={cn(
-                                  "text-[10px] md:text-xs px-2 md:px-3 py-1 rounded-full border transition-all flex items-center gap-1",
+                                  "text-[10px] md:text-xs px-2.5 md:px-3 py-1 rounded-full border transition-all flex items-center gap-1.5 cursor-pointer font-mono",
                                   item.status === status
-                                    ? "bg-brand/20 border-brand/50 text-brand"
-                                    : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"
+                                    ? "bg-[#f3f0ea]/15 border-[#f3f0ea]/40 text-[#f3f0ea] font-medium"
+                                    : "bg-white/[0.03] border-white/10 text-[#929093] hover:bg-white/[0.08] hover:text-[#f3f0ea]"
                                 )}
                               >
                                 {statusIcons[status]}
@@ -224,20 +224,20 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                         <div className="flex gap-2">
                           <button
                             onClick={() => onMovieSelect(item.movieId, item.movie.type)}
-                            className="p-3 bg-brand text-background rounded-xl hover:bg-brand-light transition-colors shadow-lg"
+                            className="p-3 bg-[#f3f0ea] text-[#0b0b0d] rounded-xl hover:bg-white transition-colors shadow-md cursor-pointer"
                             aria-label="Play"
                           >
-                            <Play className="w-5 h-5 fill-current" />
+                            <Play className="w-4 h-4 fill-current" />
                           </button>
                           <button
                             onClick={() => {
                               removeFromWatchlist(item.movieId);
                               setItems(items.filter(i => i.movieId !== item.movieId));
                             }}
-                            className="p-3 bg-red-500/10 text-red-400 rounded-xl border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                            className="p-3 bg-white/[0.04] text-[#929093] hover:text-red-400 hover:bg-red-500/10 rounded-xl border border-white/10 transition-colors cursor-pointer"
                             aria-label="Remove"
                           >
-                            <Trash2 className="w-5 h-5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </motion.div>
@@ -257,12 +257,12 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
     if (continueWatching.length === 0) return renderEmptyHistory();
 
     return (
-      <div className="grid gap-4">
+      <div className="grid gap-3.5">
         {/* Clear All button */}
         <div className="flex justify-end">
           <button
             onClick={() => clearContinueWatching()}
-            className="text-xs px-4 py-2 bg-red-500/10 text-red-400 rounded-xl border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 transition-colors flex items-center gap-2"
+            className="text-xs px-3.5 py-1.5 bg-red-500/10 text-red-400 rounded-full border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 transition-colors flex items-center gap-2 font-mono cursor-pointer"
           >
             <Trash2 className="w-3.5 h-3.5" />
             Clear All History
@@ -281,11 +281,11 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                 delay: Math.min(index * 0.05, 0.3),
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className="glass rounded-xl p-4 flex items-center gap-4 group hover:border-brand/50 hover:bg-white/5 transition-all"
+              className="bg-[#141417] border border-white/[0.08] hover:border-white/20 rounded-2xl p-4 flex items-center gap-4 group hover:bg-[#18191e] transition-all"
             >
               {/* Thumbnail — landscape for backdrop, portrait fallback */}
               <div
-                className="w-28 md:w-36 aspect-video rounded-lg overflow-hidden cursor-pointer shrink-0 relative"
+                className="w-28 md:w-36 aspect-video rounded-xl overflow-hidden cursor-pointer shrink-0 relative border border-white/10"
                 onClick={() => handleResumeWatch(item)}
               >
                 <PosterImage
@@ -319,15 +319,15 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                   className="w-full h-full object-cover"
                 />
                 {/* Play overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                  <div className="w-10 h-10 rounded-full bg-brand/20 flex items-center justify-center backdrop-blur-md border border-brand">
-                    <Play className="w-5 h-5 text-brand fill-current ml-0.5" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                  <div className="w-10 h-10 rounded-full bg-[#f3f0ea] flex items-center justify-center shadow-lg">
+                    <Play className="w-4 h-4 text-[#0b0b0d] fill-current ml-0.5" />
                   </div>
                 </div>
                 {/* Progress bar */}
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/80">
                   <div
-                    className="h-full bg-brand shadow-[0_0_6px_var(--brand)] rounded-r-full transition-all"
+                    className="h-full bg-[#f3f0ea] rounded-r-full transition-all"
                     style={{ width: `${Math.max(4, Math.min(100, item.progress_percentage || 0))}%` }}
                   />
                 </div>
@@ -336,22 +336,22 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
               {/* Info */}
               <div className="flex-1 min-w-0">
                 <h3
-                  className="font-display text-base md:text-lg font-bold text-foreground truncate cursor-pointer hover:text-brand transition-colors"
+                  className="font-display text-base md:text-lg font-bold text-foreground truncate cursor-pointer hover:text-white transition-colors tracking-tight"
                   onClick={() => handleResumeWatch(item)}
                 >
                   {item.title}
                 </h3>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 flex-wrap">
+                <div className="flex items-center gap-2 text-xs font-mono text-[#929093] mt-1 flex-wrap">
                   {item.media_type === 'tv' && item.season_number && item.episode_number && (
-                    <span className="text-brand font-semibold">S{item.season_number} E{item.episode_number}</span>
+                    <span className="text-[#f3f0ea] font-semibold">S{item.season_number} E{item.episode_number}</span>
                   )}
                   {item.media_type === 'anime' && item.episode_number && (
-                    <span className="text-brand font-semibold">Episode {item.episode_number}</span>
+                    <span className="text-[#f3f0ea] font-semibold">EP {item.episode_number}</span>
                   )}
                   {item.progress_percentage > 0 && (
                     <>
                       <span>•</span>
-                      <span className="font-mono">{Math.round(item.progress_percentage)}% watched</span>
+                      <span>{Math.round(item.progress_percentage)}% watched</span>
                     </>
                   )}
                   <span className="px-1.5 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] uppercase font-semibold tracking-wide">
@@ -359,7 +359,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                   </span>
                 </div>
                 {item.timestamp && (
-                  <p className="text-[10px] text-muted-foreground/60 mt-1.5">
+                  <p className="text-[10px] font-mono text-[#929093]/70 mt-1.5">
                     {new Date(item.timestamp).toLocaleDateString(undefined, {
                       month: 'short',
                       day: 'numeric',
@@ -373,17 +373,17 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
               <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => handleResumeWatch(item)}
-                  className="p-3 bg-brand text-background rounded-xl hover:bg-brand-light transition-colors shadow-lg"
+                  className="p-3 bg-[#f3f0ea] text-[#0b0b0d] rounded-xl hover:bg-white transition-colors shadow-md cursor-pointer"
                   aria-label={`Resume ${item.title}`}
                 >
-                  <Play className="w-5 h-5 fill-current" />
+                  <Play className="w-4 h-4 fill-current" />
                 </button>
                 <button
                   onClick={() => removeContinueWatchingItem(item.id, item.media_type)}
-                  className="p-3 bg-red-500/10 text-red-400 rounded-xl border border-red-500/20 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                  className="p-3 bg-white/[0.04] text-[#929093] hover:text-red-400 hover:bg-red-500/10 rounded-xl border border-white/10 transition-colors cursor-pointer"
                   aria-label={`Remove ${item.title} from history`}
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </motion.div>
@@ -394,24 +394,24 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
   };
 
   return (
-    <div className="pt-32 pb-24 px-4 md:px-8 max-w-7xl mx-auto min-h-screen">
+    <div className="pt-28 pb-24 px-4 md:px-8 max-w-7xl mx-auto min-h-screen">
       {/* Tabs */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-3 mb-8">
         <button
           onClick={() => setActiveTab('watchlist')}
           className={cn(
-            "flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all border",
+            "flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-mono uppercase tracking-wider transition-all border cursor-pointer",
             activeTab === 'watchlist'
-              ? "bg-brand text-background border-brand shadow-lg shadow-brand/20"
-              : "bg-white/5 text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/10"
+              ? "bg-[#f3f0ea] text-[#0b0b0d] font-bold border-[#f3f0ea] shadow-md"
+              : "bg-white/[0.04] text-[#929093] border-white/10 hover:text-[#f3f0ea] hover:bg-white/[0.08]"
           )}
         >
-          <Bookmark className="w-4 h-4" />
+          <Bookmark className="w-3.5 h-3.5" />
           Watchlist
           {items.length > 0 && (
             <span className={cn(
               "text-[10px] font-mono px-1.5 py-0.5 rounded-full",
-              activeTab === 'watchlist' ? "bg-background/20" : "bg-white/10"
+              activeTab === 'watchlist' ? "bg-black/20 text-[#0b0b0d]" : "bg-white/10 text-[#929093]"
             )}>
               {items.length}
             </span>
@@ -420,18 +420,18 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
         <button
           onClick={() => setActiveTab('history')}
           className={cn(
-            "flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-bold transition-all border",
+            "flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-mono uppercase tracking-wider transition-all border cursor-pointer",
             activeTab === 'history'
-              ? "bg-brand text-background border-brand shadow-lg shadow-brand/20"
-              : "bg-white/5 text-muted-foreground border-white/10 hover:text-foreground hover:bg-white/10"
+              ? "bg-[#f3f0ea] text-[#0b0b0d] font-bold border-[#f3f0ea] shadow-md"
+              : "bg-white/[0.04] text-[#929093] border-white/10 hover:text-[#f3f0ea] hover:bg-white/[0.08]"
           )}
         >
-          <History className="w-4 h-4" />
+          <History className="w-3.5 h-3.5" />
           Watch History
           {continueWatching.length > 0 && (
             <span className={cn(
               "text-[10px] font-mono px-1.5 py-0.5 rounded-full",
-              activeTab === 'history' ? "bg-background/20" : "bg-white/10"
+              activeTab === 'history' ? "bg-black/20 text-[#0b0b0d]" : "bg-white/10 text-[#929093]"
             )}>
               {continueWatching.length}
             </span>
@@ -443,7 +443,7 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
       {activeTab === 'watchlist' && items.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 mb-6">
           {/* Type filter pills */}
-          <div className="flex items-center gap-1.5 bg-white/5 border border-white/10 rounded-full p-1">
+          <div className="flex items-center gap-1.5 bg-[#141417] border border-white/10 rounded-full p-1">
             {([
               { key: 'all' as TypeFilter, label: 'All', icon: null },
               { key: 'movie' as TypeFilter, label: 'Movies', icon: <Film className="w-3.5 h-3.5" /> },
@@ -455,10 +455,10 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
                 type="button"
                 onClick={() => setTypeFilter(key)}
                 className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all cursor-pointer',
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-mono transition-all cursor-pointer',
                   typeFilter === key
-                    ? 'bg-brand text-background shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                    ? 'bg-[#f3f0ea] text-[#0b0b0d] font-semibold shadow-sm'
+                    : 'text-[#929093] hover:text-[#f3f0ea] hover:bg-white/5'
                 )}
               >
                 {icon}
@@ -469,11 +469,11 @@ export function MyList({ onMovieSelect }: { onMovieSelect: (id: string, type: st
 
           {/* Sort control */}
           <div className="flex items-center gap-2 ml-auto">
-            <ArrowDownUp className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+            <ArrowDownUp className="w-3.5 h-3.5 text-[#929093]" aria-hidden="true" />
             <select
               value={sortKey}
               onChange={(e) => setSortKey(e.target.value as SortKey)}
-              className="bg-white/5 border border-white/10 rounded-full px-3 py-1.5 text-xs font-semibold text-foreground appearance-none cursor-pointer pr-8 hover:bg-white/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              className="bg-[#141417] border border-white/10 rounded-full px-3 py-1.5 text-xs font-mono text-[#f3f0ea] appearance-none cursor-pointer pr-8 hover:bg-[#18191e] transition-colors outline-none focus-visible:ring-1 focus-visible:ring-white/20"
               aria-label="Sort watchlist"
             >
               <option value="custom">Custom order</option>

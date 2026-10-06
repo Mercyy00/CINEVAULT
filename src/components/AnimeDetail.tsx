@@ -428,14 +428,14 @@ export function AnimeDetail({ id }: { id: string }) {
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="min-h-screen bg-background pb-28 sm:pb-36 relative"
     >
-      {/* Parallax Backdrop */}
-      <div className="absolute top-0 inset-x-0 h-[80vh] pointer-events-none overflow-hidden">
+      {/* 7movies Cinematic Backdrop with Multi-Stage Shading */}
+      <div className="absolute top-0 inset-x-0 h-[80vh] pointer-events-none overflow-hidden select-none">
         <div 
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-40 scale-105"
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35 filter brightness-95 scale-105"
           style={{ backgroundImage: `url(${movie.backdropUrl || movie.posterUrl})` }}
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/50 to-transparent" />
+        <div className="dp-hero-shade" />
+        <div className="hero-fade" />
       </div>
 
       <div className="relative z-10 w-full px-4 sm:px-8 lg:px-12 pt-[15vh]">
@@ -553,6 +553,8 @@ export function AnimeDetail({ id }: { id: string }) {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="flex-1 pt-8 lg:pt-0"
           >
+            <p className="eyebrow">Japanese Animation</p>
+
             {movie.logoUrl ? (
               <div className="hidden sm:block mb-4 max-w-[min(90vw,28rem)] lg:max-w-[min(80vw,38rem)]">
                 <h1 className="sr-only">{movie.title}</h1>
@@ -563,40 +565,43 @@ export function AnimeDetail({ id }: { id: string }) {
                 />
               </div>
             ) : (
-              <h1 className="hidden sm:block text-4xl md:text-6xl font-display font-bold text-foreground mb-4 leading-tight drop-shadow-lg">
+              <h1 className="hidden sm:block dp-title mb-3">
                 {movie.title}
               </h1>
             )}
 
             {movie.tagline && (
-              <p className="text-sm sm:text-2xl font-display italic text-foreground/80 mb-6">
+              <p className="text-sm sm:text-lg font-display italic text-[#929093] mb-4">
                 "{movie.tagline}"
               </p>
             )}
 
-            {/* Metadata Badges */}
-            <div className="hidden sm:flex flex-wrap items-center gap-4 text-sm font-medium text-foreground/80 mb-8">
-              <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-purple-600 to-pink-600 text-white flex items-center gap-1.5 shadow-md shadow-purple-950/40">
-                <Sparkles className="w-3.5 h-3.5 text-pink-200" /> Anime Series
-              </span>
-              <div className="flex items-center gap-1.5 text-brand bg-brand/10 px-3 py-1 rounded-full border border-brand/20">
-                <Star className="w-4 h-4 fill-current" />
-                <span className="ml-1 font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
+            {/* 7movies Slash-separated Genres */}
+            {movie.genres && movie.genres.length > 0 && (
+              <div className="dp-genres mb-4">
+                {movie.genres.map((g) => (
+                  <span key={g}>{g}</span>
+                ))}
               </div>
-              <span className="flex items-center gap-1.5"><Calendar className="w-4 h-4 text-muted-foreground" /> {movie.year}</span>
-              <span className="flex items-center gap-1.5"><Clock className="w-4 h-4 text-muted-foreground" /> {movie.duration}</span>
-              <span className="px-2 py-0.5 border border-white/20 rounded text-muted-foreground">{movie.ageRating}</span>
-              {movie.genres?.map(g => (
-                <span key={g} className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-foreground/80 text-xs">
-                  {g}
-                </span>
-              ))}
+            )}
+
+            {/* 7movies Metadata Badges in DM Mono */}
+            <div className="hidden sm:flex flex-wrap items-center gap-3 text-xs sm:text-sm font-medium text-[#f3f0ea] mb-6 font-mono">
+              <div className="flex items-center gap-1.5 text-[#f3f0ea] bg-white/[0.04] px-3 py-1 rounded-full border border-white/10">
+                <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" />
+                <span className="font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-[#929093] text-xs font-normal">/ 10</span></span>
+              </div>
+              <span className="flex items-center gap-1.5 text-[#929093]"><Calendar className="w-3.5 h-3.5" /> {movie.year}</span>
+              <span className="flex items-center gap-1.5 text-[#929093]"><Clock className="w-3.5 h-3.5" /> {movie.duration}</span>
+              {movie.ageRating && (
+                <span className="px-2 py-0.5 border border-white/20 rounded-full text-[#929093] text-xs">{movie.ageRating}</span>
+              )}
             </div>
 
             {/* Collapsible Overview */}
             <div className="mb-8">
               <p className={cn(
-                "text-sm sm:text-base md:text-lg text-muted-foreground leading-relaxed max-w-4xl",
+                "dp-overview text-sm sm:text-base leading-relaxed max-w-3xl",
                 !showFullDesc && "line-clamp-3 sm:line-clamp-none"
               )}>
                 {movie.description}
@@ -605,33 +610,33 @@ export function AnimeDetail({ id }: { id: string }) {
                 <button
                   type="button"
                   onClick={() => setShowFullDesc(!showFullDesc)}
-                  className="sm:hidden text-xs text-brand font-semibold mt-1.5 cursor-pointer block hover:underline"
+                  className="sm:hidden text-xs text-[#f3f0ea] underline font-mono mt-1.5 cursor-pointer block"
                 >
                   {showFullDesc ? 'Show less' : 'Read more'}
                 </button>
               )}
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row flex-wrap gap-3 sm:gap-4 mb-12">
+            {/* 7movies Action Buttons */}
+            <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3.5 mb-12">
               {hasProgress ? (
                 <>
                   <button 
                     onClick={() => {
                       goToWatch(id, 'anime', undefined, progressItem?.episode_number || selectedEpisode, movie.malId || '0');
                     }}
-                    className="w-full sm:w-auto px-6 py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-sm sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 active:scale-95 cursor-pointer"
+                    className="w-full sm:w-auto primary-btn flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                   >
-                    <Play className="w-5 h-5 fill-current" />
+                    <Play className="w-4 h-4 fill-current" />
                     Continue Ep {progressItem?.episode_number || selectedEpisode}
                   </button>
                   <button 
                     onClick={() => {
                       goToWatch(id, 'anime', undefined, 1, movie.malId || '0');
                     }}
-                    className="w-full sm:w-auto px-6 py-3 glass hover:bg-white/15 text-foreground font-bold text-xs sm:text-base rounded-full flex items-center justify-center gap-2 transition-all border border-white/10 active:scale-95 cursor-pointer"
+                    className="w-full sm:w-auto secondary-btn flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Play className="w-4 h-4" />
+                    <Play className="w-3.5 h-3.5" />
                     Watch From Ep 1
                   </button>
                 </>
@@ -640,9 +645,9 @@ export function AnimeDetail({ id }: { id: string }) {
                   onClick={() => {
                     goToWatch(id, 'anime', undefined, selectedEpisode, movie.malId || '0');
                   }}
-                  className="w-full sm:w-auto px-6 py-3.5 bg-brand hover:bg-brand/90 text-background font-bold text-sm sm:text-base rounded-full flex items-center justify-center gap-2 transition-all shadow-card hover:scale-105 active:scale-95 cursor-pointer"
+                  className="w-full sm:w-auto primary-btn flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                 >
-                  <Play className="w-5 h-5 fill-current" />
+                  <Play className="w-4 h-4 fill-current" />
                   Watch Now
                 </button>
               )}
@@ -651,32 +656,29 @@ export function AnimeDetail({ id }: { id: string }) {
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <button 
                   onClick={() => setShowDownloadModal(true)}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-bold text-xs sm:text-base transition-all duration-300 glass border-brand/40 bg-brand/10 text-brand hover:bg-brand/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2 shadow-sm"
+                  className="flex-1 sm:flex-none secondary-btn flex items-center justify-center gap-2 cursor-pointer"
                   title="Download Episodes via ZokoAnime"
                 >
-                  <Download className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <Download className="w-4 h-4" />
                   <span>Download</span>
                 </button>
 
                 <button 
                   onClick={handleWatchlistToggle}
                   className={cn(
-                    "flex-1 sm:flex-none px-6 py-2.5 sm:py-3 rounded-full flex items-center justify-center gap-2 transition-all border group relative overflow-hidden font-medium text-xs sm:text-base cursor-pointer active:scale-95",
-                    inWatchlist 
-                      ? "bg-white/10 border-white/20 text-foreground hover:bg-white/20" 
-                      : "glass border-white/10 text-foreground hover:bg-white/15"
+                    "flex-1 sm:flex-none secondary-btn flex items-center justify-center gap-2 cursor-pointer",
+                    inWatchlist && "bg-white/[0.14] border-white/30 text-white"
                   )}
                 >
-                  {inWatchlist ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-brand" /> : <Plus className="w-4 h-4 sm:w-5 sm:h-5" />}
-                  {inWatchlist ? 'In Watchlist' : 'Add to Watchlist'}
+                  {inWatchlist ? <Check className="w-4 h-4 text-[#f3f0ea]" /> : <Plus className="w-4 h-4" />}
+                  {inWatchlist ? 'In Watchlist' : 'Watchlist'}
                 </button>
 
                 <button 
                   onClick={handleShare}
-                  className="px-4 sm:px-6 py-2.5 sm:py-3 rounded-full font-medium text-xs sm:text-base transition-all duration-300 glass border-white/10 text-foreground hover:bg-white/15 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                  className="secondary-btn !px-3.5 cursor-pointer flex items-center justify-center"
                 >
-                  <Share2 className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span>Share</span>
+                  <Share2 className="w-4 h-4" />
                 </button>
               </div>
             </div>

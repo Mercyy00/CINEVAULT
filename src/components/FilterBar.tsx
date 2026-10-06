@@ -112,8 +112,8 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
         onClick();
       }}
       className={cn(
-        "w-full text-left px-3.5 py-2 text-xs sm:text-sm rounded-lg transition-all flex items-center gap-2.5 cursor-pointer",
-        active ? "text-foreground font-semibold bg-white/10" : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+        "w-full text-left px-3 py-2 text-xs font-mono rounded-[10px] transition-all flex items-center gap-2 cursor-pointer",
+        active ? "text-[#0b0b0d] font-semibold bg-[#f3f0ea]" : "text-[#929093] hover:bg-white/[0.06] hover:text-[#f3f0ea]"
       )}
     >
       {children}
@@ -121,9 +121,9 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
   );
 
   return (
-    <div className="px-4 sm:px-8 lg:px-10 py-3 sm:py-5 flex items-center gap-2 sm:gap-6 border-b border-white/5 relative z-30 select-none overflow-x-auto sm:overflow-visible scrollbar-none">
-      <div className="flex items-center gap-1.5 text-xs font-mono font-medium uppercase tracking-wider text-muted-foreground mr-1 shrink-0">
-        <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+    <div className="px-4 sm:px-8 lg:px-10 py-3 sm:py-4 flex items-center gap-2 sm:gap-4 border-b border-white/[0.06] relative z-30 select-none overflow-x-auto sm:overflow-visible scrollbar-none bg-[#0b0b0d]">
+      <div className="flex items-center gap-1.5 text-xs font-mono font-medium uppercase tracking-wider text-[#929093] mr-1 shrink-0">
+        <SlidersHorizontal className="w-3.5 h-3.5 text-[#929093]" />
         <span>Filters</span>
       </div>
 
@@ -137,9 +137,9 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/[0.03] hover:bg-white/[0.06] text-foreground border border-white/10 hover:border-white/25 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+          className="px-3.5 py-1.5 rounded-full text-xs font-mono bg-white/[0.03] hover:bg-white/[0.06] text-[#f3f0ea] border border-white/[0.08] hover:border-white/20 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
         >
-          <span className="text-muted-foreground text-xs font-normal">Type:</span>
+          <span className="text-[#929093] text-xs">Type:</span>
           <span>{TYPES.find((t) => t.id === type)?.name}</span>
           <ChevronDown className="w-3.5 h-3.5 opacity-60" />
         </button>
@@ -150,7 +150,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-44 bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/10 shadow-card z-50"
+              className="absolute top-full left-0 mt-2 w-44 bg-[#121316] backdrop-blur-2xl rounded-[18px] p-1.5 border border-white/[0.12] shadow-2xl z-50"
             >
               {TYPES.map((t) => (
                 <DropdownItem
@@ -179,9 +179,9 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
             setShowProviders(false);
             setShowSort(false);
           }}
-          className="px-3.5 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium bg-white/[0.03] hover:bg-white/[0.06] text-foreground border border-white/10 hover:border-white/25 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
+          className="px-3.5 py-1.5 rounded-full text-xs font-mono bg-white/[0.03] hover:bg-white/[0.06] text-[#f3f0ea] border border-white/[0.08] hover:border-white/20 flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap"
         >
-          <span className="text-muted-foreground text-xs font-normal">Region:</span>
+          <span className="text-[#929093] text-xs">Region:</span>
           <span>{COUNTRIES.find((c) => c.code === country)?.name}</span>
           <ChevronDown className="w-3.5 h-3.5 opacity-60" />
         </button>
@@ -192,7 +192,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute top-full left-0 mt-2 w-48 bg-[#0a0a0a]/95 backdrop-blur-2xl rounded-2xl p-1.5 border border-white/10 shadow-card z-50"
+              className="absolute top-full left-0 mt-2 w-48 bg-[#121316] backdrop-blur-2xl rounded-[18px] p-1.5 border border-white/[0.12] shadow-2xl z-50"
             >
               {COUNTRIES.map((c) => (
                 <DropdownItem

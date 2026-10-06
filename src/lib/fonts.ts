@@ -15,6 +15,7 @@
  */
 
 export type AppFontId =
+  | 'space-grotesk'
   | 'bricolage'
   | 'syne'
   | 'clash'
@@ -38,9 +39,15 @@ const GOOGLE = 'https://fonts.googleapis.com/css2';
 const FONTSHARE = 'https://api.fontshare.com/v2/css';
 
 export const APP_FONTS: Record<AppFontId, FontDefinition> = {
+  'space-grotesk': {
+    name: 'Space Grotesk',
+    tag: '7Movies Clean',
+    href: null,
+    fontFamily: '"Space Grotesk", "Manrope", system-ui, sans-serif',
+  },
   bricolage: {
     name: 'Bricolage Grotesque',
-    tag: 'Default',
+    tag: 'Editorial',
     href: null,
     fontFamily: '"Bricolage Grotesque", "Inter", system-ui, sans-serif',
   },
@@ -101,7 +108,7 @@ export function isAppFontId(value: unknown): value is AppFontId {
 }
 
 export function normalizeFontId(id: unknown): AppFontId {
-  if (typeof id !== 'string') return 'bricolage';
+  if (typeof id !== 'string') return 'space-grotesk';
   const clean = id.trim().toLowerCase();
   const legacyMap: Record<string, AppFontId> = {
     dinko: 'syne',
@@ -113,7 +120,7 @@ export function normalizeFontId(id: unknown): AppFontId {
   };
   if (clean in legacyMap) return legacyMap[clean];
   if (isAppFontId(clean)) return clean;
-  return 'bricolage';
+  return 'space-grotesk';
 }
 
 /** Ids of families whose stylesheet has been requested this session. */

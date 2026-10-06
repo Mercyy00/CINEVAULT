@@ -348,13 +348,13 @@ export function PageShell({
         <Breadcrumbs items={[{ label: title }]} />
 
         <div className="mb-8 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-          <h1 className="text-3xl font-display font-bold text-foreground">
+          <h1 className="text-3xl md:text-4xl font-display font-bold text-foreground tracking-tight">
             {isSearch ? title : `Explore ${title}`}
           </h1>
         </div>
 
         {pills.length > 0 && (
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4 mb-8" role="tablist">
+          <div className="flex gap-2.5 overflow-x-auto scrollbar-hide pb-4 mb-8 items-center" role="tablist">
             {pills.map((pill) => (
               <button
                 key={pill.id}
@@ -362,10 +362,8 @@ export function PageShell({
                 role="tab"
                 aria-selected={activePill === pill.id}
                 onClick={() => setActivePill(pill.id)}
-                className={`px-5 py-2.5 rounded-full whitespace-nowrap font-medium transition-all ${
-                  activePill === pill.id
-                    ? 'bg-brand text-background shadow-card font-bold'
-                    : 'bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/10'
+                className={`filter-pill-capsule cursor-pointer ${
+                  activePill === pill.id ? 'active' : ''
                 }`}
               >
                 {pill.label}
@@ -381,11 +379,11 @@ export function PageShell({
                 }}
                 aria-haspopup="dialog"
                 aria-expanded={isFilterDrawerOpen}
-                className="px-5 py-2.5 rounded-full whitespace-nowrap font-medium transition-all bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground border border-white/10 flex items-center gap-2 ml-auto cursor-pointer"
+                className="filter-pill-capsule flex items-center gap-2 ml-auto cursor-pointer"
               >
-                <Filter size={18} aria-hidden="true" /> Filters
+                <Filter size={14} aria-hidden="true" /> Filters
                 {activeFilterCount > 0 && (
-                  <span className="w-2 h-2 rounded-full bg-brand" aria-label="Filters active" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-cream" aria-label="Filters active" />
                 )}
               </button>
             )}
@@ -507,7 +505,7 @@ export function PageShell({
                   type="button"
                   onClick={() => setPage((value) => value + 1)}
                   disabled={loadingMore}
-                  className="px-8 py-3 glass border border-brand/30 text-brand font-bold rounded-xl hover:bg-brand/10 transition-colors disabled:opacity-50"
+                  className="px-8 py-3 bg-white/5 hover:bg-white/10 border border-white/10 text-foreground font-mono text-xs uppercase tracking-widest rounded-xl transition-all hover:border-white/20 disabled:opacity-50 cursor-pointer shadow-sm"
                 >
                   {loadingMore ? 'Loading…' : 'Load more'}
                 </button>
@@ -529,7 +527,7 @@ export function PageShell({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={closeDrawer}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[250]"
+              className="fixed inset-0 bg-black/75 backdrop-blur-md z-[250]"
             />
             {/* Focus is trapped and Escape closes, matching the other overlays. */}
             <FocusLock returnFocus>
@@ -541,28 +539,28 @@ export function PageShell({
                 animate={{ x: 0 }}
                 exit={{ x: '100%' }}
                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                className="fixed top-0 right-0 h-full w-full max-w-sm glass z-[260] border-l border-white/10 p-6 flex flex-col"
+                className="fixed top-0 right-0 h-full w-full max-w-sm bg-[#121316] z-[260] border-l border-white/10 p-6 flex flex-col shadow-2xl"
               >
                 <div className="flex justify-between items-center mb-8">
-                  <h2 className="text-2xl font-display font-bold text-foreground">
+                  <h2 className="text-xl font-display font-bold text-foreground tracking-tight">
                     Advanced filters
                   </h2>
                   <button
                     type="button"
                     onClick={closeDrawer}
                     aria-label="Close filters"
-                    className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-foreground cursor-pointer"
+                    className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-foreground cursor-pointer border border-white/10"
                   >
-                    <X size={24} aria-hidden="true" />
+                    <X size={18} aria-hidden="true" />
                   </button>
                 </div>
 
                 <div className="flex-1 overflow-y-auto space-y-8 pr-2">
                   <fieldset>
-                    <legend className="block text-sm font-medium text-muted-foreground mb-2">
+                    <legend className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2">
                       Year range
                     </legend>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                       <select
                         aria-label="Earliest year"
                         value={draftFilters.minYear}
@@ -572,7 +570,7 @@ export function PageShell({
                             minYear: event.target.value,
                           }))
                         }
-                        className="w-full bg-card border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none focus:border-brand"
+                        className="w-full bg-[#18191e] border border-white/10 rounded-xl px-3 py-2 text-foreground font-mono text-xs outline-none focus:border-white/30"
                       >
                         {yearOptions.map((year) => (
                           <option key={`min-${year}`} value={year}>
@@ -580,7 +578,7 @@ export function PageShell({
                           </option>
                         ))}
                       </select>
-                      <span className="text-muted-foreground">to</span>
+                      <span className="text-muted-foreground font-mono text-xs">to</span>
                       <select
                         aria-label="Latest year"
                         value={draftFilters.maxYear}
@@ -590,7 +588,7 @@ export function PageShell({
                             maxYear: event.target.value,
                           }))
                         }
-                        className="w-full bg-card border border-white/10 rounded-xl px-3 py-2 text-foreground outline-none focus:border-brand"
+                        className="w-full bg-[#18191e] border border-white/10 rounded-xl px-3 py-2 text-foreground font-mono text-xs outline-none focus:border-white/30"
                       >
                         {yearOptions.map((year) => (
                           <option key={`max-${year}`} value={year}>
@@ -604,10 +602,10 @@ export function PageShell({
                   <div>
                     <label
                       htmlFor="min-rating"
-                      className="flex justify-between text-sm font-medium text-muted-foreground mb-2"
+                      className="flex justify-between text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2"
                     >
                       <span>Minimum rating</span>
-                      <span className="text-brand font-bold">{draftFilters.minRating}+</span>
+                      <span className="text-[#f3f0ea] font-bold">{draftFilters.minRating}+</span>
                     </label>
                     <input
                       id="min-rating"
@@ -622,12 +620,12 @@ export function PageShell({
                           minRating: event.target.value,
                         }))
                       }
-                      className="w-full accent-brand"
+                      className="w-full accent-[#f3f0ea] cursor-pointer"
                     />
                   </div>
 
                   <fieldset>
-                    <legend className="block text-sm font-medium text-muted-foreground mb-3">
+                    <legend className="block text-xs font-mono uppercase tracking-wider text-muted-foreground mb-3">
                       Sort by
                     </legend>
                     <div className="space-y-3">
@@ -636,10 +634,6 @@ export function PageShell({
                           key={option.value}
                           className="flex items-center gap-3 cursor-pointer group"
                         >
-                          {/* The radio is visually hidden but focusable, so the
-                              group is keyboard-operable. It was `hidden`
-                              before, which removes it from the tab order and
-                              made sorting mouse-only. */}
                           <input
                             type="radio"
                             name="sortBy"
@@ -655,20 +649,20 @@ export function PageShell({
                           />
                           <span
                             aria-hidden="true"
-                            className={`w-5 h-5 rounded-full border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-brand ${
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#f3f0ea] ${
                               draftFilters.sortBy === option.value
-                                ? 'border-brand'
+                                ? 'border-[#f3f0ea]'
                                 : 'border-white/30 group-hover:border-white/60'
                             }`}
                           >
                             {draftFilters.sortBy === option.value && (
-                              <span className="w-2.5 h-2.5 rounded-full bg-brand" />
+                              <span className="w-2 h-2 rounded-full bg-[#f3f0ea]" />
                             )}
                           </span>
                           <span
-                            className={`transition-colors ${
+                            className={`text-xs transition-colors ${
                               draftFilters.sortBy === option.value
-                                ? 'text-foreground font-bold'
+                                ? 'text-foreground font-semibold'
                                 : 'text-muted-foreground group-hover:text-foreground'
                             }`}
                           >
@@ -684,7 +678,7 @@ export function PageShell({
                   <button
                     type="button"
                     onClick={() => setDraftFilters(DEFAULT_FILTERS)}
-                    className="px-5 py-4 bg-white/5 hover:bg-white/10 text-foreground font-medium rounded-xl transition-colors"
+                    className="px-5 py-3 bg-white/5 hover:bg-white/10 text-foreground font-mono text-xs uppercase tracking-wider rounded-xl transition-colors border border-white/10 cursor-pointer"
                   >
                     Reset
                   </button>
@@ -694,7 +688,7 @@ export function PageShell({
                       setAppliedFilters(draftFilters);
                       closeDrawer();
                     }}
-                    className="flex-1 py-4 bg-brand text-background font-bold rounded-xl hover:bg-brand-light transition-colors shadow-card"
+                    className="flex-1 py-3 bg-[#f3f0ea] text-[#0b0b0d] font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-white transition-all shadow-md cursor-pointer"
                   >
                     Apply filters
                   </button>

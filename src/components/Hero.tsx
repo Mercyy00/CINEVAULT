@@ -506,58 +506,55 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
         </motion.div>
       )}
 
-      {/* Cinema Gradient Scrims & Shading */}
-      <div className="absolute inset-0 z-10 bg-gradient-to-t from-background via-background/50 to-transparent" />
-      <div className="absolute inset-0 z-10 bg-gradient-to-r from-background/90 via-background/40 to-transparent" />
-      <div className="absolute inset-x-0 bottom-0 h-40 z-10 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+      {/* 7Movies Multi-stage Gradient Scrims & Shading */}
+      <div className="hero-shade" />
+      <div className="hero-fade" />
 
       {/* Main Hero Content */}
       <div className="relative z-20 max-w-5xl w-full pb-24 sm:pb-28 px-4 sm:px-10 lg:px-14">
         <motion.div
           key={`content-${current.type}-${current.id}`}
-          initial={{ opacity: 0, y: reduceMotion ? 0 : 24 }}
+          initial={{ opacity: 0, y: reduceMotion ? 0 : 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: reduceMotion ? 0 : 0.7, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
+          transition={{ duration: reduceMotion ? 0 : 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Metadata Badges */}
-          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3.5 mb-3 sm:mb-4">
-            <span className="bg-brand/20 text-brand border border-brand/40 rounded-full px-3 py-1 text-[11px] sm:text-xs uppercase tracking-widest font-mono font-bold shadow-sm backdrop-blur-md">
-              {typeLabel}
-            </span>
-
-            <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-xs sm:text-sm text-foreground font-bold shadow-sm">
-              <Star className="w-3.5 h-3.5 text-[#ffd066] fill-[#ffd066]" aria-hidden="true" />
-              <span>{formatRating(current.rating)}</span>
-              <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span>
+          {/* Eyebrow and Metadata */}
+          <div className="flex flex-col gap-1.5 mb-3 sm:mb-4">
+            <div className="eyebrow">
+              <span className="text-[#e8e6e1] font-mono uppercase tracking-[0.16em] text-[10px]">
+                Spotlight
+              </span>
+              <i />
+              <em>{typeLabel}</em>
             </div>
 
-            <span className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-foreground/90 text-xs sm:text-sm font-semibold">
-              {current.year || '—'}
-            </span>
-
-            {current.ageRating && (
-              <span className="px-2 py-1 rounded-full border border-white/25 text-[11px] font-mono text-foreground/80">
-                {current.ageRating}
-              </span>
-            )}
-
-            {current.genres && current.genres.length > 0 && (
-              <div className="hidden xs:flex flex-wrap items-center gap-1.5">
-                {current.genres.slice(0, 2).map((genre: string) => (
-                  <span
-                    key={genre}
-                    className="bg-white/5 backdrop-blur-md border border-white/5 rounded-full px-2.5 py-0.5 text-[11px] text-foreground/80 font-medium"
-                  >
-                    {genre}
-                  </span>
-                ))}
+            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs text-[#d3d0d3] font-mono">
+              <span className="text-[#f3f0ea] font-medium">{current.year || '—'}</span>
+              <span className="text-white/30">·</span>
+              <div className="flex items-center gap-1 text-[#f3f0ea]">
+                <Star className="w-3.5 h-3.5 text-[#f5c518] fill-[#f5c518]" aria-hidden="true" />
+                <span className="font-bold">{formatRating(current.rating)}</span>
               </div>
-            )}
+              {current.ageRating && (
+                <>
+                  <span className="text-white/30">·</span>
+                  <span className="px-1.5 py-0.5 rounded border border-white/20 text-[10px] text-white/80">
+                    {current.ageRating}
+                  </span>
+                </>
+              )}
+              {current.genres && current.genres.length > 0 && (
+                <>
+                  <span className="text-white/30">·</span>
+                  <span className="text-[#beb9bc]">{current.genres.slice(0, 2).join(' / ')}</span>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Title: Official high-res logo artwork when available, falling back to clean stylized heading */}
           {current.logoUrl && !logoFailed[current.id] ? (
-            <div className="mb-3 sm:mb-4">
+            <div className="mb-4 sm:mb-5">
               <h1 className="sr-only">{current.title}</h1>
               <img
                 key={current.logoUrl}
@@ -566,61 +563,61 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
                 loading="eager"
                 decoding="async"
                 onError={() => setLogoFailed((prev) => ({ ...prev, [current.id]: true }))}
-                className="max-w-[min(88vw,34rem)] max-h-24 sm:max-h-32 lg:max-h-40 object-contain object-left drop-shadow-2xl"
+                className="max-w-[min(88vw,34rem)] max-h-24 sm:max-h-32 lg:max-h-40 object-contain object-left drop-shadow-[0_12px_40px_rgba(0,0,0,0.8)]"
               />
             </div>
           ) : (
-            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display font-black text-foreground mb-3 sm:mb-4 leading-[1.08] tracking-tight drop-shadow-2xl line-clamp-2">
+            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display font-medium text-[#f3f0ea] mb-4 sm:mb-5 leading-[0.94] tracking-[-0.06em] drop-shadow-2xl line-clamp-2">
               {current.title}
             </h1>
           )}
 
           {/* Description */}
-          <p className="text-xs sm:text-base lg:text-lg text-foreground/85 mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-2xl font-normal leading-relaxed drop-shadow-md">
+          <p className="text-xs sm:text-sm lg:text-[15px] text-[#beb9bc] mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-xl font-normal leading-relaxed drop-shadow-md">
             {current.tagline || current.description}
           </p>
 
-          {/* Double-Bezel Island Actions */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+          {/* 7Movies Action Buttons */}
+          <div className="flex flex-wrap items-center gap-3 sm:gap-3.5">
             <button
               type="button"
               onClick={handlePlay}
-              className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-5 pr-2 py-2 text-xs sm:text-base font-bold shadow-card hover:scale-[1.03] active:scale-95 transition-all duration-300 cursor-pointer"
+              className="primary-btn"
             >
-              <span>Watch Now</span>
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
-                <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5" aria-hidden="true" />
-              </div>
+              <Play className="w-4 h-4 fill-current ml-0.5" aria-hidden="true" />
+              <span>Watch now</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onMovieSelect(current.id, current.type)}
+              className="secondary-btn"
+              aria-label={`More info about ${current.title}`}
+            >
+              <Info className="w-4 h-4" aria-hidden="true" />
+              <span>Info</span>
             </button>
 
             <button
               type="button"
               onClick={handleWatchlistToggle}
               aria-pressed={inWatchlist}
-              className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 text-foreground rounded-full px-5 py-3 text-xs sm:text-sm font-semibold backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+              className="secondary-btn !px-3"
+              aria-label={inWatchlist ? 'In My List' : 'Add to My List'}
+              title={inWatchlist ? 'In My List' : 'Add to My List'}
             >
               {inWatchlist ? (
-                <Check className="w-4 h-4 text-brand" aria-hidden="true" />
+                <Check className="w-4 h-4 text-[#f3f0ea]" aria-hidden="true" />
               ) : (
                 <Plus className="w-4 h-4" aria-hidden="true" />
               )}
-              <span>{inWatchlist ? 'In Watchlist' : 'My List'}</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onMovieSelect(current.id, current.type)}
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/5 hover:bg-white/15 border border-white/15 flex items-center justify-center text-foreground backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-md"
-              aria-label={`More info about ${current.title}`}
-            >
-              <Info className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
             </button>
 
             {trailerPlaying && (
               <button
                 type="button"
                 onClick={() => setTrailerDismissed(true)}
-                className="flex items-center gap-2 bg-black/50 hover:bg-black/70 border border-white/15 text-foreground/80 rounded-full px-4 py-2.5 text-[11px] font-mono uppercase tracking-wider backdrop-blur-xl transition-all cursor-pointer"
+                className="secondary-btn text-xs font-mono"
               >
                 <VolumeX className="w-3.5 h-3.5" aria-hidden="true" />
                 <span>Stop preview</span>

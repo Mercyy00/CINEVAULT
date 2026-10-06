@@ -1112,14 +1112,14 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           ? "w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 shrink-0"
           : "w-full h-full flex-1 relative flex flex-col"
       )}>
-        {/* Video Stage Container */}
+        {/* Video Stage Container with 7movies Unified Player Bezel */}
         <div
           className={cn(
-            'relative bg-black overflow-hidden select-none w-full',
+            'relative bg-[#090a0c] overflow-hidden select-none w-full',
             playerMode === 'floating'
               ? 'h-full'
               : isContained
-              ? 'aspect-video max-h-[85vh] rounded-2xl sm:rounded-3xl border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.9)] ring-1 ring-white/10 group mx-auto'
+              ? 'aspect-video max-h-[85vh] unified-player-frame group mx-auto'
               : isMobileView && !isFullscreen
               ? 'aspect-video shrink-0 sticky top-0 z-30 safe-top shadow-2xl'
               : 'flex-1 h-full'
@@ -1177,7 +1177,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   setPlayerMode('fullscreen');
                   goToWatch(id, type, selectedSeason, selectedEpisode?.episode_number);
                 }}
-                className="text-[10px] font-bold text-brand hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[10px] font-bold text-[#f3f0ea] hover:underline flex items-center gap-1 cursor-pointer"
               >
                 Tap to expand
               </button>
@@ -1212,7 +1212,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                     }, 100);
                   }}
                   aria-label="Back"
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#121316]/90 hover:bg-white/15 flex items-center justify-center text-[#f3f0ea] transition-colors backdrop-blur-md border border-white/10 hover:border-white/30 cursor-pointer shrink-0"
                 >
                   <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                 </button>
@@ -1221,7 +1221,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   onClick={() => setSidebarOpen(true)}
                   aria-label="Open episodes and sources"
                   aria-expanded={sidebarOpen}
-                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-card hover:bg-brand/20 flex items-center justify-center text-foreground transition-colors backdrop-blur-md border border-white/10 hover:border-brand/50 cursor-pointer shrink-0"
+                  className="w-9 h-9 sm:w-11 sm:h-11 rounded-full bg-[#121316]/90 hover:bg-white/15 flex items-center justify-center text-[#f3f0ea] transition-colors backdrop-blur-md border border-white/10 hover:border-white/30 cursor-pointer shrink-0"
                 >
                   <Menu className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
                 </button>
@@ -1626,49 +1626,49 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       {/* Contained Cinema & Mobile Console Dock (Visible whenever not fullscreen or floating) */}
       {!isFullscreen && playerMode !== 'floating' && (
         <div className="w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 space-y-4 pb-20 pt-1">
-          {/* Streamlined Info & Controls Bar */}
-          <div className="p-3.5 sm:p-4 rounded-2xl bg-card/40 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-lg">
+          {/* 7movies Streamlined Info & Controls Bar */}
+          <div className="p-4 sm:p-5 rounded-[20px] bg-[#111215] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
             {/* Title & Metadata */}
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-sm sm:text-base font-bold text-foreground truncate">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h1 className="text-base sm:text-lg font-display font-bold text-[#f3f0ea] truncate">
                   {movie?.title}
                 </h1>
                 {(movie?.rating ?? 0) > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand bg-brand/10 border border-brand/20 px-2 py-0.5 rounded-full shrink-0 font-mono">
-                    <Star className="w-3 h-3 fill-current" /> {movie.rating?.toFixed(1)}
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#f3f0ea] bg-white/[0.04] border border-white/10 px-2.5 py-0.5 rounded-full shrink-0 font-mono">
+                    <Star className="w-3 h-3 fill-[#f5c518] text-[#f5c518]" /> {movie.rating?.toFixed(1)}
                   </span>
                 )}
                 {movie?.year ? (
-                  <span className="text-xs text-muted-foreground font-medium">
+                  <span className="text-xs text-[#929093] font-mono">
                     {movie.year}
                   </span>
                 ) : null}
                 {movie?.duration ? (
-                  <span className="text-xs text-muted-foreground font-medium">
+                  <span className="text-xs text-[#929093] font-mono">
                     • {movie.duration}
                   </span>
                 ) : null}
               </div>
               {type === 'tv' && selectedEpisode && (
-                <p className="text-xs text-brand truncate font-medium mt-0.5">
+                <p className="text-xs text-[#929093] truncate font-mono mt-1">
                   S{selectedSeason} E{selectedEpisode.episode_number}
                   {selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
                 </p>
               )}
             </div>
 
-            {/* TV Controls — source selection lives in the player's Language menu now */}
+            {/* TV Controls */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
               {/* Season Selector for TV */}
               {type === 'tv' && seasons.length > 1 && (
                 <select
                   value={selectedSeason}
                   onChange={(e) => goToWatch(id, 'tv', Number(e.target.value), 1)}
-                  className="bg-card border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-foreground font-semibold focus:outline-none focus:border-brand cursor-pointer shrink-0"
+                  className="bg-[#18191d] border border-white/10 rounded-full px-3.5 py-1.5 text-xs text-[#f3f0ea] font-mono focus:outline-none focus:border-white/30 cursor-pointer shrink-0"
                 >
                   {seasons.map((s) => (
-                    <option key={s.season_number} value={s.season_number} className="bg-background">
+                    <option key={s.season_number} value={s.season_number} className="bg-[#0b0b0d]">
                       {s.name || `Season ${s.season_number}`}
                     </option>
                   ))}
@@ -1680,11 +1680,11 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 <button
                   type="button"
                   onClick={() => setSidebarOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-card border border-white/10 text-xs font-semibold text-foreground shrink-0 hover:bg-brand/20 hover:text-brand transition-colors cursor-pointer"
+                  className="secondary-btn !py-1.5 !px-3.5 text-xs font-mono flex items-center gap-1.5 cursor-pointer"
                   title="Browse all episodes"
                 >
-                  <Menu className="w-3.5 h-3.5 text-brand" />
-                  <span className="hidden sm:inline">Episodes</span>
+                  <Menu className="w-3.5 h-3.5 text-[#f3f0ea]" />
+                  <span>Episodes</span>
                 </button>
               )}
             </div>
@@ -1692,9 +1692,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
           {/* Overview */}
           {movie?.description && (
-            <div className="pt-2 border-t border-white/5 space-y-1 px-1">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Overview</h2>
-              <p className="text-xs sm:text-sm text-muted-foreground/80 leading-relaxed max-w-4xl line-clamp-3 hover:line-clamp-none transition-all">
+            <div className="pt-2 border-t border-white/[0.06] space-y-1 px-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-[#929093] font-mono">Overview</h2>
+              <p className="text-xs sm:text-sm text-[#929093] leading-relaxed max-w-4xl line-clamp-3 hover:line-clamp-none transition-all">
                 {movie.description}
               </p>
             </div>

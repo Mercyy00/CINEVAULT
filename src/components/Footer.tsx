@@ -1,9 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import FocusLock from 'react-focus-lock';
-import { Twitter, DiscIcon as Discord, X, Globe, Shield, FileText, Mail, Film, Sparkles, Tv, ExternalLink } from 'lucide-react';
-import { useApp } from '../store';
-import { cn } from '../lib/utils';
+import { Twitter, DiscIcon as Discord, X, Globe, Shield, FileText, Mail, Film } from 'lucide-react';
 
 interface LegalModalData {
   title: string;
@@ -84,189 +82,108 @@ const MODAL_DATA: Record<string, LegalModalData> = {
 
 export function Footer() {
   const [activeModalKey, setActiveModalKey] = useState<string | null>(null);
-  const { userProfile } = useApp();
 
   const modalData = activeModalKey ? MODAL_DATA[activeModalKey] : null;
 
   return (
     <>
-      <footer className="w-full border-t border-white/10 mt-20 relative z-20 bg-background/80 backdrop-blur-2xl">
-        <div className="w-full px-4 sm:px-8 lg:px-12 pt-14 pb-28">
-          {/* Top Section with Brand & Navigation Columns */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 pb-12 border-b border-white/10">
-            {/* Brand Column */}
-            <div className="md:col-span-1 space-y-4">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={cn(
-                    'w-7 h-7 bg-brand transition-all shrink-0 drop-shadow-md',
-                    userProfile.logoStyle === 'vault' ? 'brand-logo-vault' : 'brand-logo-cat'
-                  )}
-                  aria-hidden="true"
-                />
-                <span className="text-2xl font-display font-bold text-brand tracking-wider">
-                  CineVault
-                </span>
-              </div>
-              <p className="text-muted-foreground text-xs leading-relaxed max-w-sm">
-                Your ultimate cinema vault for streaming films, series, and anime. Discover, track,
-                and curate your personal watchlist.
-              </p>
-              <div className="flex items-center gap-3 pt-2 text-muted-foreground">
-                <a
-                  href="https://twitter.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Follow CineVault on Twitter"
-                  className="hover:text-brand transition-colors bg-white/5 hover:bg-brand/10 p-2 rounded-full border border-white/10 hover:border-brand/40"
-                >
-                  <Twitter className="w-4 h-4" />
-                </a>
-                <a
-                  href="https://discord.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Join CineVault Discord"
-                  className="hover:text-brand transition-colors bg-white/5 hover:bg-brand/10 p-2 rounded-full border border-white/10 hover:border-brand/40"
-                >
-                  <Discord className="w-4 h-4" />
-                </a>
-                <a
-                  href="https://github.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="CineVault on GitHub"
-                  className="hover:text-brand transition-colors bg-white/5 hover:bg-brand/10 p-2 rounded-full border border-white/10 hover:border-brand/40"
-                >
-                  <Globe className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-
-            {/* Internal Navigation Links */}
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-4 font-display">
-                Discover
-              </h3>
-              <ul className="space-y-2.5 text-xs text-muted-foreground">
-                <li>
-                  <a href="/" className="hover:text-brand transition-colors flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-brand" /> Trending Home
-                  </a>
-                </li>
-                <li>
-                  <a href="/movies" className="hover:text-brand transition-colors flex items-center gap-1.5">
-                    <Film className="w-3.5 h-3.5 text-blue-400" /> Feature Films
-                  </a>
-                </li>
-                <li>
-                  <a href="/tvshows" className="hover:text-brand transition-colors flex items-center gap-1.5">
-                    <Tv className="w-3.5 h-3.5 text-emerald-400" /> Television Series
-                  </a>
-                </li>
-                <li>
-                  <a href="/anime" className="hover:text-brand transition-colors flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 text-purple-400" /> Anime Hub
-                  </a>
-                </li>
-                <li>
-                  <a href="/mylist" className="hover:text-brand transition-colors">
-                    My Watchlist
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            {/* Legal & Company Information */}
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-4 font-display">
-                Information
-              </h3>
-              <ul className="space-y-2.5 text-xs text-muted-foreground">
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setActiveModalKey('about')}
-                    className="hover:text-brand transition-colors text-left cursor-pointer"
-                  >
-                    About CineVault
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setActiveModalKey('privacy')}
-                    className="hover:text-brand transition-colors text-left cursor-pointer"
-                  >
-                    Privacy Policy
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setActiveModalKey('terms')}
-                    className="hover:text-brand transition-colors text-left cursor-pointer"
-                  >
-                    Terms of Service
-                  </button>
-                </li>
-                <li>
-                  <button
-                    type="button"
-                    onClick={() => setActiveModalKey('contact')}
-                    className="hover:text-brand transition-colors text-left cursor-pointer"
-                  >
-                    Contact & Feedback
-                  </button>
-                </li>
-              </ul>
-            </div>
-
-            {/* Source & Attribution Column */}
-            <div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground mb-4 font-display">
-                Data Attribution
-              </h3>
-              <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
-                Media data, ratings, and backdrops provided by TMDB and AniList.
-              </p>
-              <div className="flex flex-col gap-2 text-[11px] text-muted-foreground/80">
-                <a
-                  href="https://www.themoviedb.org/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-brand transition-colors"
-                >
-                  The Movie Database (TMDB) <ExternalLink className="w-3 h-3" />
-                </a>
-                <a
-                  href="https://anilist.co/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 hover:text-brand transition-colors"
-                >
-                  AniList GraphQL API <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Copyright */}
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 text-xs text-muted-foreground">
-            <p>© {new Date().getFullYear()} CineVault. Built with React & Vite. All rights reserved.</p>
-            <div className="flex items-center gap-4 text-xs">
-              <a href="/sitemap.xml" className="hover:text-brand transition-colors">
-                Sitemap
-              </a>
-              <a href="/llms.txt" className="hover:text-brand transition-colors">
-                llms.txt
-              </a>
-              <a href="/robots.txt" className="hover:text-brand transition-colors">
-                robots.txt
-              </a>
-            </div>
-          </div>
+      <footer className="w-full border-t border-white/[0.08] mt-24 relative z-20 bg-[#0b0b0d] px-4 sm:px-8 py-16 pb-28 flex flex-col items-center text-center gap-5">
+        {/* Brand */}
+        <div className="footer-brand">
+          <span className="footer-brand-badge">CV</span>
+          <span>CineVault</span>
         </div>
+
+        {/* Discovery navigation links */}
+        <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-mono text-[#929093]">
+          <a href="/" className="hover:text-[#f3f0ea] transition-colors">Home</a>
+          <a href="/movies" className="hover:text-[#f3f0ea] transition-colors">Movies</a>
+          <a href="/tvshows" className="hover:text-[#f3f0ea] transition-colors">TV Shows</a>
+          <a href="/anime" className="hover:text-[#f3f0ea] transition-colors">Anime</a>
+          <a href="/mylist" className="hover:text-[#f3f0ea] transition-colors">Watchlist</a>
+          <a href="/trending" className="hover:text-[#f3f0ea] transition-colors">Trending</a>
+        </div>
+
+        {/* Disclaimer Note */}
+        <p className="footer-note">
+          CineVault does not host, store, or distribute any media files. All content is sourced from third-party providers. Metadata powered by TMDB and AniList.
+        </p>
+
+        {/* Contact Email Pill */}
+        <a className="footer-mail hover:border-white/25 hover:bg-white/[0.06]" href="mailto:support@cinevault.stream">
+          support@cinevault.stream
+        </a>
+
+        {/* Social / External links */}
+        <div className="flex items-center gap-3 text-[#929093]">
+          <a
+            href="https://twitter.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Follow CineVault on Twitter"
+            className="hover:text-[#f3f0ea] transition-colors bg-white/[0.04] hover:bg-white/[0.08] p-2 rounded-full border border-white/[0.08]"
+          >
+            <Twitter className="w-3.5 h-3.5" />
+          </a>
+          <a
+            href="https://discord.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Join CineVault Discord"
+            className="hover:text-[#f3f0ea] transition-colors bg-white/[0.04] hover:bg-white/[0.08] p-2 rounded-full border border-white/[0.08]"
+          >
+            <Discord className="w-3.5 h-3.5" />
+          </a>
+          <a
+            href="https://github.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="CineVault on GitHub"
+            className="hover:text-[#f3f0ea] transition-colors bg-white/[0.04] hover:bg-white/[0.08] p-2 rounded-full border border-white/[0.08]"
+          >
+            <Globe className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        {/* Legal & Info links */}
+        <p className="footer-legal">
+          <button
+            type="button"
+            onClick={() => setActiveModalKey('about')}
+            className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+          >
+            About
+          </button>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={() => setActiveModalKey('privacy')}
+            className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+          >
+            Privacy
+          </button>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={() => setActiveModalKey('terms')}
+            className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+          >
+            Terms
+          </button>
+          <span>·</span>
+          <button
+            type="button"
+            onClick={() => setActiveModalKey('contact')}
+            className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+          >
+            Contact
+          </button>
+        </p>
+
+        {/* Copyright */}
+        <p className="text-[11px] text-[#929093]/60 font-mono tracking-wider pt-2">
+          © {new Date().getFullYear()} CINEVAULT · ALL RIGHTS RESERVED
+        </p>
       </footer>
 
       {/* Real, Genuine Content Modal */}
@@ -288,40 +205,40 @@ export function Footer() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl bg-card border border-brand/30 rounded-2xl p-6 sm:p-8 relative shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"
+              className="w-full max-w-2xl bg-[#121316] border border-white/[0.14] rounded-[20px] p-6 sm:p-8 relative shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"
             >
               <button
                 type="button"
                 onClick={() => setActiveModalKey(null)}
-                className="absolute top-5 right-5 text-muted-foreground hover:text-brand transition-colors bg-white/5 hover:bg-white/10 p-2 rounded-full cursor-pointer"
+                className="absolute top-5 right-5 text-[#929093] hover:text-[#f3f0ea] transition-colors bg-white/[0.06] hover:bg-white/[0.12] p-2 rounded-full cursor-pointer"
                 aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+              <div className="flex items-center gap-3 mb-6 border-b border-white/[0.08] pb-4">
                 {modalData.icon}
-                <h2 id="legal-modal-title" className="text-2xl font-display font-bold text-foreground">
+                <h2 id="legal-modal-title" className="text-2xl font-display font-bold text-[#f3f0ea] tracking-tight">
                   {modalData.title}
                 </h2>
               </div>
 
-              <div className="text-foreground/90 space-y-6 leading-relaxed text-sm">
+              <div className="text-[#f3f0ea]/90 space-y-6 leading-relaxed text-sm">
                 {modalData.sections.map((section, idx) => (
                   <section key={idx} className="space-y-1.5">
-                    <h3 className="text-base font-semibold text-brand font-display">
+                    <h3 className="text-base font-semibold text-[#f3f0ea] font-display">
                       {section.heading}
                     </h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">{section.body}</p>
+                    <p className="text-[#929093] text-sm leading-relaxed">{section.body}</p>
                   </section>
                 ))}
               </div>
 
-              <div className="mt-8 pt-4 border-t border-white/10 flex justify-end">
+              <div className="mt-8 pt-4 border-t border-white/[0.08] flex justify-end">
                 <button
                   type="button"
                   onClick={() => setActiveModalKey(null)}
-                  className="px-6 py-2.5 bg-brand text-background text-sm font-bold rounded-full hover:opacity-90 transition-opacity cursor-pointer"
+                  className="px-6 py-2.5 bg-[#f3f0ea] text-[#0b0b0d] text-sm font-semibold rounded-full hover:bg-white transition-colors cursor-pointer"
                 >
                   Understood
                 </button>

@@ -74,15 +74,15 @@ export function PwaInstallBanner() {
           transition={{ duration: 0.25, ease: 'easeOut' }}
           className="fixed bottom-20 inset-x-3 sm:hidden z-[85] max-w-md mx-auto"
         >
-          <div className="bg-[#101118]/95 backdrop-blur-2xl border border-brand/35 rounded-2xl p-3.5 shadow-2xl safe-bottom flex items-center gap-3">
-            <div className="w-11 h-11 rounded-xl bg-brand/15 border border-brand/30 flex items-center justify-center shrink-0 text-brand">
+          <div className="bg-[#121316]/98 backdrop-blur-2xl border border-white/10 rounded-2xl p-3.5 shadow-2xl safe-bottom flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0 text-[#f3f0ea]">
               <Smartphone className="w-5 h-5" />
             </div>
 
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <h4 className="font-bold text-xs text-foreground font-display">Install CineVault App</h4>
-                <span className="text-[9px] font-black uppercase tracking-wider text-brand bg-brand/15 px-1.5 py-0.2 rounded">Fast</span>
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-[#0b0b0d] bg-[#f3f0ea] px-1.5 py-0.2 rounded">Fast</span>
               </div>
               <p className="text-[11px] text-muted-foreground line-clamp-1 mt-0.5">
                 Full-screen streaming & instant access
@@ -93,7 +93,7 @@ export function PwaInstallBanner() {
               <button
                 type="button"
                 onClick={handleInstall}
-                className="px-3 py-1.5 bg-brand text-background rounded-xl font-bold text-xs hover:bg-brand/90 transition-transform active:scale-95 flex items-center gap-1 cursor-pointer shadow-md shadow-brand/20 min-h-[36px]"
+                className="px-3.5 py-1.5 bg-[#f3f0ea] text-[#0b0b0d] rounded-xl font-bold text-xs hover:bg-white transition-transform active:scale-95 flex items-center gap-1 cursor-pointer shadow-md min-h-[36px]"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Install</span>

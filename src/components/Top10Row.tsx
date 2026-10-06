@@ -121,43 +121,28 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   }, [regionCode, reloadToken, resetFocus]);
 
   const heading = (
-    <div className="mb-5 px-4 sm:px-8 lg:px-12 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+    <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12">
       <div>
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="flex h-2 w-2 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand opacity-75" />
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-brand" />
-          </span>
-          <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-brand font-bold">
-            Streaming now
-          </span>
-        </div>
-        <div className="flex items-center gap-3">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-display text-foreground tracking-tight flex items-center gap-2">
-            Top 10 in {regionLabel} Today
-          </h2>
-        </div>
+        <p className="eyebrow">The week&apos;s most watched</p>
+        <h3 className="font-display font-medium text-base sm:text-lg lg:text-xl tracking-tight text-[#f3f0ea] m-0">
+          Top 10 in {regionLabel} Today
+        </h3>
       </div>
-      {/* Was "Updated hourly based on watch activity". There is no watch
-          activity, and TMDB's popularity score is recomputed daily. */}
-      <p className="text-xs sm:text-sm text-muted-foreground/70 font-mono">
-        By TMDB popularity, refreshed daily
+      <p className="text-[10px] font-mono text-[#77737a] tracking-wider uppercase hidden sm:block">
+        Refreshed daily
       </p>
     </div>
   );
 
   if (loading) {
     return (
-      <section className="mb-12 sm:mb-16 w-full select-none" aria-busy="true" aria-label="Loading Top 10 Today">
+      <section className="rail top10-rail mb-12 sm:mb-16 w-full select-none" aria-busy="true" aria-label="Loading Top 10 Today">
         {heading}
         <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12 py-6">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={`top10-skeleton-${i}`} className="flex items-end shrink-0">
-              <div className="top10-numeral-3d text-[85px] sm:text-[105px] md:text-[125px] lg:text-[145px] xl:text-[160px] opacity-20 -mr-6 sm:-mr-8 md:-mr-10 z-0">
-                {i + 1}
-              </div>
-              <div className="w-[115px] sm:w-[135px] md:w-[155px] lg:w-[170px] xl:w-[180px] 2xl:w-[185px] aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative z-10 overflow-hidden">
-                <div className="w-full h-full skeleton-shimmer bg-[#12131b] rounded-[calc(1.25rem-1.5px)] p-3 flex flex-col justify-between" />
+              <div className="w-[120px] sm:w-[140px] md:w-[160px] aspect-[2/3] rounded-[12px] bg-[#141417] border border-white/5 relative z-10 overflow-hidden">
+                <div className="w-full h-full skeleton-shimmer bg-[#1b191c] rounded-[12px]" />
               </div>
             </div>
           ))}
@@ -170,19 +155,19 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   // of the page with nothing said and no way to retry.
   if (error) {
     return (
-      <section className="mb-12 sm:mb-16 w-full px-4 sm:px-8 lg:px-12" aria-label="Top 10 Today">
+      <section className="rail top10-rail mb-12 sm:mb-16 w-full px-4 sm:px-8 lg:px-12" aria-label="Top 10 Today">
         {heading}
         <div
           role="alert"
-          className="w-full py-12 glass border border-red-500/20 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4 shadow-card"
+          className="w-full py-12 bg-[#141417] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4"
         >
-          <p className="text-sm sm:text-base font-medium">
+          <p className="text-sm sm:text-base font-medium text-[#f3f0ea]">
             Couldn’t load the top ten for {regionLabel}.
           </p>
           <button
             type="button"
             onClick={() => setReloadToken((value) => value + 1)}
-            className="px-6 py-2 bg-white/5 hover:bg-white/10 rounded-full border border-white/10 text-xs sm:text-sm font-semibold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            className="secondary-btn text-xs"
           >
             Try again
           </button>
@@ -193,11 +178,8 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
 
   if (movies.length === 0) return null;
 
-  const arrowClasses =
-    'hidden sm:flex absolute top-1/2 -translate-y-1/2 z-[95] w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-[#0a0b10]/90 hover:bg-brand text-white hover:text-background backdrop-blur-2xl border border-white/15 hover:border-brand items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_20px_rgba(232,133,42,0.3)] hover:scale-110 active:scale-90 transition-all duration-200 cursor-pointer opacity-0 group-hover/top10:opacity-100 focus-visible:opacity-100';
-
   return (
-    <section className="mb-12 sm:mb-16 relative group/top10 w-full" aria-label={`Top 10 in ${regionLabel} Today`}>
+    <section className="rail top10-rail mb-12 sm:mb-16 relative group/top10 w-full" aria-label={`Top 10 in ${regionLabel} Today`}>
       {heading}
 
       <div className="relative w-full">
@@ -205,25 +187,22 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
           {showLeftArrow && (
             <motion.button
               type="button"
-              initial={{ opacity: 0, scale: 0.8, x: -10 }}
-              animate={{ opacity: 1, scale: 1, x: 0 }}
-              exit={{ opacity: 0, scale: 0.8, x: -10 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.8 }}
               transition={{ duration: 0.2 }}
               onClick={() => scrollByPage('left')}
               aria-label="Scroll Top 10 left"
-              className={`${arrowClasses} left-2 sm:left-4`}
+              className="rail-arrow rail-arrow-left left-2 sm:left-4"
             >
-              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
+              <ChevronLeft className="w-5 h-5" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>
 
-        {/* The oversized numerals need real headroom, but `pt-16 pb-20 -my-10`
-            pulled the row into its neighbours, where the padding swallowed
-            clicks meant for the rows above and below. */}
         <ul
           {...scrollerProps}
-          className="flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-8 sm:pt-10 pb-12 sm:pb-14 -my-6 sm:-my-8 snap-x select-none list-none m-0 items-end will-change-scroll"
+          className="card-row flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 items-end will-change-scroll"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;
@@ -299,9 +278,9 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
               transition={{ duration: 0.2 }}
               onClick={() => scrollByPage('right')}
               aria-label="Scroll Top 10 right"
-              className={`${arrowClasses} right-2 sm:right-4`}
+              className="rail-arrow rail-arrow-right right-2 sm:right-4"
             >
-              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" aria-hidden="true" />
+              <ChevronRight className="w-5 h-5" aria-hidden="true" />
             </motion.button>
           )}
         </AnimatePresence>

@@ -54,11 +54,11 @@ export function ConsentBanner({ route }: ConsentBannerProps) {
           aria-label="Data and privacy"
           className="fixed bottom-0 left-0 right-0 z-[300] px-3 pb-3 sm:px-6 sm:pb-6 pointer-events-none"
         >
-          <div className="pointer-events-auto mx-auto max-w-3xl glass border border-white/12 rounded-2xl shadow-card backdrop-blur-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-            <ShieldCheck className="w-6 h-6 shrink-0 text-brand" aria-hidden="true" />
+          <div className="pointer-events-auto mx-auto max-w-3xl bg-[#121316] border border-white/10 rounded-2xl shadow-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+            <ShieldCheck className="w-5 h-5 shrink-0 text-[#f3f0ea]" aria-hidden="true" />
 
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-foreground">
+              <p className="text-sm font-semibold text-foreground font-display">
                 Sync your watch history to your account?
               </p>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -71,14 +71,14 @@ export function ConsentBanner({ route }: ConsentBannerProps) {
               <button
                 type="button"
                 onClick={() => setTelemetryConsent('denied')}
-                className="px-4 py-2 rounded-full text-xs font-bold bg-white/5 hover:bg-white/10 border border-white/10 text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider bg-white/5 hover:bg-white/10 border border-white/10 text-foreground transition-colors cursor-pointer outline-none focus-visible:ring-1 focus-visible:ring-white/30"
               >
                 Keep local
               </button>
               <button
                 type="button"
                 onClick={() => setTelemetryConsent('granted')}
-                className="px-4 py-2 rounded-full text-xs font-bold bg-brand text-background hover:brightness-110 transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="px-4 py-2 rounded-full text-xs font-mono uppercase tracking-wider font-bold bg-[#f3f0ea] text-[#0b0b0d] hover:bg-white transition-all cursor-pointer shadow-md"
               >
                 Allow sync
               </button>

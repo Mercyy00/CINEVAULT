@@ -26,6 +26,7 @@ data/
 /us in another universe/
 /vn.mp3
 /_birthday_backup/
+campaign-assets/
 
 # AI tool configs / scratch dirs
 .cursor/
@@ -43,6 +44,7 @@ data/
 .agents/
 skills-lock.json
 .gemini/
+.qwen/
 
 # Ignore local AI prompt scratch inside .github, but keep CI workflows tracked.
 .github/*

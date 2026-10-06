@@ -73,7 +73,7 @@ export type AppFont = AppFontId;
 export type PlayerMode = 'contained' | 'fullscreen' | 'floating';
 
 const DEFAULT_THEME: Theme = 'crimson-premiere';
-const DEFAULT_FONT: AppFont = 'bricolage';
+const DEFAULT_FONT: AppFont = 'space-grotesk';
 
 /** Cloud writes are batched: state changes in bursts, Firestore bills per write. */
 const CLOUD_SYNC_DEBOUNCE_MS = 2_500;

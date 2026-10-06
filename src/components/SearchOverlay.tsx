@@ -42,15 +42,6 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
   );
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const animeTitlesSet = useMemo(() => {
-    const set = new Set<string>();
-    for (const item of results) {
-      if (item.type === 'anime' && item.title) {
-        set.add(normalizeTitle(item.title));
-      }
-    }
-    return set;
-  }, [results]);
 
   const saveToHistory = useCallback((term: string) => {
     const clean = term.trim();
@@ -276,11 +267,11 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-xl flex flex-col safe-top safe-bottom"
+            className="fixed inset-0 z-[100] bg-[#0b0b0d]/96 backdrop-blur-2xl flex flex-col safe-top safe-bottom"
           >
             <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-4 sm:py-8 flex-1 flex flex-col min-h-0">
-              <div className="flex items-center gap-2 sm:gap-4 border-b border-brand/30 pb-3 sm:pb-4">
-                <Search className="w-5 h-5 sm:w-8 sm:h-8 text-brand shrink-0" aria-hidden="true" />
+              <div className="flex items-center gap-2 sm:gap-4 border-b border-white/[0.12] pb-3 sm:pb-4">
+                <Search className="w-5 h-5 sm:w-7 sm:h-7 text-[#929093] shrink-0" aria-hidden="true" />
                 <label className="sr-only" htmlFor="search-input">
                   Search movies, shows and anime
                 </label>
@@ -308,7 +299,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     }
                   }}
                   placeholder="Search movies, shows, anime…"
-                  className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-4xl font-display text-foreground placeholder-muted-foreground/50 min-w-0"
+                  className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-3xl font-display text-[#f3f0ea] placeholder-[#929093]/40 min-w-0"
                 />
                 {query.length > 0 && (
                   <button
@@ -319,7 +310,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                       inputRef.current?.focus();
                     }}
                     aria-label="Clear search input"
-                    className="p-1.5 text-muted-foreground hover:text-foreground bg-white/5 hover:bg-white/10 rounded-full transition-colors shrink-0"
+                    className="p-1.5 text-[#929093] hover:text-[#f3f0ea] bg-white/[0.04] hover:bg-white/[0.08] rounded-full transition-colors shrink-0 cursor-pointer"
                   >
                     <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
@@ -328,9 +319,9 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   type="button"
                   onClick={onClose}
                   aria-label="Close search"
-                  className="p-1.5 sm:p-2 text-muted-foreground hover:text-brand hover:bg-white/5 rounded-full transition-colors shrink-0"
+                  className="p-1.5 sm:p-2 text-[#929093] hover:text-[#f3f0ea] hover:bg-white/[0.06] rounded-full transition-colors shrink-0 cursor-pointer"
                 >
-                  <X className="w-6 h-6 sm:w-8 sm:h-8" aria-hidden="true" />
+                  <X className="w-6 h-6 sm:w-7 sm:h-7" aria-hidden="true" />
                 </button>
               </div>
 
@@ -352,7 +343,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                       {Array.from({ length: 8 }, (_, i) => (
                         <div
                           key={`skeleton-${i}`}
-                          className="aspect-[2/3] rounded-xl skeleton-shimmer bg-[#14151f] border border-white/5 relative overflow-hidden"
+                          className="aspect-[2/3] rounded-[12px] skeleton-shimmer bg-[#14151f] border border-white/5 relative overflow-hidden"
                         >
                           <div className="absolute top-2 left-2 w-12 h-4 rounded bg-white/10" />
                           <div className="absolute bottom-3 inset-x-3 space-y-1">
@@ -365,21 +356,22 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   ) : results.length > 0 ? (
                     <div>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                        <h2 className="text-lg text-muted-foreground font-display flex items-center gap-2">
-                          <TrendingUp className="w-5 h-5 text-brand" aria-hidden="true" /> Top matches
+                        <h2 className="text-base sm:text-lg text-[#929093] font-display flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-[#f3f0ea]" aria-hidden="true" /> Top matches
                         </h2>
 
-                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2" role="tablist">
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 font-mono text-xs" role="tablist">
                           <button
                             type="button"
                             role="tab"
                             aria-selected={activeTab === 'all'}
                             onClick={() => setActiveTab('all')}
-                            className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                            className={cn(
+                              'px-3.5 py-1.5 rounded-full transition-all border cursor-pointer',
                               activeTab === 'all'
-                                ? 'bg-brand text-background border-brand shadow-card'
-                                : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground'
-                            }`}
+                                ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
+                                : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                            )}
                           >
                             All ({results.length})
                           </button>
@@ -389,13 +381,14 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               role="tab"
                               aria-selected={activeTab === 'anime'}
                               onClick={() => setActiveTab('anime')}
-                              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1 cursor-pointer ${
+                              className={cn(
+                                'px-3.5 py-1.5 rounded-full transition-all border flex items-center gap-1 cursor-pointer',
                                 activeTab === 'anime'
-                                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white border-purple-500 shadow-card'
-                                  : 'bg-purple-950/30 text-purple-300 border-purple-500/30 hover:bg-purple-900/40 hover:text-white'
-                              }`}
+                                  ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
+                                  : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                              )}
                             >
-                              <Sparkles className="w-3 h-3 text-purple-400" />
+                              <Sparkles className="w-3 h-3 text-[#929093]" />
                               Anime ({animeCount})
                             </button>
                           )}
@@ -405,11 +398,12 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               role="tab"
                               aria-selected={activeTab === 'movie'}
                               onClick={() => setActiveTab('movie')}
-                              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                              className={cn(
+                                'px-3.5 py-1.5 rounded-full transition-all border cursor-pointer',
                                 activeTab === 'movie'
-                                  ? 'bg-amber-600 text-white border-amber-500 shadow-card'
-                                  : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground'
-                              }`}
+                                  ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
+                                  : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                              )}
                             >
                               Movies ({movieCount})
                             </button>
@@ -420,11 +414,12 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               role="tab"
                               aria-selected={activeTab === 'tv'}
                               onClick={() => setActiveTab('tv')}
-                              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold transition-all border cursor-pointer ${
+                              className={cn(
+                                'px-3.5 py-1.5 rounded-full transition-all border cursor-pointer',
                                 activeTab === 'tv'
-                                  ? 'bg-blue-600 text-white border-blue-500 shadow-card'
-                                  : 'bg-white/5 text-muted-foreground border-white/10 hover:text-foreground'
-                              }`}
+                                  ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
+                                  : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                              )}
                             >
                               TV Shows ({tvCount})
                             </button>
@@ -461,7 +456,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                                   selectedIndex === index && 'ring-2 ring-brand bg-white/5'
                                 )}
                               >
-                                <div className="aspect-[2/3] rounded-xl overflow-hidden mb-3 relative border border-white/10 group-hover:border-brand/50 transition-colors">
+                                <div className="aspect-[2/3] rounded-[12px] overflow-hidden mb-2.5 relative border border-white/[0.08] group-hover:border-white/25 transition-all shadow-md bg-[#141417]">
                                   <PosterImage
                                     src={movie.posterUrl}
                                     srcSet={movie.posterSrcSet}
@@ -469,39 +464,28 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                                     sizes={POSTER_SIZES}
                                     title={movie.title}
                                     decorative
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                   />
                                   <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="bg-brand text-background px-4 py-2 rounded font-bold flex items-center gap-2 text-sm">
-                                      View <ArrowRight className="w-4 h-4" aria-hidden="true" />
+                                    <span className="bg-[#f3f0ea] text-[#0b0b0d] px-3.5 py-1.5 rounded-full font-bold flex items-center gap-1.5 text-xs shadow-lg">
+                                      View <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                                     </span>
                                   </span>
-                                  {movie.type === 'anime' ? (
-                                    <span className="absolute top-2 left-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-md shadow-purple-950/60 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                                      <Sparkles className="w-2.5 h-2.5" /> ANIME
-                                    </span>
-                                  ) : movie.type === 'tv' ? (
-                                    <span className="absolute top-2 left-2 bg-blue-600/90 backdrop-blur-md text-white px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
-                                      {animeTitlesSet.has(normalizeTitle(movie.title)) ? 'LIVE-ACTION TV' : 'TV SHOW'}
-                                    </span>
-                                  ) : (
-                                    <span className="absolute top-2 left-2 bg-amber-500/90 backdrop-blur-md text-black px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">
-                                      {animeTitlesSet.has(normalizeTitle(movie.title)) ? 'LIVE-ACTION MOVIE' : 'MOVIE'}
-                                    </span>
-                                  )}
+                                  <span className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-[#929093] px-2 py-0.5 rounded-full border border-white/10">
+                                    {movie.type}
+                                  </span>
                                 </div>
-                                <span className="font-display font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1">
+                                <span className="font-display font-medium text-sm text-[#f3f0ea] group-hover:text-white transition-colors line-clamp-1">
                                   {movie.title}
                                 </span>
-                                <span className="flex items-center gap-2 mt-1">
+                                <span className="flex items-center gap-2 mt-1 font-mono text-xs text-[#929093]">
                                   {movie.year > 0 && (
-                                    <span className="text-xs text-muted-foreground">{movie.year}</span>
+                                    <span>{movie.year}</span>
                                   )}
                                   {movie.rating !== null && (
-                                    <span className="text-brand flex items-center gap-1 text-xs">
-                                      <Star className="w-3 h-3 fill-current" aria-hidden="true" />
+                                    <span className="text-[#f3f0ea] flex items-center gap-1">
+                                      <Star className="w-3 h-3 fill-[#f5c518] text-[#f5c518]" aria-hidden="true" />
                                       {formatRating(movie.rating)}
-                                      <span className="text-muted-foreground text-[10px]">/ 10</span>
                                     </span>
                                   )}
                                 </span>
@@ -511,24 +495,24 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                         </ul>
                       )}
 
-                      <div className="mt-8 pt-4 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-sm text-muted-foreground text-center sm:text-left">
-                          Found <span className="text-foreground font-semibold">{results.length} matches</span> across anime series, movies, and TV shows.
+                      <div className="mt-8 pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <p className="text-xs text-[#929093] text-center sm:text-left font-mono">
+                          Found {results.length} matches across movies, TV, and anime.
                         </p>
                         <button
                           type="button"
                           onClick={() => submit(query)}
-                          className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-brand text-background hover:bg-brand-light font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-card"
+                          className="w-full sm:w-auto primary-btn !py-2.5 !px-5 text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          <span>Explore all titles on search page</span>
-                          <ArrowRight className="w-4 h-4" />
+                          <span>Explore all titles</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-20 text-muted-foreground">
-                      <p className="text-2xl font-display mb-2">No results for “{query}”</p>
-                      <p>Try a different title or spelling.</p>
+                    <div className="text-center py-20 text-[#929093]">
+                      <p className="text-xl font-display mb-2 text-[#f3f0ea]">No results for “{query}”</p>
+                      <p className="text-sm">Try a different title or spelling.</p>
                     </div>
                   )
                 ) : (
@@ -536,36 +520,36 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     {history.length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-lg text-muted-foreground font-display flex items-center gap-2">
-                            <Clock className="w-5 h-5" aria-hidden="true" /> Recent searches
+                          <h2 className="text-sm text-[#929093] font-mono uppercase tracking-wider flex items-center gap-2">
+                            <Clock className="w-4 h-4" aria-hidden="true" /> Recent searches
                           </h2>
                           <button
                             type="button"
                             onClick={clearHistory}
-                            className="text-xs text-muted-foreground hover:text-red-400 flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-lg hover:bg-white/5 cursor-pointer font-medium"
+                            className="text-xs text-[#929093] hover:text-[#f3f0ea] flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-lg hover:bg-white/5 cursor-pointer font-mono"
                             aria-label="Clear all search history"
                           >
                             <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
                             <span>Clear all</span>
                           </button>
                         </div>
-                        <div className="flex flex-wrap gap-2.5">
+                        <div className="flex flex-wrap gap-2">
                           {history.map((term) => (
                             <div
                               key={term}
-                              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-white/10 text-foreground hover:border-brand/50 bg-white/5 transition-all text-sm group"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.08] text-[#929093] hover:text-[#f3f0ea] hover:border-white/20 bg-white/[0.03] transition-all text-xs font-mono group"
                             >
                               <button
                                 type="button"
                                 onClick={() => submit(term)}
-                                className="hover:text-brand transition-colors cursor-pointer"
+                                className="cursor-pointer"
                               >
                                 {term}
                               </button>
                               <button
                                 type="button"
                                 onClick={(e) => removeHistoryItem(term, e)}
-                                className="text-muted-foreground/50 hover:text-red-400 transition-colors p-0.5 rounded-full hover:bg-white/10 cursor-pointer"
+                                className="text-[#929093]/60 hover:text-[#f3f0ea] transition-colors p-0.5 rounded-full cursor-pointer"
                                 aria-label={`Remove ${term} from history`}
                                 title={`Remove "${term}"`}
                               >
@@ -578,16 +562,16 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     )}
 
                     <div>
-                      <h2 className="text-lg text-muted-foreground mb-4 font-display flex items-center gap-2">
-                        <TrendingUp className="w-5 h-5" aria-hidden="true" /> Popular searches
+                      <h2 className="text-sm text-[#929093] mb-4 font-mono uppercase tracking-wider flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" aria-hidden="true" /> Popular searches
                       </h2>
-                      <div className="flex flex-wrap gap-3">
+                      <div className="flex flex-wrap gap-2">
                         {POPULAR_SEARCHES.map((term) => (
                           <button
                             key={term}
                             type="button"
                             onClick={() => submit(term)}
-                            className="px-4 py-2 rounded-full border border-white/10 text-foreground hover:border-brand hover:text-brand transition-colors bg-white/5 cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-full border border-white/[0.08] text-[#929093] hover:text-[#f3f0ea] hover:border-white/20 transition-colors bg-white/[0.03] font-mono text-xs cursor-pointer"
                           >
                             {term}
                           </button>

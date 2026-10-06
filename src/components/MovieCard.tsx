@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Plus, Check, Star } from 'lucide-react';
+import { Play, Plus, Check } from 'lucide-react';
 import { Movie, formatRating } from '../types';
 import { useApp } from '../store';
 import { cn } from '../lib/utils';
@@ -87,115 +87,102 @@ export function MovieCard({
       onClick={onClick}
       onKeyDown={handleKeyDown}
       data-movie-card
-      className="relative aspect-[2/3] w-full select-none cursor-pointer group rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-[#06070a] transition-transform duration-200 ease-out hover:-translate-y-1 will-change-transform"
+      className="media-card group block w-full outline-none select-none text-left cursor-pointer"
     >
-      <div className="double-bezel-card p-[1.5px] rounded-2xl w-full h-full transition-all duration-200 ease-out group-hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.8)] group-hover:border-white/25">
-        <div className="aspect-[2/3] w-full double-bezel-inner rounded-[calc(1rem-1.5px)] overflow-hidden relative bg-[#090a0f]">
-          {/* Responsive poster: `srcSet` means a 150px phone card no longer
-              downloads the same w500 file as a 500px desktop one. */}
-          <PosterImage
-            src={movie.posterUrl}
-            srcSet={movie.posterSrcSet}
-            thumbSrc={movie.posterThumbUrl}
-            sizes={POSTER_SIZES}
-            title={movie.title}
-            decorative
-            loading={priority ? 'eager' : 'lazy'}
-            fetchPriority={priority ? 'high' : 'auto'}
-            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-          />
+      {/* 7movies Poster Container */}
+      <div className="poster relative w-full aspect-[2/3] rounded-[12px] overflow-hidden bg-[#1b191c] border border-white/[0.08] shadow-[0_8px_24px_rgba(0,0,0,0.55)]">
+        <PosterImage
+          src={movie.posterUrl}
+          srcSet={movie.posterSrcSet}
+          thumbSrc={movie.posterThumbUrl}
+          sizes={POSTER_SIZES}
+          title={movie.title}
+          decorative
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+        />
 
-          {/* Media type (Top-Right). Not a quality claim. */}
-          <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1">
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xl text-white/90 border border-white/15">
-              {typeLabel}
-            </span>
-          </div>
+        {/* Rank Numeral (Top-Left) for Top 10 lists */}
+        {rankLabel && (
+          <span className="card-number font-mono">
+            {rankLabel.padStart(2, '0')}
+          </span>
+        )}
 
-          {/* Rating pill (Top-Left). Renders an em dash when unrated. */}
-          <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xl px-2 py-0.5 rounded-full border border-white/15">
-            <Star className="w-3 h-3 text-white/80 fill-white/80" aria-hidden="true" />
-            <span className="text-[10px] font-bold text-white font-mono">
-              {formatRating(movie.rating)}
-            </span>
-          </div>
-
-          {/* Progress bar for partially-watched titles. */}
-          {typeof movie.progress === 'number' && movie.progress > 0 && (
-            <div
-              className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-20"
-              role="progressbar"
-              aria-valuenow={Math.round(movie.progress)}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={`${Math.round(movie.progress)}% watched`}
-            >
-              <div className="h-full bg-brand" style={{ width: `${Math.min(100, movie.progress)}%` }} />
-            </div>
+        {/* Watchlist Quick-Action Button (Top-Right) */}
+        <button
+          type="button"
+          onClick={toggleWatchlist}
+          className={cn(
+            'card-watchlist',
+            inWatchlist && 'is-saved !opacity-100 !scale-100'
           )}
+          aria-pressed={inWatchlist}
+          aria-label={
+            inWatchlist ? `Remove ${movie.title} from My List` : `Add ${movie.title} to My List`
+          }
+          title={inWatchlist ? 'Remove from My List' : 'Add to My List'}
+        >
+          {inWatchlist ? (
+            <Check className="w-3.5 h-3.5 text-[#111]" aria-hidden="true" />
+          ) : (
+            <Plus className="w-3.5 h-3.5 text-white" aria-hidden="true" />
+          )}
+        </button>
 
-          {/* Hover / focus overlay. CSS-driven: no state, no re-render. */}
-          <div className="absolute inset-0 z-[15] bg-gradient-to-t from-[#06070a]/95 via-[#06070a]/45 to-transparent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 focus-within:opacity-100 transition-opacity duration-300 flex flex-col justify-between p-3.5">
-            <div className="flex justify-end pt-8">
-              <button
-                type="button"
-                onClick={toggleWatchlist}
-                className={cn(
-                  'w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-md',
-                  inWatchlist
-                    ? 'bg-brand/20 border-brand text-brand'
-                    : 'bg-black/60 border-white/20 text-white hover:bg-white/20 hover:border-white/50'
-                )}
-                aria-pressed={inWatchlist}
-                aria-label={
-                  inWatchlist ? `Remove ${movie.title} from My List` : `Add ${movie.title} to My List`
-                }
-              >
-                {inWatchlist ? (
-                  <Check className="w-4 h-4" aria-hidden="true" />
-                ) : (
-                  <Plus className="w-4 h-4" aria-hidden="true" />
-                )}
-              </button>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 mb-1">
-                <button
-                  type="button"
-                  onClick={handlePlay}
-                  className="flex items-center justify-center gap-1.5 py-1.5 px-3.5 rounded-full bg-white hover:bg-white/90 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
-                  aria-label={`Play ${movie.title}`}
-                >
-                  <Play className="w-3 h-3 fill-current ml-0.5" aria-hidden="true" />
-                  <span>Play</span>
-                </button>
-                {/* Omitted entirely when affinity is unknown, rather than
-                    substituting a plausible-looking number. */}
-                {matchScore !== null && (
-                  <span className="text-white/60 text-[10px] font-mono font-bold">
-                    {matchScore}% Match
-                  </span>
-                )}
-              </div>
-
-              <p className="text-xs font-display font-extrabold truncate text-white drop-shadow-md">
-                {movie.title}
-              </p>
-              <div className="flex items-center gap-1.5 text-[10px] font-mono text-white/70">
-                <span>{movie.year || '—'}</span>
-                <span aria-hidden="true">•</span>
-                <span className="capitalize">{movie.type}</span>
-                {movie.ageRating && (
-                  <>
-                    <span aria-hidden="true">•</span>
-                    <span className="px-1 border border-white/25 rounded">{movie.ageRating}</span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Play Action Floating Overlay on Card Hover */}
+        <div className="absolute inset-x-0 bottom-0 p-2.5 z-10 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity duration-200 flex items-center justify-between pointer-events-none">
+          <button
+            type="button"
+            onClick={handlePlay}
+            className="pointer-events-auto h-7 px-2.5 rounded-full bg-white hover:bg-white/90 text-black font-extrabold text-[11px] shadow-lg flex items-center gap-1 active:scale-95 transition-transform"
+            aria-label={`Play ${movie.title}`}
+          >
+            <Play className="w-2.5 h-2.5 fill-current ml-0.5" aria-hidden="true" />
+            <span>Play</span>
+          </button>
+          {matchScore !== null && (
+            <span className="text-[10px] font-mono font-bold text-white/90 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded">
+              {matchScore}%
+            </span>
+          )}
         </div>
+
+        {/* Progress bar for partially-watched titles */}
+        {typeof movie.progress === 'number' && movie.progress > 0 && (
+          <div
+            className="absolute bottom-0 left-0 right-0 h-[3px] bg-white/20 z-20"
+            role="progressbar"
+            aria-valuenow={Math.round(movie.progress)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-label={`${Math.round(movie.progress)}% watched`}
+          >
+            <div className="h-full bg-white" style={{ width: `${Math.min(100, movie.progress)}%` }} />
+          </div>
+        )}
+      </div>
+
+      {/* 7movies Editorial Card Copy Underneath Poster */}
+      <div className="card-copy pt-2 px-0.5">
+        <h4>
+          <span className="font-display font-semibold text-[13.5px] leading-snug text-[#f3f0ea] truncate block group-hover:text-white transition-colors">
+            {movie.title}
+          </span>
+        </h4>
+        <p className="font-mono text-[10px] text-[#929093] tracking-wider uppercase flex items-center gap-1.5 mt-0.5">
+          <span>{movie.year || '—'}</span>
+          <span className="opacity-40">·</span>
+          <span>{typeLabel}</span>
+          {movie.rating ? (
+            <>
+              <span className="opacity-40">·</span>
+              <span className="card-rating-star text-[#f5c518]">★</span>
+              <span>{formatRating(movie.rating)}</span>
+            </>
+          ) : null}
+        </p>
       </div>
     </div>
   );
