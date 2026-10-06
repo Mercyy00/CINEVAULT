@@ -81,8 +81,10 @@
           var theme = localStorage.getItem('cv:theme') || localStorage.getItem('cv_theme') || 'crimson-premiere';
           var mode = localStorage.getItem('cv:themeMode') === 'light' ? 'light' : 'dark';
           var font = localStorage.getItem('cv:font') || localStorage.getItem('cv_font') || 'space-grotesk';
+          var uiMode = localStorage.getItem('cv:uiMode') || localStorage.getItem('cv_ui_mode') || 'modern';
           root.setAttribute('data-theme', theme);
           root.setAttribute('data-font', font);
+          root.setAttribute('data-ui-mode', uiMode);
           root.classList.remove('light', 'dark');
           root.classList.add(mode);
           root.style.colorScheme = mode;

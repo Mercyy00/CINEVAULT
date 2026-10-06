@@ -71,9 +71,11 @@ export const THEMES = [
 export type Theme = (typeof THEMES)[number];
 export type AppFont = AppFontId;
 export type PlayerMode = 'contained' | 'fullscreen' | 'floating';
+export type UIMode = 'modern' | 'classic';
 
 const DEFAULT_THEME: Theme = 'crimson-premiere';
 const DEFAULT_FONT: AppFont = 'space-grotesk';
+export const DEFAULT_UI_MODE: UIMode = 'modern';
 
 /** Cloud writes are batched: state changes in bursts, Firestore bills per write. */
 const CLOUD_SYNC_DEBOUNCE_MS = 2_500;
@@ -141,6 +143,8 @@ interface AppContextType {
   showToast: (message: string) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  uiMode: UIMode;
+  setUiMode: (mode: UIMode) => void;
   appFont: AppFont;
   setAppFont: (font: AppFont) => void;
   userProfile: UserProfile;
@@ -514,6 +518,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return isTheme(stored) ? stored : DEFAULT_THEME;
   });
 
+  const [uiMode, setUiModeState] = useState<UIMode>(() => {
+    const stored = readString(StorageKeys.uiMode, DEFAULT_UI_MODE);
+    return stored === 'classic' || stored === 'modern' ? (stored as UIMode) : DEFAULT_UI_MODE;
+  });
+
   const [appFont, setAppFontState] = useState<AppFont>(() => {
     const stored = readString(StorageKeys.font, DEFAULT_FONT);
     return normalizeFontId(stored);
@@ -588,6 +597,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     root.classList.add(mode);
     root.style.colorScheme = mode;
   }, [theme]);
+
+  useEffect(() => {
+    writeString(StorageKeys.uiMode, uiMode);
+    document.documentElement.setAttribute('data-ui-mode', uiMode);
+  }, [uiMode]);
 
   useEffect(() => {
     writeString(StorageKeys.font, appFont);
@@ -897,6 +911,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [debouncedPush, pushToCloud, showToast]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
+  const setUiMode = useCallback((next: UIMode) => setUiModeState(next), []);
   const setAppFont = useCallback((next: AppFont) => setAppFontState(normalizeFontId(next)), []);
 
   const setOnboardingComplete = useCallback((value: boolean) => {
@@ -1235,6 +1250,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       showToast,
       theme,
       setTheme,
+      uiMode,
+      setUiMode,
       appFont,
       setAppFont,
       userProfile,
@@ -1295,6 +1312,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       showToast,
       theme,
       setTheme,
+      uiMode,
+      setUiMode,
       appFont,
       setAppFont,
       userProfile,

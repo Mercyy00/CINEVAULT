@@ -175,7 +175,7 @@ function HeroSkeleton({ label }: { label: string }) {
  * - **A muted trailer** fades in after a beat, holding the slide while it plays.
  */
 export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
-  const { isInWatchlist, addToWatchlist, removeFromWatchlist, setAmbientColor } = useApp();
+  const { isInWatchlist, addToWatchlist, removeFromWatchlist, setAmbientColor, uiMode } = useApp();
   const reduceMotion = useReducedMotion();
 
   const cached = heroCache.get(type);
@@ -519,38 +519,71 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
           transition={{ duration: reduceMotion ? 0 : 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
         >
           {/* Eyebrow and Metadata */}
-          <div className="flex flex-col gap-1.5 mb-3 sm:mb-4">
-            <div className="eyebrow">
-              <span className="text-[#e8e6e1] font-mono uppercase tracking-[0.16em] text-[10px]">
-                Spotlight
-              </span>
-              <i />
-              <em>{typeLabel}</em>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs text-[#d3d0d3] font-mono">
-              <span className="text-[#f3f0ea] font-medium">{current.year || '—'}</span>
-              <span className="text-white/30">·</span>
-              <div className="flex items-center gap-1 text-[#f3f0ea]">
-                <Star className="w-3.5 h-3.5 text-[#f5c518] fill-[#f5c518]" aria-hidden="true" />
-                <span className="font-bold">{formatRating(current.rating)}</span>
+          {uiMode === 'classic' ? (
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+              <div className="bg-brand/20 border border-brand/30 text-brand px-3 py-1 rounded-full font-bold flex items-center gap-1 text-xs sm:text-sm backdrop-blur-md">
+                <Star className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" aria-hidden="true" />
+                <span>{formatRating(current.rating)}</span>
+                <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span>
               </div>
+
+              <span className="bg-white/5 backdrop-blur-md border border-white/10 px-3 py-1 rounded-full text-foreground/90 text-xs sm:text-sm font-semibold">
+                {current.year || '—'}
+              </span>
+
               {current.ageRating && (
-                <>
-                  <span className="text-white/30">·</span>
-                  <span className="px-1.5 py-0.5 rounded border border-white/20 text-[10px] text-white/80">
-                    {current.ageRating}
-                  </span>
-                </>
+                <span className="px-2 py-1 rounded-full border border-white/25 text-[11px] font-mono text-foreground/80">
+                  {current.ageRating}
+                </span>
               )}
+
               {current.genres && current.genres.length > 0 && (
-                <>
-                  <span className="text-white/30">·</span>
-                  <span className="text-[#beb9bc]">{current.genres.slice(0, 2).join(' / ')}</span>
-                </>
+                <div className="hidden xs:flex flex-wrap items-center gap-1.5">
+                  {current.genres.slice(0, 2).map((genre: string) => (
+                    <span
+                      key={genre}
+                      className="bg-white/5 backdrop-blur-md border border-white/5 rounded-full px-2.5 py-0.5 text-[11px] text-foreground/80 font-medium"
+                    >
+                      {genre}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 mb-3 sm:mb-4">
+              <div className="eyebrow">
+                <span className="text-[#e8e6e1] font-mono uppercase tracking-[0.16em] text-[10px]">
+                  Spotlight
+                </span>
+                <i />
+                <em>{typeLabel}</em>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs text-[#d3d0d3] font-mono">
+                <span className="text-[#f3f0ea] font-medium">{current.year || '—'}</span>
+                <span className="text-white/30">·</span>
+                <div className="flex items-center gap-1 text-[#f3f0ea]">
+                  <Star className="w-3.5 h-3.5 text-[#f5c518] fill-[#f5c518]" aria-hidden="true" />
+                  <span className="font-bold">{formatRating(current.rating)}</span>
+                </div>
+                {current.ageRating && (
+                  <>
+                    <span className="text-white/30">·</span>
+                    <span className="px-1.5 py-0.5 rounded border border-white/20 text-[10px] text-white/80">
+                      {current.ageRating}
+                    </span>
+                  </>
+                )}
+                {current.genres && current.genres.length > 0 && (
+                  <>
+                    <span className="text-white/30">·</span>
+                    <span className="text-[#beb9bc]">{current.genres.slice(0, 2).join(' / ')}</span>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Title: Official high-res logo artwork when available, falling back to clean stylized heading */}
           {current.logoUrl && !logoFailed[current.id] ? (
@@ -567,63 +600,120 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
               />
             </div>
           ) : (
-            <h1 className="text-3xl sm:text-5xl lg:text-7xl font-display font-medium text-[#f3f0ea] mb-4 sm:mb-5 leading-[0.94] tracking-[-0.06em] drop-shadow-2xl line-clamp-2">
+            <h1 className={cn(
+              "font-display font-medium mb-4 sm:mb-5 leading-[0.94] tracking-[-0.06em] drop-shadow-2xl line-clamp-2",
+              uiMode === 'classic'
+                ? "text-3xl sm:text-5xl lg:text-7xl font-black text-foreground"
+                : "text-3xl sm:text-5xl lg:text-7xl text-[#f3f0ea]"
+            )}>
               {current.title}
             </h1>
           )}
 
           {/* Description */}
-          <p className="text-xs sm:text-sm lg:text-[15px] text-[#beb9bc] mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-xl font-normal leading-relaxed drop-shadow-md">
+          <p className={cn(
+            "text-xs sm:text-sm lg:text-[15px] mb-6 sm:mb-8 line-clamp-2 sm:line-clamp-3 max-w-xl font-normal leading-relaxed drop-shadow-md",
+            uiMode === 'classic' ? "text-foreground/85 sm:text-base lg:text-lg max-w-2xl" : "text-[#beb9bc]"
+          )}>
             {current.tagline || current.description}
           </p>
 
-          {/* 7Movies Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3 sm:gap-3.5">
-            <button
-              type="button"
-              onClick={handlePlay}
-              className="primary-btn"
-            >
-              <Play className="w-4 h-4 fill-current ml-0.5" aria-hidden="true" />
-              <span>Watch now</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => onMovieSelect(current.id, current.type)}
-              className="secondary-btn"
-              aria-label={`More info about ${current.title}`}
-            >
-              <Info className="w-4 h-4" aria-hidden="true" />
-              <span>Info</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={handleWatchlistToggle}
-              aria-pressed={inWatchlist}
-              className="secondary-btn !px-3"
-              aria-label={inWatchlist ? 'In My List' : 'Add to My List'}
-              title={inWatchlist ? 'In My List' : 'Add to My List'}
-            >
-              {inWatchlist ? (
-                <Check className="w-4 h-4 text-[#f3f0ea]" aria-hidden="true" />
-              ) : (
-                <Plus className="w-4 h-4" aria-hidden="true" />
-              )}
-            </button>
-
-            {trailerPlaying && (
+          {/* Action Buttons */}
+          {uiMode === 'classic' ? (
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4">
               <button
                 type="button"
-                onClick={() => setTrailerDismissed(true)}
-                className="secondary-btn text-xs font-mono"
+                onClick={handlePlay}
+                className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-5 pr-2 py-2 text-xs sm:text-base font-bold shadow-card hover:scale-[1.03] active:scale-95 transition-all duration-300 cursor-pointer"
               >
-                <VolumeX className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Stop preview</span>
+                <span>Watch Now</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
+                  <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5" aria-hidden="true" />
+                </div>
               </button>
-            )}
-          </div>
+
+              <button
+                type="button"
+                onClick={handleWatchlistToggle}
+                aria-pressed={inWatchlist}
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 text-foreground rounded-full px-5 py-3 text-xs sm:text-sm font-semibold backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+              >
+                {inWatchlist ? (
+                  <Check className="w-4 h-4 text-brand" aria-hidden="true" />
+                ) : (
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                )}
+                <span>{inWatchlist ? 'In Watchlist' : 'My List'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onMovieSelect(current.id, current.type)}
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/5 hover:bg-white/15 border border-white/15 flex items-center justify-center text-foreground backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                aria-label={`More info about ${current.title}`}
+              >
+                <Info className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
+              </button>
+
+              {trailerPlaying && (
+                <button
+                  type="button"
+                  onClick={() => setTrailerDismissed(true)}
+                  className="flex items-center gap-2 bg-black/50 hover:bg-black/70 border border-white/15 text-foreground/80 rounded-full px-4 py-2.5 text-[11px] font-mono uppercase tracking-wider backdrop-blur-xl transition-all cursor-pointer"
+                >
+                  <VolumeX className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Stop preview</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3 sm:gap-3.5">
+              <button
+                type="button"
+                onClick={handlePlay}
+                className="primary-btn"
+              >
+                <Play className="w-4 h-4 fill-current ml-0.5" aria-hidden="true" />
+                <span>Watch now</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onMovieSelect(current.id, current.type)}
+                className="secondary-btn"
+                aria-label={`More info about ${current.title}`}
+              >
+                <Info className="w-4 h-4" aria-hidden="true" />
+                <span>Info</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleWatchlistToggle}
+                aria-pressed={inWatchlist}
+                className="secondary-btn !px-3"
+                aria-label={inWatchlist ? 'In My List' : 'Add to My List'}
+                title={inWatchlist ? 'In My List' : 'Add to My List'}
+              >
+                {inWatchlist ? (
+                  <Check className="w-4 h-4 text-[#f3f0ea]" aria-hidden="true" />
+                ) : (
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                )}
+              </button>
+
+              {trailerPlaying && (
+                <button
+                  type="button"
+                  onClick={() => setTrailerDismissed(true)}
+                  className="secondary-btn text-xs font-mono"
+                >
+                  <VolumeX className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Stop preview</span>
+                </button>
+              )}
+            </div>
+          )}
         </motion.div>
       </div>
 

@@ -36,6 +36,7 @@ export const StorageKeys = {
   themeMode: `${NAMESPACE}themeMode`,
   font: `${NAMESPACE}font`,
   playerMode: `${NAMESPACE}playerMode`,
+  uiMode: `${NAMESPACE}uiMode`,
 } as const;
 
 /** localStorage throws in private browsing modes and when the quota is full. */

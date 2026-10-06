@@ -18,9 +18,11 @@ import {
   Sliders,
   Users,
   Moon,
-  Sun
+  Sun,
+  Layout,
 } from 'lucide-react';
-import { useApp, Theme } from '../store';
+import { useApp, Theme, UIMode } from '../store';
+import { ThemeSwitchOverlay } from './ThemeSwitchOverlay';
 import { APP_FONT_IDS, APP_FONTS, loadAppFont } from '../lib/fonts';
 import { navigate, goToWatch } from '../lib/navigation';
 import {
@@ -85,6 +87,7 @@ export function ProfilePage() {
     showToast,
     theme,
     setTheme,
+    uiMode,
     appFont,
     setAppFont,
     deferredInstallPrompt,
@@ -98,6 +101,21 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('account');
   const [nameInput, setNameInput] = useState(activeProfile?.name || userProfile.name || '');
   const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
+  const [isSwitchingTheme, setIsSwitchingTheme] = useState(false);
+  const [targetThemeMode, setTargetThemeMode] = useState<UIMode | null>(null);
+
+  const handleSelectUiMode = (mode: UIMode) => {
+    if (mode === uiMode) {
+      showToast(`${mode === 'modern' ? 'Modern 7Movies' : 'Classic CineVault'} theme is already active`);
+      return;
+    }
+    setTargetThemeMode(mode);
+    setIsSwitchingTheme(true);
+    try {
+      localStorage.setItem('cv:uiMode', mode);
+      localStorage.setItem('cv:ui_mode', mode);
+    } catch {}
+  };
 
   useEffect(() => {
     setNameInput(activeProfile?.name || userProfile.name || '');
@@ -691,6 +709,101 @@ export function ProfilePage() {
                 <p className="text-xs sm:text-sm text-muted-foreground">Color themes, typography & visual effects</p>
               </div>
 
+              {/* Experience & Theme Style Toggle (New 7Movies vs Old Classic) */}
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                      <Layout className="w-4 h-4 text-brand" /> Theme Experience & Layout
+                    </h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Toggle between the New Modern (7Movies) style and the Classic CineVault (Old) layout
+                    </p>
+                  </div>
+                  <span className="text-[11px] font-mono text-muted-foreground uppercase px-2.5 py-1 rounded-full bg-muted/60 border border-border self-start sm:self-auto">
+                    Active: <strong className="text-brand font-bold">{uiMode === 'modern' ? 'New (7Movies)' : 'Classic (Old)'}</strong>
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+                  {/* New / Modern Option */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectUiMode('modern')}
+                    className={cn(
+                      "p-4 rounded-2xl border transition-all text-left flex flex-col justify-between gap-3 cursor-pointer shadow-sm relative group overflow-hidden",
+                      uiMode === 'modern'
+                        ? "bg-brand/10 border-brand ring-2 ring-brand/30 shadow-md"
+                        : "bg-card hover:bg-muted/40 border-border hover:border-brand/40"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-brand shrink-0">
+                          <Sparkles className="w-4 h-4 text-brand" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-sm font-bold text-foreground">New Theme</h4>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand text-background uppercase tracking-tight">7Movies</span>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground font-mono">Modern Floating Capsule Style</span>
+                        </div>
+                      </div>
+                      {uiMode === 'modern' && (
+                        <div className="w-5 h-5 rounded-full bg-brand text-background flex items-center justify-center shrink-0">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Deep obsidian canvas (#0b0b0d), floating pill top navigation with cream sliding capsule, DM Mono editorial metadata, and clean capsule filters.
+                    </p>
+                    <div className="text-[11px] font-mono text-brand flex items-center gap-1 font-semibold pt-1">
+                      {uiMode === 'modern' ? '● Currently Active' : '→ Switch & Reload Page'}
+                    </div>
+                  </button>
+
+                  {/* Classic / Old Option */}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectUiMode('classic')}
+                    className={cn(
+                      "p-4 rounded-2xl border transition-all text-left flex flex-col justify-between gap-3 cursor-pointer shadow-sm relative group overflow-hidden",
+                      uiMode === 'classic'
+                        ? "bg-brand/10 border-brand ring-2 ring-brand/30 shadow-md"
+                        : "bg-card hover:bg-muted/40 border-border hover:border-brand/40"
+                    )}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-brand shrink-0">
+                          <Layout className="w-4 h-4 text-brand" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-sm font-bold text-foreground">Classic Theme</h4>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/15 text-foreground uppercase tracking-tight">Old Way</span>
+                          </div>
+                          <span className="text-[11px] text-muted-foreground font-mono">Original CineVault Layout</span>
+                        </div>
+                      </div>
+                      {uiMode === 'classic' && (
+                        <div className="w-5 h-5 rounded-full bg-brand text-background flex items-center justify-center shrink-0">
+                          <Check className="w-3.5 h-3.5 stroke-[3]" />
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      The original CineVault layout featuring the signature floating bottom dock navigation, full top header with Cat/Vault emblem, rich footer, and hover cards.
+                    </p>
+                    <div className="text-[11px] font-mono text-brand flex items-center gap-1 font-semibold pt-1">
+                      {uiMode === 'classic' ? '● Currently Active' : '→ Switch & Reload Page'}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
               {/* Themes Selector */}
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1122,6 +1235,9 @@ export function ProfilePage() {
 
         </main>
       </motion.div>
+
+      {/* Theme Transition Fullscreen Overlay */}
+      <ThemeSwitchOverlay isSwitching={isSwitchingTheme} targetMode={targetThemeMode} />
     </div>
   );
 }
