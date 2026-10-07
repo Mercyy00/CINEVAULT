@@ -34,6 +34,8 @@ export const StorageKeys = {
   /** Read by the pre-paint bootstrap in index.html. Keep the names in sync. */
   theme: `${NAMESPACE}theme`,
   themeMode: `${NAMESPACE}themeMode`,
+  themeClassic: `${NAMESPACE}theme_classic`,
+  themeModern: `${NAMESPACE}theme_modern`,
   font: `${NAMESPACE}font`,
   playerMode: `${NAMESPACE}playerMode`,
   uiMode: `${NAMESPACE}uiMode`,

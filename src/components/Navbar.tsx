@@ -36,7 +36,7 @@ interface ThemeOption {
 
 const THEMES: ThemeOption[] = [
   // Dark Themes
-  { id: 'crimson-premiere', name: '7Movies Clean', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
+  { id: 'crimson-premiere', name: 'Obsidian Minimal', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
   { id: 'cinematic-dark', name: 'Cinematic Dark', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', mode: 'dark', color: '#ffefb3', bg: '#013e37' },
@@ -98,6 +98,11 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
     try {
       localStorage.setItem('cv:uiMode', mode);
       localStorage.setItem('cv:ui_mode', mode);
+      const targetTheme = mode === 'modern'
+        ? (localStorage.getItem('cv:theme_modern') || 'crimson-premiere')
+        : (localStorage.getItem('cv:theme_classic') || 'cinematic-dark');
+      localStorage.setItem('cv:theme', targetTheme);
+      localStorage.setItem('cv_theme', targetTheme);
     } catch {}
   };
 
@@ -569,7 +574,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     : "text-[#929093] hover:text-[#f3f0ea]"
                 )}
               >
-                New (7Movies)
+                Modern
               </button>
               <button
                 type="button"
@@ -581,7 +586,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     : "text-[#929093] hover:text-[#f3f0ea]"
                 )}
               >
-                Classic (Old)
+                Classic (Default)
               </button>
             </div>
           </div>
@@ -792,7 +797,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           </nav>
         </>
       ) : (
-        /* ─── MODERN 7MOVIES HEADER & DOCK ────────────────────────────── */
+        /* ─── MODERN HEADER & DOCK ────────────────────────────────────── */
         <>
           {/* Mobile Top Header */}
           <header className="fixed top-0 inset-x-0 z-[100] px-4 py-3 flex items-center justify-between pointer-events-none md:hidden bg-gradient-to-b from-[#0b0b0d]/95 via-[#0b0b0d]/70 to-transparent backdrop-blur-[4px] safe-top">
@@ -856,7 +861,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     >
                       {isActive && (
                         <motion.span
-                          layoutId="7movies-nav-indicator"
+                          layoutId="modern-nav-indicator"
                           className="nav-indicator"
                           transition={{
                             type: 'spring',
@@ -966,7 +971,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                   >
                     {isActive && (
                       <motion.div
-                        layoutId="7movies-mobile-pill"
+                        layoutId="modern-mobile-pill"
                         className="absolute inset-0 rounded-full bg-[#f3f0ea]"
                         transition={{
                           type: 'spring',

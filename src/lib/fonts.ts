@@ -41,7 +41,7 @@ const FONTSHARE = 'https://api.fontshare.com/v2/css';
 export const APP_FONTS: Record<AppFontId, FontDefinition> = {
   'space-grotesk': {
     name: 'Space Grotesk',
-    tag: '7Movies Clean',
+    tag: 'Modern Display',
     href: null,
     fontFamily: '"Space Grotesk", "Manrope", system-ui, sans-serif',
   },

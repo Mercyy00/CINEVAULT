@@ -1186,7 +1186,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
           ? "w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 py-2 sm:py-3 shrink-0"
           : "w-full h-full flex-1 relative flex flex-col"
       )}>
-        {/* Video Stage Container with 7movies Unified Player Bezel */}
+        {/* Video Stage Container with Modern Unified Player Bezel */}
         <div
           className={cn(
             'relative bg-[#090a0c] overflow-hidden select-none w-full',
@@ -1648,7 +1648,7 @@ export function AnimePlayer({ id, episode, malId }: { id: string; episode: strin
       {/* Contained Cinema & Mobile Console Dock (Visible whenever not fullscreen or floating) */}
       {!isFullscreen && playerMode !== 'floating' && (
         <div className="w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 space-y-4 pb-20 pt-1">
-          {/* 7movies Streamlined Info & Controls Bar */}
+          {/* Streamlined Info & Controls Bar */}
           <div className="p-4 sm:p-5 rounded-[20px] bg-[#111215] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
             {/* Title & Metadata */}
             <div className="min-w-0 flex-1">

@@ -23,7 +23,7 @@ export function ThemeSwitchOverlay({ isSwitching, targetMode }: ThemeSwitchOverl
       setStatusText(
         targetMode === 'classic'
           ? 'Switching to Classic CineVault experience...'
-          : 'Switching to Modern 7Movies experience...'
+          : 'Switching to Modern experience...'
       );
     }, 250);
 
@@ -108,7 +108,7 @@ export function ThemeSwitchOverlay({ isSwitching, targetMode }: ThemeSwitchOverl
             <p className="text-xs sm:text-sm text-[#beb9bc] font-body mt-2 leading-relaxed">
               {targetMode === 'classic'
                 ? 'Restoring the signature floating dock, classic poster cards, and original navigation.'
-                : 'Applying the 7movies floating pill navbar, obsidian canvas, and editorial style.'}
+                : 'Applying floating pill navigation, obsidian canvas, and clean editorial layout.'}
             </p>
 
             {/* Progress Bar Container */}

@@ -78,10 +78,11 @@
       (function () {
         try {
           var root = document.documentElement;
-          var theme = localStorage.getItem('cv:theme') || localStorage.getItem('cv_theme') || 'crimson-premiere';
+          var uiMode = localStorage.getItem('cv:uiMode') || localStorage.getItem('cv_ui_mode') || 'classic';
+          var defaultTheme = uiMode === 'modern' ? 'crimson-premiere' : 'cinematic-dark';
+          var theme = localStorage.getItem('cv:theme') || localStorage.getItem('cv_theme') || defaultTheme;
           var mode = localStorage.getItem('cv:themeMode') === 'light' ? 'light' : 'dark';
           var font = localStorage.getItem('cv:font') || localStorage.getItem('cv_font') || 'space-grotesk';
-          var uiMode = localStorage.getItem('cv:uiMode') || localStorage.getItem('cv_ui_mode') || 'modern';
           root.setAttribute('data-theme', theme);
           root.setAttribute('data-font', font);
           root.setAttribute('data-ui-mode', uiMode);
@@ -94,7 +95,7 @@
       })();
     </script>
 
-    <!-- Google Fonts for 7Movies Editorial Style (Space Grotesk, Manrope, DM Mono) -->
+    <!-- Google Fonts for Modern & Classic Styles (Space Grotesk, Manrope, DM Mono) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

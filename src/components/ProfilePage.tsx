@@ -47,8 +47,8 @@ interface ProfileTheme {
 }
 
 const ALL_THEMES: ProfileTheme[] = [
-  { id: 'crimson-premiere', name: 'Crimson Premiere', tag: 'Cinema Crimson & Black', mode: 'dark', color: '#ffffff', bg: '#141414' },
-  { id: 'cinematic-dark', name: 'Cinematic Dark', tag: 'Warm Amber & Charcoal', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
+  { id: 'crimson-premiere', name: 'Obsidian Minimal', tag: 'Obsidian Black & Ivory Cream', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
+  { id: 'cinematic-dark', name: 'Cinematic Dark', tag: 'Warm Amber & Charcoal (Default)', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', tag: 'Deep Wine & Cream Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', tag: 'Butter Cream & Forest Pine', mode: 'dark', color: '#ffefb3', bg: '#013e37' },
   { id: 'bistre-aureolin', name: 'Bistre & Gold', tag: 'Espresso Bistre & Aureolin', mode: 'dark', color: '#fbe311', bg: '#190e04' },
@@ -106,7 +106,7 @@ export function ProfilePage() {
 
   const handleSelectUiMode = (mode: UIMode) => {
     if (mode === uiMode) {
-      showToast(`${mode === 'modern' ? 'Modern 7Movies' : 'Classic CineVault'} theme is already active`);
+      showToast(`${mode === 'modern' ? 'Modern' : 'Classic'} appearance is already active`);
       return;
     }
     setTargetThemeMode(mode);
@@ -114,6 +114,11 @@ export function ProfilePage() {
     try {
       localStorage.setItem('cv:uiMode', mode);
       localStorage.setItem('cv:ui_mode', mode);
+      const targetTheme = mode === 'modern'
+        ? (localStorage.getItem('cv:theme_modern') || 'crimson-premiere')
+        : (localStorage.getItem('cv:theme_classic') || 'cinematic-dark');
+      localStorage.setItem('cv:theme', targetTheme);
+      localStorage.setItem('cv_theme', targetTheme);
     } catch {}
   };
 
@@ -709,7 +714,7 @@ export function ProfilePage() {
                 <p className="text-xs sm:text-sm text-muted-foreground">Color themes, typography & visual effects</p>
               </div>
 
-              {/* Experience & Theme Style Toggle (New 7Movies vs Old Classic) */}
+              {/* Experience & Theme Style Toggle (Modern vs Classic Default) */}
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
@@ -717,16 +722,16 @@ export function ProfilePage() {
                       <Layout className="w-4 h-4 text-brand" /> Theme Experience & Layout
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Toggle between the New Modern (7Movies) style and the Classic CineVault (Old) layout
+                      Toggle between the Modern editorial layout and the Classic CineVault experience
                     </p>
                   </div>
                   <span className="text-[11px] font-mono text-muted-foreground uppercase px-2.5 py-1 rounded-full bg-muted/60 border border-border self-start sm:self-auto">
-                    Active: <strong className="text-brand font-bold">{uiMode === 'modern' ? 'New (7Movies)' : 'Classic (Old)'}</strong>
+                    Active: <strong className="text-brand font-bold">{uiMode === 'modern' ? 'Modern Experience' : 'Classic (Default)'}</strong>
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
-                  {/* New / Modern Option */}
+                  {/* Modern Option */}
                   <button
                     type="button"
                     onClick={() => handleSelectUiMode('modern')}
@@ -744,10 +749,10 @@ export function ProfilePage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <h4 className="text-sm font-bold text-foreground">New Theme</h4>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand text-background uppercase tracking-tight">7Movies</span>
+                            <h4 className="text-sm font-bold text-foreground">Modern Layout</h4>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand text-background uppercase tracking-tight">Minimalist</span>
                           </div>
-                          <span className="text-[11px] text-muted-foreground font-mono">Modern Floating Capsule Style</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">Floating Capsule Dock Style</span>
                         </div>
                       </div>
                       {uiMode === 'modern' && (
@@ -764,7 +769,7 @@ export function ProfilePage() {
                     </div>
                   </button>
 
-                  {/* Classic / Old Option */}
+                  {/* Classic Option */}
                   <button
                     type="button"
                     onClick={() => handleSelectUiMode('classic')}
@@ -782,10 +787,10 @@ export function ProfilePage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <h4 className="text-sm font-bold text-foreground">Classic Theme</h4>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/15 text-foreground uppercase tracking-tight">Old Way</span>
+                            <h4 className="text-sm font-bold text-foreground">Classic Layout</h4>
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand/20 text-brand uppercase tracking-tight border border-brand/30">Default</span>
                           </div>
-                          <span className="text-[11px] text-muted-foreground font-mono">Original CineVault Layout</span>
+                          <span className="text-[11px] text-muted-foreground font-mono">Original CineVault Experience</span>
                         </div>
                       </div>
                       {uiMode === 'classic' && (

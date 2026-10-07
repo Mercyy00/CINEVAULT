@@ -313,7 +313,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
       exit={{ opacity: 0 }}
       className="min-h-screen bg-background text-foreground pb-24 relative overflow-hidden"
     >
-      {/* 7movies Cinematic Backdrop with Multi-Stage Shading */}
+      {/* Modern Cinematic Backdrop with Multi-Stage Shading */}
       <div className="absolute top-0 left-0 right-0 h-[65vh] sm:h-[82vh] overflow-hidden -z-10 select-none">
         <PosterImage
           src={movie.backdropUrl || movie.posterUrl}
@@ -476,7 +476,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               </p>
             )}
 
-            {/* 7movies Slash-separated Genres */}
+            {/* Modern Slash-separated Genres */}
             {movie.genres && movie.genres.length > 0 && (
               <div className="dp-genres mb-4">
                 {movie.genres.map((g) => (
@@ -485,7 +485,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               </div>
             )}
 
-            {/* 7movies Metadata Line in DM Mono */}
+            {/* Modern Metadata Line in DM Mono */}
             <div className="hidden sm:flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-[#f3f0ea] mb-6 font-mono">
               <div className="flex items-center gap-1.5 text-[#f3f0ea] bg-white/[0.04] px-3 py-1 rounded-full border border-white/10">
                 <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" />
@@ -548,7 +548,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
               )}
             </div>
 
-            {/* 7movies Action Buttons */}
+            {/* Modern Action Buttons */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3.5">
               {hasProgress ? (
                 <>

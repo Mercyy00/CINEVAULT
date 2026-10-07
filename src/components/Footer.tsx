@@ -280,7 +280,7 @@ export function Footer() {
           </div>
         </footer>
       ) : (
-        /* ─── MODERN 7MOVIES FOOTER ──────────────────────────────────── */
+        /* ─── MODERN FOOTER ──────────────────────────────────────────── */
         <footer className="w-full border-t border-white/[0.08] mt-24 relative z-20 bg-[#0b0b0d] px-4 sm:px-8 py-16 pb-28 flex flex-col items-center text-center gap-5">
           {/* Brand */}
           <div className="footer-brand">

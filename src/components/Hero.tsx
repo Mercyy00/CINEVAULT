@@ -506,7 +506,7 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
         </motion.div>
       )}
 
-      {/* 7Movies Multi-stage Gradient Scrims & Shading */}
+      {/* Modern Multi-stage Gradient Scrims & Shading */}
       <div className="hero-shade" />
       <div className="hero-fade" />
 

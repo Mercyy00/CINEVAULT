@@ -179,9 +179,8 @@
   }
 
   /* ═══════════════════════════════════════════════════════
-     DARK THEME: 7Movies Clean Editorial (Default)
+     DARK THEME: Obsidian Minimal (Modern)
      ═══════════════════════════════════════════════════════ */
-  :root,
   [data-theme="crimson-premiere"] {
     --theme-bg: #0b0b0d;
     --theme-fg: #f3f0ea;
@@ -210,8 +209,9 @@
   }
 
   /* ═══════════════════════════════════════════════════════
-     DARK THEME: Cinematic Dark
+     DARK THEME: Cinematic Dark (Classic Default)
      ═══════════════════════════════════════════════════════ */
+  :root,
   [data-theme="cinematic-dark"] {
     --theme-bg: #0a0a0a;
     --theme-fg: #fafafa;
@@ -1265,7 +1265,7 @@ textarea {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   7Movies Editorial Design System (from 7movies-watch-movies-tv-shows-online-in-hd)
+   Modern Editorial Design System
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
@@ -1291,7 +1291,7 @@ textarea {
   --dur-fast: 0.2s;
 }
 
-/* 7movies Eyebrow */
+/* Modern Eyebrow */
 .eyebrow {
   display: inline-flex;
   flex-wrap: wrap;
@@ -1318,7 +1318,7 @@ textarea {
   background: linear-gradient(90deg, var(--accent), transparent);
 }
 
-/* 7movies Buttons */
+/* Modern Buttons */
 .primary-btn {
   display: inline-flex;
   align-items: center;
@@ -1375,7 +1375,7 @@ textarea {
   transform: translateY(-1px);
 }
 
-/* 7movies Topbar & Floating Nav Pill */
+/* Modern Topbar & Floating Nav Pill */
 .topbar {
   position: fixed;
   top: 18px;
@@ -1524,7 +1524,7 @@ textarea {
   transform: translateY(-1px);
 }
 
-/* 7movies Media Card & Poster */
+/* Modern Media Card & Poster */
 .media-card {
   position: relative;
   min-width: 0;
@@ -1650,7 +1650,7 @@ textarea {
   background: var(--paper, #f3f0ea);
 }
 
-/* 7movies Rail Arrow */
+/* Modern Rail Arrow */
 .rail-arrow {
   position: absolute;
   top: 50%;
@@ -1682,7 +1682,7 @@ textarea {
   opacity: 1;
 }
 
-/* 7movies Hero Shading */
+/* Modern Hero Shading */
 .hero-shade {
   position: absolute;
   inset: 0;
@@ -1703,7 +1703,7 @@ textarea {
   z-index: 2;
 }
 
-/* 7movies Footer Branding */
+/* Modern Footer Branding */
 .footer-brand {
   display: flex;
   align-items: center;
@@ -1772,7 +1772,7 @@ textarea {
 }
 
 /* ═══════════════════════════════════════════════════════
-   7movies Detail Page & Player Architecture
+   Modern Detail Page & Player Architecture
    ═══════════════════════════════════════════════════════ */
 
 .dp-hero {
@@ -1841,7 +1841,7 @@ textarea {
   line-height: 1.65;
 }
 
-/* 7movies Unified Player Viewport Frame */
+/* Modern Unified Player Viewport Frame */
 .unified-player-frame {
   position: relative;
   background: #090a0c;
@@ -1851,7 +1851,7 @@ textarea {
   overflow: hidden;
 }
 
-/* 7movies Category & Filter Pills */
+/* Modern Category & Filter Pills */
 .filter-pill-capsule {
   display: inline-flex;
   align-items: center;

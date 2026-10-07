@@ -73,9 +73,11 @@ export type AppFont = AppFontId;
 export type PlayerMode = 'contained' | 'fullscreen' | 'floating';
 export type UIMode = 'modern' | 'classic';
 
-const DEFAULT_THEME: Theme = 'crimson-premiere';
+export const CLASSIC_DEFAULT_THEME: Theme = 'cinematic-dark';
+export const MODERN_DEFAULT_THEME: Theme = 'crimson-premiere';
+const DEFAULT_THEME: Theme = CLASSIC_DEFAULT_THEME;
 const DEFAULT_FONT: AppFont = 'space-grotesk';
-export const DEFAULT_UI_MODE: UIMode = 'modern';
+export const DEFAULT_UI_MODE: UIMode = 'classic';
 
 /** Cloud writes are batched: state changes in bursts, Firestore bills per write. */
 const CLOUD_SYNC_DEBOUNCE_MS = 2_500;
@@ -513,14 +515,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     writeString(StorageKeys.activeProfileId, activeProfileId);
   }, [activeProfileId]);
 
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = readString(StorageKeys.theme, DEFAULT_THEME);
-    return isTheme(stored) ? stored : DEFAULT_THEME;
-  });
-
   const [uiMode, setUiModeState] = useState<UIMode>(() => {
     const stored = readString(StorageKeys.uiMode, DEFAULT_UI_MODE);
     return stored === 'classic' || stored === 'modern' ? (stored as UIMode) : DEFAULT_UI_MODE;
+  });
+
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const defaultForMode = uiMode === 'modern' ? MODERN_DEFAULT_THEME : CLASSIC_DEFAULT_THEME;
+    const stored = readString(StorageKeys.theme, defaultForMode);
+    return isTheme(stored) ? stored : defaultForMode;
   });
 
   const [appFont, setAppFontState] = useState<AppFont>(() => {
@@ -587,6 +590,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const mode = LIGHT_THEME_IDS.has(theme) ? 'light' : 'dark';
     writeString(StorageKeys.theme, theme);
+    if (uiMode === 'modern') {
+      writeString(StorageKeys.themeModern, theme);
+    } else {
+      writeString(StorageKeys.themeClassic, theme);
+    }
     // Persisted separately so the pre-paint script in index.html does not need
     // its own duplicated copy of the light-theme list.
     writeString(StorageKeys.themeMode, mode);
@@ -596,7 +604,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     root.classList.remove('light', 'dark');
     root.classList.add(mode);
     root.style.colorScheme = mode;
-  }, [theme]);
+  }, [theme, uiMode]);
 
   useEffect(() => {
     writeString(StorageKeys.uiMode, uiMode);
@@ -911,7 +919,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [debouncedPush, pushToCloud, showToast]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
-  const setUiMode = useCallback((next: UIMode) => setUiModeState(next), []);
+  const setUiMode = useCallback((next: UIMode) => {
+    setUiModeState(next);
+    writeString(StorageKeys.uiMode, next);
+    const targetTheme = next === 'modern'
+      ? (readString(StorageKeys.themeModern, MODERN_DEFAULT_THEME) as Theme)
+      : (readString(StorageKeys.themeClassic, CLASSIC_DEFAULT_THEME) as Theme);
+    if (isTheme(targetTheme)) {
+      setThemeState(targetTheme);
+    }
+  }, []);
   const setAppFont = useCallback((next: AppFont) => setAppFontState(normalizeFontId(next)), []);
 
   const setOnboardingComplete = useCallback((value: boolean) => {

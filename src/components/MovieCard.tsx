@@ -186,7 +186,7 @@ export function MovieCard({
       data-movie-card
       className="media-card group block w-full outline-none select-none text-left cursor-pointer"
     >
-      {/* 7movies Poster Container */}
+      {/* Modern Poster Container */}
       <div className="poster relative w-full aspect-[2/3] rounded-[12px] overflow-hidden bg-[#1b191c] border border-white/[0.08] shadow-[0_8px_24px_rgba(0,0,0,0.55)]">
         <PosterImage
           src={movie.posterUrl}
@@ -261,7 +261,7 @@ export function MovieCard({
         )}
       </div>
 
-      {/* 7movies Editorial Card Copy Underneath Poster */}
+      {/* Modern Editorial Card Copy Underneath Poster */}
       <div className="card-copy pt-2 px-0.5">
         <h4>
           <span className="font-display font-semibold text-[13.5px] leading-snug text-[#f3f0ea] truncate block group-hover:text-white transition-colors">

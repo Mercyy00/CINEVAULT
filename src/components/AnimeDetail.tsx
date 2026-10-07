@@ -428,7 +428,7 @@ export function AnimeDetail({ id }: { id: string }) {
       transition={{ duration: 0.4, ease: "easeOut" }}
       className="min-h-screen bg-background pb-28 sm:pb-36 relative"
     >
-      {/* 7movies Cinematic Backdrop with Multi-Stage Shading */}
+      {/* Modern Cinematic Backdrop with Multi-Stage Shading */}
       <div className="absolute top-0 inset-x-0 h-[80vh] pointer-events-none overflow-hidden select-none">
         <div 
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-35 filter brightness-95 scale-105"
@@ -576,7 +576,7 @@ export function AnimeDetail({ id }: { id: string }) {
               </p>
             )}
 
-            {/* 7movies Slash-separated Genres */}
+            {/* Modern Slash-separated Genres */}
             {movie.genres && movie.genres.length > 0 && (
               <div className="dp-genres mb-4">
                 {movie.genres.map((g) => (
@@ -585,7 +585,7 @@ export function AnimeDetail({ id }: { id: string }) {
               </div>
             )}
 
-            {/* 7movies Metadata Badges in DM Mono */}
+            {/* Modern Metadata Badges in DM Mono */}
             <div className="hidden sm:flex flex-wrap items-center gap-3 text-xs sm:text-sm font-medium text-[#f3f0ea] mb-6 font-mono">
               <div className="flex items-center gap-1.5 text-[#f3f0ea] bg-white/[0.04] px-3 py-1 rounded-full border border-white/10">
                 <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" />
@@ -617,7 +617,7 @@ export function AnimeDetail({ id }: { id: string }) {
               )}
             </div>
 
-            {/* 7movies Action Buttons */}
+            {/* Modern Action Buttons */}
             <div className="flex flex-col sm:flex-row flex-wrap gap-2.5 sm:gap-3.5 mb-12">
               {hasProgress ? (
                 <>
