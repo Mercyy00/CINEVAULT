@@ -47,7 +47,7 @@ interface ProfileTheme {
 }
 
 const ALL_THEMES: ProfileTheme[] = [
-  { id: 'crimson-premiere', name: 'Obsidian Minimal', tag: 'Obsidian Black & Ivory Cream', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
+  { id: 'crimson-premiere', name: 'Obsidian Clean', tag: 'Obsidian Black & Ivory Cream', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
   { id: 'cinematic-dark', name: 'Cinematic Dark', tag: 'Warm Amber & Charcoal (Default)', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', tag: 'Deep Wine & Cream Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', tag: 'Butter Cream & Forest Pine', mode: 'dark', color: '#ffefb3', bg: '#013e37' },

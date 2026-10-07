@@ -23,6 +23,7 @@ import {
   Moon,
   Sun,
   Dice5,
+  Check,
 } from 'lucide-react';
 import { navigate } from '../lib/navigation';
 
@@ -36,7 +37,7 @@ interface ThemeOption {
 
 const THEMES: ThemeOption[] = [
   // Dark Themes
-  { id: 'crimson-premiere', name: 'Obsidian Minimal', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
+  { id: 'crimson-premiere', name: 'Obsidian Clean', mode: 'dark', color: '#f3f0ea', bg: '#0b0b0d' },
   { id: 'cinematic-dark', name: 'Cinematic Dark', mode: 'dark', color: '#e8852a', bg: '#0a0a0a' },
   { id: 'cherry-cola', name: 'Cherry & Vanilla', mode: 'dark', color: '#efe6dd', bg: '#1a0305' },
   { id: 'butter-green', name: 'Butter & Forest', mode: 'dark', color: '#ffefb3', bg: '#013e37' },
@@ -182,7 +183,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.95 }}
           transition={{ duration: 0.2 }}
-          className="absolute right-0 mt-3 w-72 sm:w-80 max-h-[80vh] overflow-y-auto custom-scrollbar bg-[#111215]/95 backdrop-blur-2xl rounded-2xl shadow-[0_18px_50px_rgba(0,0,0,0.8)] p-3.5 border border-white/12 origin-top-right flex flex-col gap-3 z-[110]"
+          className="absolute right-0 mt-3 w-80 sm:w-[350px] max-h-[80vh] overflow-y-auto custom-scrollbar bg-[#111215]/95 backdrop-blur-2xl rounded-2xl shadow-[0_18px_50px_rgba(0,0,0,0.8)] p-3.5 border border-white/12 origin-top-right flex flex-col gap-3 z-[110]"
         >
           {/* Tab bar */}
           <div className="flex items-center bg-black/50 p-1 rounded-xl border border-white/5">
@@ -274,7 +275,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         className={cn(
                           'flex items-center gap-2 p-2 rounded-xl border transition-all text-left group cursor-pointer',
                           theme === t.id
-                            ? 'bg-white/15 border-white/40 ring-1 ring-white/20'
+                            ? 'bg-white/15 border-white/40 ring-1 ring-white/30 font-semibold'
                             : 'border-white/5 bg-white/5 hover:bg-white/10'
                         )}
                       >
@@ -290,6 +291,9 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         <span className="text-[11px] font-medium text-[#f3f0ea] truncate">
                           {t.name}
                         </span>
+                        {theme === t.id && (
+                          <Check className="w-3.5 h-3.5 text-[#f3f0ea] ml-auto shrink-0 stroke-[2.5]" />
+                        )}
                       </motion.button>
                     ))}
                   </div>
@@ -321,7 +325,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         className={cn(
                           'flex items-center gap-2 p-2 rounded-xl border transition-all text-left group cursor-pointer',
                           theme === t.id
-                            ? 'bg-white/15 border-white/40 ring-1 ring-white/20'
+                            ? 'bg-white/15 border-white/40 ring-1 ring-white/30 font-semibold'
                             : 'border-white/5 bg-white/5 hover:bg-white/10'
                         )}
                       >
@@ -337,6 +341,9 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                         <span className="text-[11px] font-medium text-[#f3f0ea] truncate">
                           {t.name}
                         </span>
+                        {theme === t.id && (
+                          <Check className="w-3.5 h-3.5 text-[#f3f0ea] ml-auto shrink-0 stroke-[2.5]" />
+                        )}
                       </motion.button>
                     ))}
                   </div>
