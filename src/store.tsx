@@ -248,6 +248,7 @@ const GENRE_MAP: Record<string, string> = {
   '18': 'Drama',
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function sanitizeUserPreferences(raw: unknown): UserPreference[] {
   if (!Array.isArray(raw)) return [];
   const results: UserPreference[] = [];
@@ -1383,6 +1384,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useApp(): AppContextType {
   const context = useContext(AppContext);
   if (context === undefined) {

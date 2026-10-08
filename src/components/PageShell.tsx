@@ -81,7 +81,7 @@ const ANIME_PILLS = [
 
 const PILLS_BY_TYPE = { movie: MOVIE_PILLS, tv: TV_PILLS, anime: ANIME_PILLS } as const;
 
-export const FEATURED_MOVIE_CATEGORIES = [
+const FEATURED_MOVIE_CATEGORIES = [
   { id: 'trending', label: 'Trending Movies', fetchFn: (p: number) => api.getTrending('movie', 'week', p) },
   { id: 'popular', label: 'Popular Blockbusters', fetchFn: (p: number) => api.getPopular('movie', p) },
   { id: 'top_rated', label: 'Top Rated All-Time', fetchFn: (p: number) => api.getTopRated('movie', p) },
@@ -95,7 +95,7 @@ export const FEATURED_MOVIE_CATEGORIES = [
   { id: '9648', label: 'Mystery & Noir', fetchFn: (p: number) => api.discover('movie', { with_genres: '9648', sort_by: 'popularity.desc', page: p }), pillId: '9648' },
 ];
 
-export const FEATURED_TV_CATEGORIES = [
+const FEATURED_TV_CATEGORIES = [
   { id: 'trending', label: 'Trending TV Shows', fetchFn: (p: number) => api.getTrending('tv', 'week', p) },
   { id: 'popular', label: 'Popular TV Series', fetchFn: (p: number) => api.getPopular('tv', p) },
   { id: 'top_rated', label: 'Critically Acclaimed TV', fetchFn: (p: number) => api.getTopRated('tv', p) },
@@ -317,7 +317,7 @@ export function PageShell({
     return () => {
       active = false;
     };
-  }, [defaultType, activePill, isSearch, searchQuery, appliedSignature, page, title]);
+  }, [defaultType, activePill, isSearch, searchQuery, appliedFilters, page, title]);
 
   const closeDrawer = useCallback(() => {
     setIsFilterDrawerOpen(false);
@@ -605,7 +605,7 @@ export function PageShell({
                       className="flex justify-between text-xs font-mono uppercase tracking-wider text-muted-foreground mb-2"
                     >
                       <span>Minimum rating</span>
-                      <span className="text-[#f3f0ea] font-bold">{draftFilters.minRating}+</span>
+                      <span className="text-foreground font-bold">{draftFilters.minRating}+</span>
                     </label>
                     <input
                       id="min-rating"
@@ -620,7 +620,7 @@ export function PageShell({
                           minRating: event.target.value,
                         }))
                       }
-                      className="w-full accent-[#f3f0ea] cursor-pointer"
+                      className="w-full accent-primary cursor-pointer"
                     />
                   </div>
 
@@ -649,14 +649,14 @@ export function PageShell({
                           />
                           <span
                             aria-hidden="true"
-                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#f3f0ea] ${
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-primary ${
                               draftFilters.sortBy === option.value
-                                ? 'border-[#f3f0ea]'
-                                : 'border-white/30 group-hover:border-white/60'
+                                ? 'border-primary'
+                                : 'border-border group-hover:border-foreground/60'
                             }`}
                           >
                             {draftFilters.sortBy === option.value && (
-                              <span className="w-2 h-2 rounded-full bg-[#f3f0ea]" />
+                              <span className="w-2 h-2 rounded-full bg-primary" />
                             )}
                           </span>
                           <span
@@ -674,11 +674,11 @@ export function PageShell({
                   </fieldset>
                 </div>
 
-                <div className="pt-6 mt-6 border-t border-white/10 flex gap-3">
+                <div className="pt-6 mt-6 border-t border-border flex gap-3">
                   <button
                     type="button"
                     onClick={() => setDraftFilters(DEFAULT_FILTERS)}
-                    className="px-5 py-3 bg-white/5 hover:bg-white/10 text-foreground font-mono text-xs uppercase tracking-wider rounded-xl transition-colors border border-white/10 cursor-pointer"
+                    className="px-5 py-3 bg-secondary hover:bg-muted text-foreground font-mono text-xs uppercase tracking-wider rounded-xl transition-colors border border-border cursor-pointer"
                   >
                     Reset
                   </button>
@@ -688,7 +688,7 @@ export function PageShell({
                       setAppliedFilters(draftFilters);
                       closeDrawer();
                     }}
-                    className="flex-1 py-3 bg-[#f3f0ea] text-[#0b0b0d] font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-white transition-all shadow-md cursor-pointer"
+                    className="flex-1 py-3 bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-primary/90 transition-all shadow-md cursor-pointer"
                   >
                     Apply filters
                   </button>

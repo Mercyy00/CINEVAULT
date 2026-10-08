@@ -6,7 +6,17 @@ import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default tseslint.config(
-  { ignores: ['dist', 'node_modules', 'public/sw.js', 'scripts'] },
+  {
+    ignores: [
+      'dist',
+      'node_modules',
+      'public/sw.js',
+      'scripts',
+      '_birthday_backup',
+      'cinematic-kinetic-typography-component',
+      'ref',
+    ],
+  },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ['**/*.{ts,tsx}'],
@@ -32,6 +42,13 @@ export default tseslint.config(
       eqeqeq: ['error', 'always', { null: 'ignore' }],
       'no-var': 'error',
       'prefer-const': 'error',
+    },
+  },
+  {
+    files: ['**/*.test.{ts,tsx}', 'src/**/__tests__/**/*.{ts,tsx}'],
+    rules: {
+      'no-console': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   prettier

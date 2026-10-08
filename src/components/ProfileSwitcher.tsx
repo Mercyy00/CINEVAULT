@@ -268,8 +268,8 @@ export function ProfileSwitcher({ onClose, isOpen = true }: ProfileSwitcherProps
             className={cn(
               "px-8 py-3 rounded-2xl font-mono font-bold text-xs tracking-wider transition-all uppercase border cursor-pointer",
               isManaging
-                ? "bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] shadow-lg"
-                : "bg-white/5 border-white/10 text-[#929093] hover:text-[#f3f0ea] hover:border-white/20"
+                ? "bg-primary text-primary-foreground border-primary shadow-lg"
+                : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:border-border/80"
             )}
           >
             {isManaging ? 'Done' : 'Manage Profiles'}

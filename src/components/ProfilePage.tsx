@@ -20,6 +20,8 @@ import {
   Moon,
   Sun,
   Layout,
+  ExternalLink,
+  HardDrive,
 } from 'lucide-react';
 import { useApp, Theme, UIMode } from '../store';
 import { ThemeSwitchOverlay } from './ThemeSwitchOverlay';
@@ -34,6 +36,13 @@ import {
   EMPTY_AVATAR_PRESET,
 } from '../lib/avatars';
 import { cn } from '../lib/utils';
+import {
+  getDownloadHistory,
+  clearDownloadHistory,
+  getStorageEstimate,
+  type StorageEstimateResult,
+  type DownloadHistoryItem,
+} from '../lib/storage';
 
 type SettingsTab = 'account' | 'playback' | 'appearance' | 'history' | 'about';
 
@@ -103,6 +112,48 @@ export function ProfilePage() {
   const [themeFilter, setThemeFilter] = useState<'all' | 'dark' | 'light'>('all');
   const [isSwitchingTheme, setIsSwitchingTheme] = useState(false);
   const [targetThemeMode, setTargetThemeMode] = useState<UIMode | null>(null);
+  const [downloadHistoryList, setDownloadHistoryList] = useState<DownloadHistoryItem[]>(() => {
+    try {
+      return getDownloadHistory();
+    } catch {
+      return [];
+    }
+  });
+  const [storageEstimate, setStorageEstimate] = useState<StorageEstimateResult | null>(null);
+  const [storageLoading, setStorageLoading] = useState(false);
+
+  const refreshStorage = async () => {
+    setStorageLoading(true);
+    try {
+      const est = await getStorageEstimate();
+      setStorageEstimate(est);
+    } catch {
+      setStorageEstimate(null);
+    } finally {
+      setStorageLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshStorage();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'history') {
+      try {
+        setDownloadHistoryList(getDownloadHistory());
+      } catch {
+        // ignore
+      }
+    }
+  }, [activeTab]);
+
+  const handleClearDownloads = () => {
+    clearDownloadHistory();
+    setDownloadHistoryList([]);
+    showToast('Download history cleared');
+    refreshStorage();
+  };
 
   const handleSelectUiMode = (mode: UIMode) => {
     if (mode === uiMode) {
@@ -119,7 +170,9 @@ export function ProfilePage() {
         : (localStorage.getItem('cv:theme_classic') || 'cinematic-dark');
       localStorage.setItem('cv:theme', targetTheme);
       localStorage.setItem('cv_theme', targetTheme);
-    } catch {}
+    } catch {
+      // ignore storage errors
+    }
   };
 
   useEffect(() => {
@@ -1056,7 +1109,7 @@ export function ProfilePage() {
                 <p className="text-xs sm:text-sm text-muted-foreground">Manage continue watching items & stored playback progress</p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex flex-col justify-center">
                   <span className="text-2xl font-bold font-display text-brand">{continueWatching.length}</span>
                   <span className="text-xs text-muted-foreground mt-1">In Progress Videos</span>
@@ -1064,6 +1117,10 @@ export function ProfilePage() {
                 <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex flex-col justify-center">
                   <span className="text-2xl font-bold font-display text-brand">{watchlist.length}</span>
                   <span className="text-xs text-muted-foreground mt-1">Items in Watchlist</span>
+                </div>
+                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex flex-col justify-center">
+                  <span className="text-2xl font-bold font-display text-brand">{downloadHistoryList.length}</span>
+                  <span className="text-xs text-muted-foreground mt-1">Tracked Downloads</span>
                 </div>
               </div>
 
@@ -1132,20 +1189,96 @@ export function ProfilePage() {
                 )}
               </div>
 
-              <div className="p-6 rounded-2xl bg-card border border-border shadow-card flex flex-col sm:flex-row gap-3">
+              {/* Tracked Downloads History */}
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Download className="w-4 h-4 text-brand" />
+                    <h3 className="text-base font-bold text-foreground">Tracked Downloads</h3>
+                  </div>
+                  {downloadHistoryList.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearDownloads}
+                      className="text-xs text-red-500 hover:underline font-semibold cursor-pointer"
+                    >
+                      Clear Downloads
+                    </button>
+                  )}
+                </div>
+
+                {downloadHistoryList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-6 text-center">
+                    No tracked downloads found. Files downloaded via VidVault, ScreenScape, or ZokoAnime will appear here for easy access.
+                  </p>
+                ) : (
+                  <div className="space-y-2.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
+                    {downloadHistoryList.map((item) => (
+                      <div
+                        key={`${item.id}-${item.downloadedAt}`}
+                        className="flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/40 border border-border hover:border-brand/40 transition-colors"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-9 h-9 rounded-xl bg-brand/10 border border-brand/25 flex items-center justify-center text-brand shrink-0">
+                            <Download className="w-4 h-4" />
+                          </div>
+                          <div className="min-w-0">
+                            <h5 className="text-xs font-bold text-foreground truncate" title={item.title}>
+                              {item.title}
+                            </h5>
+                            <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-mono mt-0.5">
+                              <span className="uppercase text-brand font-bold">{item.type}</span>
+                              {item.season && <span>S{item.season}</span>}
+                              {item.episode && <span>Ep {item.episode}</span>}
+                              {item.quality && (
+                                <span className="px-1.5 py-0.2 rounded bg-muted text-foreground font-semibold">
+                                  {item.quality}
+                                </span>
+                              )}
+                              {item.provider && <span>• {item.provider}</span>}
+                              <span>• {new Date(item.downloadedAt).toLocaleDateString()}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {item.url && (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 rounded-lg bg-secondary hover:bg-muted text-foreground border border-border transition-colors cursor-pointer shrink-0"
+                            title="Re-download or open link"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
                   onClick={clearContinueWatching}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
+                  className="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" /> Clear Watch History
                 </button>
                 <button
                   type="button"
                   onClick={clearWatchlist}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
+                  className="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
                 >
                   <Trash2 className="w-4 h-4" /> Clear Watchlist
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearDownloads}
+                  className="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold transition-colors flex items-center justify-center gap-2 border border-red-500/25 cursor-pointer shadow-sm"
+                >
+                  <Trash2 className="w-4 h-4" /> Clear Downloads
                 </button>
               </div>
             </motion.div>
@@ -1183,6 +1316,56 @@ export function ProfilePage() {
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   CineVault is an open-source, non-commercial media interface designed to explore films, series, and anime with a luxury theater user experience.
                 </p>
+              </div>
+
+              {/* Storage & Cache Quota */}
+              <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
+                      <HardDrive className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-foreground">Storage & Cache Quota</h4>
+                      <p className="text-xs text-muted-foreground">Browser storage quota, offline cache & saved assets</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={refreshStorage}
+                    disabled={storageLoading}
+                    className="p-2 rounded-xl bg-secondary hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer disabled:opacity-40"
+                    title="Refresh storage quota"
+                  >
+                    <RefreshCw className={cn("w-3.5 h-3.5", storageLoading && "animate-spin text-brand")} />
+                  </button>
+                </div>
+
+                {storageEstimate ? (
+                  <div className="space-y-3 pt-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Allocation Used</span>
+                      <span className="font-mono font-bold text-foreground">
+                        {storageEstimate.formattedUsage} / {storageEstimate.formattedQuota} ({storageEstimate.usagePercent.toFixed(1)}%)
+                      </span>
+                    </div>
+
+                    <div className="w-full h-2.5 rounded-full bg-secondary overflow-hidden border border-border">
+                      <div
+                        className="h-full bg-brand transition-all duration-500 rounded-full"
+                        style={{ width: `${Math.min(100, Math.max(1, storageEstimate.usagePercent))}%` }}
+                      />
+                    </div>
+
+                    <p className="text-[11px] text-muted-foreground leading-relaxed">
+                      CineVault uses intelligent PWA caching bounded to 120 asset entries. Video streams are never cached directly to avoid exhausting device disk quota.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Storage estimation is not available on this browser or origin.
+                  </p>
+                )}
               </div>
 
               <div className="p-6 rounded-2xl bg-card border border-border shadow-card space-y-3">

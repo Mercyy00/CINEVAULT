@@ -104,7 +104,9 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
         : (localStorage.getItem('cv:theme_classic') || 'cinematic-dark');
       localStorage.setItem('cv:theme', targetTheme);
       localStorage.setItem('cv_theme', targetTheme);
-    } catch {}
+    } catch {
+      // ignore storage errors
+    }
   };
 
   useEffect(() => {

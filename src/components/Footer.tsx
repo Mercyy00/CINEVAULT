@@ -129,7 +129,7 @@ export function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="CineVault on Twitter"
-                    className="hover:text-brand transition-colors p-2 rounded-full hover:bg-muted/50 border border-white/5"
+                    className="hover:text-brand transition-colors p-2 rounded-full hover:bg-muted/50 border border-border"
                   >
                     <Twitter className="w-4 h-4" />
                   </a>
@@ -138,7 +138,7 @@ export function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="CineVault Discord"
-                    className="hover:text-brand transition-colors p-2 rounded-full hover:bg-muted/50 border border-white/5"
+                    className="hover:text-brand transition-colors p-2 rounded-full hover:bg-muted/50 border border-border"
                   >
                     <Discord className="w-4 h-4" />
                   </a>
@@ -147,7 +147,7 @@ export function Footer() {
                     target="_blank"
                     rel="noopener noreferrer"
                     aria-label="CineVault GitHub"
-                    className="hover:text-brand transition-colors p-2 rounded-full hover:bg-muted/50 border border-white/5"
+                    className="hover:text-brand transition-colors p-2 rounded-full hover:bg-muted/50 border border-border"
                   >
                     <Globe className="w-4 h-4" />
                   </a>
@@ -281,7 +281,7 @@ export function Footer() {
         </footer>
       ) : (
         /* ─── MODERN FOOTER ──────────────────────────────────────────── */
-        <footer className="w-full border-t border-white/[0.08] mt-24 relative z-20 bg-[#0b0b0d] px-4 sm:px-8 py-16 pb-28 flex flex-col items-center text-center gap-5">
+        <footer className="w-full border-t border-border mt-24 relative z-20 bg-background px-4 sm:px-8 py-16 pb-28 flex flex-col items-center text-center gap-5">
           {/* Brand */}
           <div className="footer-brand">
             <span className="footer-brand-badge">CV</span>
@@ -289,13 +289,13 @@ export function Footer() {
           </div>
 
           {/* Discovery navigation links */}
-          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-mono text-[#929093]">
-            <a href="/" className="hover:text-[#f3f0ea] transition-colors">Home</a>
-            <a href="/movies" className="hover:text-[#f3f0ea] transition-colors">Movies</a>
-            <a href="/tvshows" className="hover:text-[#f3f0ea] transition-colors">TV Shows</a>
-            <a href="/anime" className="hover:text-[#f3f0ea] transition-colors">Anime</a>
-            <a href="/mylist" className="hover:text-[#f3f0ea] transition-colors">Watchlist</a>
-            <a href="/trending" className="hover:text-[#f3f0ea] transition-colors">Trending</a>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs font-mono text-muted-foreground">
+            <a href="/" className="hover:text-foreground transition-colors">Home</a>
+            <a href="/movies" className="hover:text-foreground transition-colors">Movies</a>
+            <a href="/tvshows" className="hover:text-foreground transition-colors">TV Shows</a>
+            <a href="/anime" className="hover:text-foreground transition-colors">Anime</a>
+            <a href="/mylist" className="hover:text-foreground transition-colors">Watchlist</a>
+            <a href="/trending" className="hover:text-foreground transition-colors">Trending</a>
           </div>
 
           {/* Disclaimer Note */}
@@ -304,18 +304,18 @@ export function Footer() {
           </p>
 
           {/* Contact Email Pill */}
-          <a className="footer-mail hover:border-white/25 hover:bg-white/[0.06]" href="mailto:support@cinevault.stream">
+          <a className="footer-mail hover:border-border hover:bg-secondary" href="mailto:support@cinevault.stream">
             support@cinevault.stream
           </a>
 
           {/* Social / External links */}
-          <div className="flex items-center gap-3 text-[#929093]">
+          <div className="flex items-center gap-3 text-muted-foreground">
             <a
               href="https://twitter.com"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Follow CineVault on Twitter"
-              className="hover:text-[#f3f0ea] transition-colors bg-white/[0.04] hover:bg-white/[0.08] p-2 rounded-full border border-white/[0.08]"
+              className="hover:text-foreground transition-colors bg-secondary hover:bg-muted p-2 rounded-full border border-border"
             >
               <Twitter className="w-3.5 h-3.5" />
             </a>
@@ -324,7 +324,7 @@ export function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Join CineVault Discord"
-              className="hover:text-[#f3f0ea] transition-colors bg-white/[0.04] hover:bg-white/[0.08] p-2 rounded-full border border-white/[0.08]"
+              className="hover:text-foreground transition-colors bg-secondary hover:bg-muted p-2 rounded-full border border-border"
             >
               <Discord className="w-3.5 h-3.5" />
             </a>
@@ -333,7 +333,7 @@ export function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="CineVault on GitHub"
-              className="hover:text-[#f3f0ea] transition-colors bg-white/[0.04] hover:bg-white/[0.08] p-2 rounded-full border border-white/[0.08]"
+              className="hover:text-foreground transition-colors bg-secondary hover:bg-muted p-2 rounded-full border border-border"
             >
               <Globe className="w-3.5 h-3.5" />
             </a>
@@ -344,7 +344,7 @@ export function Footer() {
             <button
               type="button"
               onClick={() => setActiveModalKey('about')}
-              className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
               About
             </button>
@@ -352,7 +352,7 @@ export function Footer() {
             <button
               type="button"
               onClick={() => setActiveModalKey('privacy')}
-              className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
               Privacy
             </button>
@@ -360,7 +360,7 @@ export function Footer() {
             <button
               type="button"
               onClick={() => setActiveModalKey('terms')}
-              className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
               Terms
             </button>
@@ -368,14 +368,14 @@ export function Footer() {
             <button
               type="button"
               onClick={() => setActiveModalKey('contact')}
-              className="hover:text-[#f3f0ea] transition-colors cursor-pointer"
+              className="hover:text-foreground transition-colors cursor-pointer"
             >
               Contact
             </button>
           </p>
 
           {/* Copyright */}
-          <p className="text-[11px] text-[#929093]/60 font-mono tracking-wider pt-2">
+          <p className="text-[11px] text-muted-foreground/80 font-mono tracking-wider pt-2">
             © {new Date().getFullYear()} CINEVAULT · ALL RIGHTS RESERVED
           </p>
         </footer>
@@ -400,40 +400,40 @@ export function Footer() {
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl bg-[#121316] border border-white/[0.14] rounded-[20px] p-6 sm:p-8 relative shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"
+              className="w-full max-w-2xl bg-card border border-border rounded-[20px] p-6 sm:p-8 relative shadow-2xl max-h-[85vh] overflow-y-auto custom-scrollbar"
             >
               <button
                 type="button"
                 onClick={() => setActiveModalKey(null)}
-                className="absolute top-5 right-5 text-[#929093] hover:text-[#f3f0ea] transition-colors bg-white/[0.06] hover:bg-white/[0.12] p-2 rounded-full cursor-pointer"
+                className="absolute top-5 right-5 text-muted-foreground hover:text-foreground transition-colors bg-secondary hover:bg-muted p-2 rounded-full cursor-pointer"
                 aria-label="Close dialog"
               >
                 <X className="w-5 h-5" />
               </button>
 
-              <div className="flex items-center gap-3 mb-6 border-b border-white/[0.08] pb-4">
+              <div className="flex items-center gap-3 mb-6 border-b border-border pb-4">
                 {modalData.icon}
-                <h2 id="legal-modal-title" className="text-2xl font-display font-bold text-[#f3f0ea] tracking-tight">
+                <h2 id="legal-modal-title" className="text-2xl font-display font-bold text-foreground tracking-tight">
                   {modalData.title}
                 </h2>
               </div>
 
-              <div className="text-[#f3f0ea]/90 space-y-6 leading-relaxed text-sm">
+              <div className="text-foreground/90 space-y-6 leading-relaxed text-sm">
                 {modalData.sections.map((section, idx) => (
                   <section key={idx} className="space-y-1.5">
-                    <h3 className="text-base font-semibold text-[#f3f0ea] font-display">
+                    <h3 className="text-base font-semibold text-foreground font-display">
                       {section.heading}
                     </h3>
-                    <p className="text-[#929093] text-sm leading-relaxed">{section.body}</p>
+                    <p className="text-muted-foreground text-sm leading-relaxed">{section.body}</p>
                   </section>
                 ))}
               </div>
 
-              <div className="mt-8 pt-4 border-t border-white/[0.08] flex justify-end">
+              <div className="mt-8 pt-4 border-t border-border flex justify-end">
                 <button
                   type="button"
                   onClick={() => setActiveModalKey(null)}
-                  className="px-6 py-2.5 bg-[#f3f0ea] text-[#0b0b0d] text-sm font-semibold rounded-full hover:bg-white transition-colors cursor-pointer"
+                  className="px-6 py-2.5 bg-primary text-primary-foreground text-sm font-semibold rounded-full hover:opacity-90 transition-opacity cursor-pointer"
                 >
                   Understood
                 </button>

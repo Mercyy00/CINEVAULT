@@ -1,13 +1,16 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
-import path from 'path';
+import fs from 'fs';
 import { defineConfig } from 'vite';
 
+const rootPath = fs.realpathSync(process.cwd());
+
 export default defineConfig(({ mode }) => ({
+  root: rootPath,
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, '.'),
+      '@': rootPath,
     },
   },
   build: {

@@ -83,7 +83,7 @@ export function FilterBar({ onFilterChange, defaultType = 'movie' }: FilterBarPr
 
       window.history.replaceState(null, '', url.pathname + url.search);
     }
-  }, [type, country, providerId, sortBy]);
+  }, [type, country, providerId, sortBy, defaultType, onFilterChange]);
 
   const COUNTRIES = [
     { code: 'US', name: 'United States' },

@@ -230,12 +230,12 @@ export function AdminDashboard() {
               <span>Sign in</span>
             </button>
           ) : (
-            <p className="text-xs text-muted-foreground font-mono px-3 py-2 rounded-xl bg-white/5 border border-white/10">
+            <p className="text-xs text-muted-foreground font-mono px-3 py-2 rounded-xl bg-muted/50 border border-border">
               Signed in as {userProfile.name || 'unknown'} — no admin claim on this account.
             </p>
           )}
 
-          <div className="mt-6 pt-4 border-t border-white/10 flex items-center justify-center text-xs">
+          <div className="mt-6 pt-4 border-t border-border flex items-center justify-center text-xs">
             <button
               type="button"
               onClick={() => {
@@ -336,7 +336,7 @@ export function AdminDashboard() {
           </h2>
 
           <div
-            className="flex items-center gap-1.5 bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-semibold"
+            className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-xl border border-border text-xs font-semibold"
             role="group"
             aria-label="Filter by media type"
           >
@@ -402,7 +402,7 @@ export function AdminDashboard() {
                         'px-2 py-0.5 rounded-full text-[10px] font-mono font-bold shrink-0',
                         watchingNow
                           ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-white/5 text-muted-foreground border border-white/10'
+                          : 'bg-muted/40 text-muted-foreground border border-border'
                       )}
                     >
                       {watchingNow ? 'Active' : formatRelative(session.updatedAt)}
@@ -425,11 +425,11 @@ export function AdminDashboard() {
                           {session.mediaType}
                         </span>
                         {session.seasonNumber ? (
-                          <span className="text-[10px] font-mono text-brand font-bold bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                          <span className="text-[10px] font-mono text-brand font-bold bg-muted/60 px-2 py-0.5 rounded-md border border-border">
                             S{session.seasonNumber} E{session.episodeNumber ?? '?'}
                           </span>
                         ) : session.episodeNumber ? (
-                          <span className="text-[10px] font-mono text-brand font-bold bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                          <span className="text-[10px] font-mono text-brand font-bold bg-muted/60 px-2 py-0.5 rounded-md border border-border">
                             E{session.episodeNumber}
                           </span>
                         ) : null}
@@ -453,7 +453,7 @@ export function AdminDashboard() {
                   </div>
 
                   <div
-                    className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden"
+                    className="w-full h-1.5 rounded-full bg-muted overflow-hidden"
                     role="progressbar"
                     aria-valuenow={Math.round(session.progressPercentage)}
                     aria-valuemin={0}
@@ -509,7 +509,7 @@ export function AdminDashboard() {
             </h2>
 
             <div
-              className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 text-xs font-semibold"
+              className="flex items-center gap-1 bg-muted/40 p-1 rounded-xl border border-border text-xs font-semibold"
               role="group"
               aria-label="Filter by user type"
             >
@@ -569,7 +569,7 @@ export function AdminDashboard() {
               value={userSearch}
               onChange={(event) => setUserSearch(event.target.value)}
               placeholder="Name or uid…"
-              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-foreground text-xs focus:outline-none focus:border-brand"
+              className="w-full pl-9 pr-3 py-1.5 rounded-xl bg-muted/40 border border-border text-foreground text-xs focus:outline-none focus:border-brand"
             />
           </div>
         </div>
@@ -577,7 +577,7 @@ export function AdminDashboard() {
         <div className="overflow-x-auto rounded-2xl border border-border bg-card">
           <table className="w-full text-left text-xs">
             <caption className="sr-only">Registered users, most recently active first</caption>
-            <thead className="bg-white/5 border-b border-border text-muted-foreground font-mono uppercase text-[10px]">
+            <thead className="bg-muted/30 border-b border-border text-muted-foreground font-mono uppercase text-[10px]">
               <tr>
                 <th scope="col" className="py-3 px-4">
                   User
@@ -608,7 +608,7 @@ export function AdminDashboard() {
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user.uid} className="hover:bg-white/5 transition-colors">
+                  <tr key={user.uid} className="hover:bg-muted/30 transition-colors">
                     <td className="py-3 px-4">
                       <div className="flex items-center gap-2.5">
                         <div className="w-7 h-7 rounded-full bg-brand/20 border border-brand/30 flex items-center justify-center font-bold text-brand text-xs uppercase shrink-0">
@@ -627,7 +627,7 @@ export function AdminDashboard() {
                           'px-2 py-0.5 rounded-md font-mono text-[10px] font-bold uppercase',
                           user.isGuest
                             ? 'bg-amber-500/20 text-amber-400'
-                            : 'bg-white/5 text-muted-foreground'
+                            : 'bg-muted/50 text-muted-foreground'
                         )}
                       >
                         {user.isGuest ? 'guest' : 'account'}
@@ -692,7 +692,7 @@ export function AdminDashboard() {
                   type="button"
                   onClick={() => setSelectedUser(null)}
                   aria-label="Close history"
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0"
                 >
                   <X className="w-4 h-4" aria-hidden="true" />
                 </button>
@@ -724,11 +724,11 @@ export function AdminDashboard() {
                       return (
                         <li
                           key={session.id}
-                          className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex flex-col gap-2.5 text-xs"
+                          className="p-3.5 rounded-2xl bg-muted/30 border border-border flex flex-col gap-2.5 text-xs"
                         >
                           <div className="flex items-center justify-between gap-3 min-w-0">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-12 h-16 rounded-xl overflow-hidden shrink-0 border border-white/10">
+                              <div className="w-12 h-16 rounded-xl overflow-hidden shrink-0 border border-border">
                                 <PosterImage
                                   src={posterSrc(session.posterPath)}
                                   title={session.title}
@@ -742,7 +742,7 @@ export function AdminDashboard() {
                                     {session.mediaType}
                                   </span>
                                   {session.seasonNumber ? (
-                                    <span className="text-[10px] font-mono text-brand font-bold bg-white/5 px-2 py-0.5 rounded-md border border-white/10">
+                                    <span className="text-[10px] font-mono text-brand font-bold bg-muted/60 px-2 py-0.5 rounded-md border border-border">
                                       S{session.seasonNumber} E{session.episodeNumber ?? '?'}
                                     </span>
                                   ) : null}
@@ -774,7 +774,7 @@ export function AdminDashboard() {
                           </div>
 
                           <div
-                            className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden"
+                            className="w-full h-1.5 rounded-full bg-muted overflow-hidden"
                             role="progressbar"
                             aria-valuenow={Math.round(session.progressPercentage)}
                             aria-valuemin={0}

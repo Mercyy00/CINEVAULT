@@ -3,7 +3,7 @@ import {
   buildAnimeEmbedUrl,
   ANIME_SERVERS,
   TRUSTED_ANIME_ORIGINS,
-} from '../../components/AnimePlayer';
+} from '../animePlayback';
 
 describe('animePlayback - Server Integration', () => {
   it('makes MegaPlay the primary server (index 0)', () => {

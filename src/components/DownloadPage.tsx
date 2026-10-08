@@ -20,6 +20,7 @@ import {
   Zap,
   Landmark,
   X,
+  WifiOff,
 } from 'lucide-react';
 import { api, anilistApi } from '../api';
 import { fetchDownloads, type DownloadResponse } from '../services/downloadService';
@@ -27,6 +28,7 @@ import { cn } from '../lib/utils';
 import { useApp } from '../store';
 import { updateSeoMetadata } from '../lib/seo';
 import { goToDetail, goToWatch } from '../lib/navigation';
+import { addDownloadHistoryItem, getDownloadHistory } from '../lib/storage';
 
 export function DownloadPage() {
   const { showToast } = useApp();
@@ -62,6 +64,58 @@ export function DownloadPage() {
   const [animeEpisodes, setAnimeEpisodes] = useState<any[]>([]);
   const [animeEpSearch, setAnimeEpSearch] = useState<string>('');
 
+  const [isOnline, setIsOnline] = useState(() => (typeof navigator !== 'undefined' ? navigator.onLine : true));
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(() => {
+    try {
+      return new Set(getDownloadHistory().filter((d) => d.mediaId === id).map((d) => d.id));
+    } catch {
+      return new Set();
+    }
+  });
+
+  const handleTrackDownload = (item: {
+    linkId: string;
+    quality?: string;
+    provider?: string;
+    url?: string;
+    episode?: number;
+    season?: number;
+    track?: string;
+  }) => {
+    addDownloadHistoryItem({
+      id: item.linkId,
+      mediaId: id,
+      title: mediaInfo?.title || 'Unknown Title',
+      type,
+      quality: item.quality,
+      provider: item.provider,
+      episode: item.episode,
+      season: item.season,
+      track: item.track,
+      url: item.url,
+    });
+    setDownloadedIds((prev) => new Set(prev).add(item.linkId));
+    showToast('Download started & saved to history');
+  };
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      if (error === 'offline') {
+        window.location.reload();
+      }
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [error]);
+
   // Fetch media details and live downloads
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +123,13 @@ export function DownloadPage() {
     const load = async () => {
       if (!id) {
         setError('Missing title identifier');
+        setLoading(false);
+        return;
+      }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setIsOnline(false);
+        setError('offline');
         setLoading(false);
         return;
       }
@@ -341,7 +402,7 @@ export function DownloadPage() {
                 goToDetail(id, type);
               }
             }}
-            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card border border-white/10 hover:border-brand/40 text-xs font-semibold text-foreground/80 hover:text-brand transition-all cursor-pointer shadow-sm"
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card border border-border hover:border-brand/40 text-xs font-semibold text-foreground/80 hover:text-brand transition-all cursor-pointer shadow-sm"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Back</span>
@@ -371,7 +432,7 @@ export function DownloadPage() {
         {loading && (
           <div className="py-24 flex flex-col items-center justify-center text-center space-y-4">
             <div className="relative">
-              <div className="w-16 h-16 border-4 border-white/10 rounded-full" />
+              <div className="w-16 h-16 border-4 border-muted rounded-full" />
               <div className="w-16 h-16 border-4 border-brand border-t-transparent rounded-full animate-spin absolute inset-0" />
               <div className="absolute inset-0 flex items-center justify-center">
                 <Download className="w-6 h-6 text-brand animate-bounce" />
@@ -390,34 +451,67 @@ export function DownloadPage() {
           </div>
         )}
 
-        {/* Error State */}
-        {!loading && error && (
-          <div className="p-8 rounded-3xl bg-card/60 border border-white/10 text-center max-w-md mx-auto my-12 space-y-4">
-            <p className="text-sm text-red-400 font-semibold">{error}</p>
-            <p className="text-xs text-muted-foreground">
-              Direct links may be temporarily throttled. You can try again or open direct mirrors:
-            </p>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <button
-                type="button"
-                onClick={() => window.location.reload()}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-foreground transition-all cursor-pointer"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Retry</span>
-              </button>
-              {type === 'anime' && (
-                <a
-                  href={zokoDownloadUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand text-background text-xs font-bold transition-all cursor-pointer shadow-md shadow-brand/20"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  <span>Open ZokoAnime Directly</span>
-                </a>
-              )}
-            </div>
+        {/* Error / Offline State */}
+        {!loading && (error || !isOnline) && (
+          <div className="p-8 rounded-3xl bg-card/60 border border-border text-center max-w-md mx-auto my-12 space-y-4">
+            {!isOnline || error === 'offline' ? (
+              <>
+                <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 mx-auto">
+                  <WifiOff className="w-6 h-6 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">You’re Currently Offline</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Live multi-provider download mirrors require an active network connection.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold transition-all cursor-pointer shadow-md"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Retry Connection</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => goToDetail(id, type)}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-secondary hover:bg-muted border border-border text-xs font-semibold text-foreground transition-all cursor-pointer"
+                  >
+                    <span>Back to Title</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-red-400 font-semibold">{error}</p>
+                <p className="text-xs text-muted-foreground">
+                  Direct links may be temporarily throttled. You can try again or open direct mirrors:
+                </p>
+                <div className="flex flex-wrap items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => window.location.reload()}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-secondary hover:bg-muted border border-border text-xs font-bold text-foreground transition-all cursor-pointer"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Retry</span>
+                  </button>
+                  {type === 'anime' && (
+                    <a
+                      href={zokoDownloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand text-background text-xs font-bold transition-all cursor-pointer shadow-md shadow-brand/20"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>Open ZokoAnime Directly</span>
+                    </a>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -427,10 +521,10 @@ export function DownloadPage() {
         {!loading && !error && type === 'anime' && (
           <div className="space-y-8">
             {/* Anime Hero Header Card */}
-            <div className="relative rounded-3xl bg-card/85 backdrop-blur-2xl border border-white/15 p-6 sm:p-8 shadow-2xl overflow-hidden">
+            <div className="relative rounded-3xl bg-card/85 backdrop-blur-2xl border border-border p-6 sm:p-8 shadow-2xl overflow-hidden">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
                 {mediaInfo?.poster && (
-                  <div className="w-24 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-xl bg-black/40 relative">
+                  <div className="w-24 h-36 sm:w-32 sm:h-44 rounded-2xl overflow-hidden shrink-0 border border-border shadow-xl bg-black/40 relative">
                     <img src={mediaInfo.poster} alt={mediaInfo?.title || 'Anime'} className="w-full h-full object-cover" />
                     <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-brand text-background text-[10px] font-black uppercase font-mono">
                       EP {animeEpisode}
@@ -443,7 +537,7 @@ export function DownloadPage() {
                     <span className="px-3 py-1 rounded-full bg-brand/15 border border-brand/30 text-brand text-[10px] font-mono font-bold uppercase tracking-wider">
                       ZokoAnime High-Speed
                     </span>
-                    <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-foreground/90 text-[10px] font-mono font-bold">
+                    <span className="px-3 py-1 rounded-full bg-muted border border-border text-foreground/90 text-[10px] font-mono font-bold">
                       Episode {animeEpisode}
                     </span>
                     {mediaInfo?.year && (
@@ -476,7 +570,7 @@ export function DownloadPage() {
 
                   {/* Sub / Dub Track Selector with Keyboard Shortcuts */}
                   <div className="mt-4 flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white/5 border border-white/10">
+                    <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-muted/40 border border-border">
                       <button
                         type="button"
                         onClick={() => {
@@ -491,7 +585,7 @@ export function DownloadPage() {
                         )}
                       >
                         <span>Subtitles</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-black/20 text-[9px] font-mono">S</kbd>
+                        <kbd className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-mono">S</kbd>
                       </button>
 
                       <button
@@ -508,7 +602,7 @@ export function DownloadPage() {
                         )}
                       >
                         <span>English Dub</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-black/20 text-[9px] font-mono">D</kbd>
+                        <kbd className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-mono">D</kbd>
                       </button>
                     </div>
 
@@ -523,18 +617,33 @@ export function DownloadPage() {
                       href={zokoDownloadUrl}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() =>
+                        handleTrackDownload({
+                          linkId: `zoko-${id}-ep${animeEpisode}-${animeTrack}`,
+                          quality: '1080p',
+                          provider: 'ZokoAnime',
+                          url: zokoDownloadUrl,
+                          episode: animeEpisode,
+                          track: animeTrack,
+                        })
+                      }
                       className="px-6 py-3.5 rounded-2xl bg-brand hover:bg-brand/90 text-background font-black text-sm flex items-center gap-2.5 transition-all shadow-xl shadow-brand/20 hover:scale-105 active:scale-95 cursor-pointer"
                       title="Download anime episode via ZokoAnime high-speed CDN"
                     >
                       <Download className="w-4 h-4" />
                       <span>Download Ep {animeEpisode} [{animeTrack.toUpperCase()}]</span>
+                      {downloadedIds.has(`zoko-${id}-ep${animeEpisode}-${animeTrack}`) && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] bg-background/20 font-mono inline-flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Downloaded
+                        </span>
+                      )}
                       <ExternalLink className="w-3.5 h-3.5 opacity-80" />
                     </a>
 
                     <button
                       type="button"
                       onClick={() => handleCopyLink(zokoDownloadUrl, 'zoko-dl')}
-                      className="px-4 py-3.5 rounded-2xl glass border border-white/10 hover:border-brand/40 text-foreground font-bold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+                      className="px-4 py-3.5 rounded-2xl glass border border-border hover:border-brand/40 text-foreground font-bold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
                     >
                       {copiedId === 'zoko-dl' ? <Check className="w-3.5 h-3.5 text-brand" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedId === 'zoko-dl' ? 'Copied!' : 'Copy Link'}</span>
@@ -543,7 +652,7 @@ export function DownloadPage() {
                     <button
                       type="button"
                       onClick={() => goToWatch(id, 'anime', undefined, animeEpisode, effectiveMalId)}
-                      className="px-4 py-3.5 rounded-2xl glass border border-white/10 hover:border-brand/40 text-foreground font-bold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
+                      className="px-4 py-3.5 rounded-2xl glass border border-border hover:border-brand/40 text-foreground font-bold text-xs flex items-center gap-2 transition-all cursor-pointer active:scale-95"
                     >
                       <Play className="w-3.5 h-3.5 text-brand fill-current" />
                       <span>Watch Online</span>
@@ -554,13 +663,13 @@ export function DownloadPage() {
             </div>
 
             {/* Episode Navigator Strip */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-card/60 border border-white/10 backdrop-blur-xl flex flex-wrap items-center justify-between gap-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-card/60 border border-border backdrop-blur-xl flex flex-wrap items-center justify-between gap-4">
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   disabled={animeEpisode <= 1}
                   onClick={() => setAnimeEpisode((prev) => Math.max(1, prev - 1))}
-                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold text-foreground border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-secondary hover:bg-muted disabled:opacity-30 disabled:pointer-events-none text-xs font-bold text-foreground border border-border flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <ChevronLeft className="w-4 h-4" />
                   <span>Previous Ep</span>
@@ -570,7 +679,7 @@ export function DownloadPage() {
                   type="button"
                   disabled={animeEpisodes.length > 0 && animeEpisode >= animeEpisodes.length}
                   onClick={() => setAnimeEpisode((prev) => prev + 1)}
-                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 disabled:opacity-30 disabled:pointer-events-none text-xs font-bold text-foreground border border-white/10 flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-3.5 py-2 rounded-xl bg-secondary hover:bg-muted disabled:opacity-30 disabled:pointer-events-none text-xs font-bold text-foreground border border-border flex items-center gap-1.5 transition-all cursor-pointer"
                 >
                   <span>Next Ep</span>
                   <ChevronRight className="w-4 h-4" />
@@ -590,7 +699,7 @@ export function DownloadPage() {
                   placeholder="Filter episode..."
                   value={animeEpSearch}
                   onChange={(e) => setAnimeEpSearch(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-brand/50"
+                  className="w-full bg-secondary border border-border rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-brand/50"
                 />
               </div>
             </div>
@@ -626,7 +735,7 @@ export function DownloadPage() {
                         "group p-3 sm:p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3",
                         isCurrent
                           ? "bg-brand/10 border-brand/50 shadow-md shadow-brand/10"
-                          : "bg-card/70 border-white/10 hover:border-white/20 hover:bg-card"
+                          : "bg-card/70 border-border hover:border-brand/40 hover:bg-card"
                       )}
                     >
                       <div className="min-w-0 flex items-center gap-3">
@@ -635,7 +744,7 @@ export function DownloadPage() {
                             "w-9 h-9 rounded-xl flex items-center justify-center font-mono font-bold text-xs shrink-0 border",
                             isCurrent
                               ? "bg-brand text-background border-brand font-black"
-                              : "bg-white/5 border-white/10 text-foreground"
+                              : "bg-secondary border-border text-foreground"
                           )}
                         >
                           {epNum}
@@ -651,16 +760,35 @@ export function DownloadPage() {
                         </div>
                       </div>
 
+                      {downloadedIds.has(`zoko-${id}-ep${epNum}-${animeTrack}`) && (
+                        <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] bg-brand/15 text-brand font-mono font-semibold shrink-0">
+                          <Check className="w-3 h-3" />
+                          Downloaded
+                        </span>
+                      )}
+
                       <a
                         href={epUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleTrackDownload({
+                            linkId: `zoko-${id}-ep${epNum}-${animeTrack}`,
+                            quality: '1080p',
+                            provider: 'ZokoAnime',
+                            url: epUrl,
+                            episode: epNum,
+                            track: animeTrack,
+                          });
+                        }}
                         className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-brand text-background hover:bg-brand/90 font-bold text-xs flex items-center gap-1.5 transition-all shadow-sm active:scale-95 shrink-0"
                         title={`Download Episode ${epNum} via ZokoAnime`}
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span className="hidden sm:inline">Download</span>
+                        <span className="hidden sm:inline">
+                          {downloadedIds.has(`zoko-${id}-ep${epNum}-${animeTrack}`) ? 'Re-download' : 'Download'}
+                        </span>
                       </a>
                     </div>
                   );
@@ -676,10 +804,10 @@ export function DownloadPage() {
         {!loading && !error && type !== 'anime' && (
           <div>
             {/* Media Hero Card */}
-            <div className="relative rounded-3xl bg-card/85 backdrop-blur-2xl border border-white/15 p-6 sm:p-8 shadow-2xl overflow-hidden mb-8">
+            <div className="relative rounded-3xl bg-card/85 backdrop-blur-2xl border border-border p-6 sm:p-8 shadow-2xl overflow-hidden mb-8">
               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
                 {mediaInfo?.poster && (
-                  <div className="w-24 h-36 sm:w-28 sm:h-40 rounded-2xl overflow-hidden shrink-0 border border-white/10 shadow-lg bg-black/40">
+                  <div className="w-24 h-36 sm:w-28 sm:h-40 rounded-2xl overflow-hidden shrink-0 border border-border shadow-lg bg-black/40">
                     <img src={mediaInfo.poster} alt={mediaInfo?.title || 'Media'} className="w-full h-full object-cover" />
                   </div>
                 )}
@@ -690,7 +818,7 @@ export function DownloadPage() {
                       {type.toUpperCase()}
                     </span>
                     {type === 'tv' && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-white/10 border border-white/10 text-foreground/90 text-[10px] font-mono font-bold">
+                      <span className="px-2.5 py-0.5 rounded-full bg-muted border border-border text-foreground/90 text-[10px] font-mono font-bold">
                         S{season} • E{initialEpisode}
                       </span>
                     )}
@@ -723,11 +851,11 @@ export function DownloadPage() {
                   {/* Status Stats Pill */}
                   {data && (
                     <div className="mt-4 flex flex-wrap items-center gap-2 text-xs font-mono text-muted-foreground">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 border border-white/10 text-foreground/80">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-muted/40 border border-border text-foreground/80">
                         <Sparkles className="w-3.5 h-3.5 text-brand" />
                         <strong>{data.downloads.length}</strong> downloads from <strong>{data.totalProviders}</strong> cloud hosts
                       </span>
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/5 border border-white/10 text-foreground/80">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-muted/40 border border-border text-foreground/80">
                         <HardDrive className="w-3.5 h-3.5 text-brand" />
                         Total bandwidth: <strong>{data.totalSizeLabel}</strong>
                       </span>
@@ -795,9 +923,9 @@ export function DownloadPage() {
             )}
 
             {/* Filter and Control Bar */}
-            <div className="flex flex-col gap-2.5 mb-6 bg-card/40 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-3 shadow-sm">
+            <div className="flex flex-col gap-2.5 mb-6 bg-card/40 backdrop-blur-xl border border-border rounded-2xl p-3 shadow-sm">
               {/* Category selector row */}
-              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 border-b border-white/5">
+              <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 border-b border-border/40">
                 <button
                   type="button"
                   onClick={() => setCategoryFilter('all')}
@@ -805,7 +933,7 @@ export function DownloadPage() {
                     "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer shrink-0 border",
                     categoryFilter === 'all'
                       ? "bg-brand text-background border-brand shadow-sm shadow-brand/20 font-bold"
-                      : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
+                      : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                   )}
                 >
                   All ({data?.downloads.length || 0})
@@ -867,7 +995,7 @@ export function DownloadPage() {
                       "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer shrink-0 border",
                       categoryFilter === 'cloud'
                         ? "bg-brand text-background border-brand shadow-sm shadow-brand/20 font-bold"
-                        : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
+                        : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                   >
                     Cloud Nodes
@@ -882,7 +1010,7 @@ export function DownloadPage() {
                       "px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer shrink-0 border",
                       categoryFilter === 'hub'
                         ? "bg-brand text-background border-brand shadow-sm shadow-brand/20 font-bold"
-                        : "bg-white/5 border-white/10 text-muted-foreground hover:text-foreground hover:bg-white/10"
+                        : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                     )}
                   >
                     Cloud Hubs
@@ -905,8 +1033,8 @@ export function DownloadPage() {
                       className={cn(
                         "px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer shrink-0 border",
                         qualityFilter === q
-                          ? "bg-white/20 text-foreground border-white/30 font-bold"
-                          : "bg-white/5 border-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10"
+                          ? "bg-primary text-primary-foreground border-primary font-bold"
+                          : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                       )}
                     >
                       {q === 'all' ? 'All' : q}
@@ -927,8 +1055,8 @@ export function DownloadPage() {
                       className={cn(
                         "px-2 py-0.5 rounded-lg text-[11px] font-medium transition-all cursor-pointer shrink-0 border capitalize",
                         audioFilter === a
-                          ? "bg-white/20 text-foreground border-white/30 font-bold"
-                          : "bg-white/5 border-white/5 text-muted-foreground hover:text-foreground hover:bg-white/10"
+                          ? "bg-primary text-primary-foreground border-primary font-bold"
+                          : "bg-secondary border-border text-muted-foreground hover:text-foreground hover:bg-muted"
                       )}
                     >
                       {a === 'all' ? 'All' : a === 'dual' ? 'Dual' : a}
@@ -941,7 +1069,7 @@ export function DownloadPage() {
                   <button
                     type="button"
                     onClick={() => setSortBy((s) => (s === 'quality' ? 'size' : 'quality'))}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-white/5 border border-white/10 hover:border-brand/40 text-foreground/80 hover:text-foreground transition-all cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-secondary border border-border hover:border-brand/40 text-foreground/80 hover:text-foreground transition-all cursor-pointer"
                     title="Toggle sorting between quality and file size"
                   >
                     <ArrowUpDown className="w-3 h-3 text-brand" />
@@ -953,7 +1081,7 @@ export function DownloadPage() {
 
             {/* Empty Search Result */}
             {filteredLinks.length === 0 && data?.downloads && data.downloads.length > 0 && (
-              <div className="p-12 text-center rounded-3xl bg-card/40 border border-white/5 my-6 space-y-3">
+              <div className="p-12 text-center rounded-3xl bg-card/40 border border-border my-6 space-y-3">
                 <SlidersHorizontal className="w-8 h-8 text-muted-foreground mx-auto" />
                 <p className="text-sm font-bold text-foreground">No downloads match your active filters.</p>
                 <button
@@ -972,7 +1100,7 @@ export function DownloadPage() {
 
             {/* Empty filter message */}
             {filteredLinks.length === 0 && (!data?.downloads || data.downloads.length === 0) && (
-              <div className="p-12 rounded-3xl bg-card/40 border border-white/10 text-center space-y-3">
+              <div className="p-12 rounded-3xl bg-card/40 border border-border text-center space-y-3">
                 <SlidersHorizontal className="w-8 h-8 text-muted-foreground mx-auto" />
                 <p className="text-sm font-semibold text-foreground">No downloads available at this time.</p>
                 <button
@@ -1008,7 +1136,7 @@ export function DownloadPage() {
                       "group p-3 sm:p-4 rounded-2xl border transition-all duration-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-sm hover:shadow-lg",
                       isVidVault
                         ? "bg-brand/10 hover:bg-brand/15 border-brand/40 shadow-brand/10 ring-1 ring-brand/30"
-                        : "bg-card/60 hover:bg-card/95 border-white/[0.07] hover:border-brand/40"
+                        : "bg-card/60 hover:bg-card/95 border-border hover:border-brand/40"
                     )}
                   >
                     {/* Left: Quality Badge & Clean File Details */}
@@ -1025,7 +1153,7 @@ export function DownloadPage() {
                             ? "bg-brand/10 text-brand border-brand/25 shadow-sm shadow-brand/10"
                             : item.quality === '720p'
                             ? "bg-blue-500/10 text-blue-300 border-blue-500/25"
-                            : "bg-white/5 text-muted-foreground border-white/10"
+                            : "bg-secondary text-muted-foreground border-border"
                         )}
                       >
                         <span className="text-xs font-black leading-tight tracking-tight">{item.quality}</span>
@@ -1059,6 +1187,12 @@ export function DownloadPage() {
                               HINDI
                             </span>
                           )}
+                          {downloadedIds.has(item.id) && (
+                            <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-brand/15 text-brand border border-brand/25 shrink-0">
+                              <Check className="w-2.5 h-2.5" />
+                              DOWNLOADED
+                            </span>
+                          )}
                         </div>
 
                         {/* Minimal Specs Row */}
@@ -1071,7 +1205,7 @@ export function DownloadPage() {
                           )}
                           {item.audio && (
                             <>
-                              <span className="text-white/20">•</span>
+                              <span className="opacity-30">•</span>
                               <span className={cn("text-[11px]", isHindi ? "text-orange-300/90 font-medium" : isDual ? "text-amber-300/90" : "text-foreground/75")}>
                                 {item.audio}
                               </span>
@@ -1079,13 +1213,13 @@ export function DownloadPage() {
                           )}
                           {item.seeders !== undefined && item.seeders > 0 && (
                             <>
-                              <span className="text-white/20">•</span>
+                              <span className="opacity-30">•</span>
                               <span className="text-emerald-400 font-sans text-[11px] font-medium">
                                 {item.seeders} seeds
                               </span>
                             </>
                           )}
-                          <span className="text-white/20">•</span>
+                          <span className="opacity-30">•</span>
                           <span className="text-[11px] text-muted-foreground/60">{item.provider}</span>
                         </div>
                       </div>
@@ -1098,7 +1232,7 @@ export function DownloadPage() {
                         type="button"
                         onClick={() => handleCopyLink(webDlUrl || item.magnetUrl || item.url, item.id)}
                         aria-label="Copy download link"
-                        className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                        className="p-2.5 rounded-xl bg-secondary hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                         title="Copy download link"
                       >
                         {copiedId === item.id ? <Check className="w-3.5 h-3.5 text-brand" /> : <Copy className="w-3.5 h-3.5" />}
@@ -1108,7 +1242,15 @@ export function DownloadPage() {
                       {item.magnetUrl && (
                         <a
                           href={item.magnetUrl}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-white/5 hover:bg-white/10 text-foreground/80 hover:text-foreground border border-white/10 font-medium transition-all hover:scale-105 cursor-pointer"
+                          onClick={() =>
+                            handleTrackDownload({
+                              linkId: item.id,
+                              quality: item.quality,
+                              provider: `${item.provider} (Magnet)`,
+                              url: item.magnetUrl,
+                            })
+                          }
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs bg-secondary hover:bg-muted text-foreground/80 hover:text-foreground border border-border font-medium transition-all hover:scale-105 cursor-pointer"
                           title="Open Magnet in 1DM, IDM, or qBittorrent"
                         >
                           <Zap className="w-3.5 h-3.5 text-emerald-400 fill-current" />
@@ -1122,6 +1264,14 @@ export function DownloadPage() {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() =>
+                            handleTrackDownload({
+                              linkId: item.id,
+                              quality: item.quality,
+                              provider: item.provider,
+                              url: item.url,
+                            })
+                          }
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-brand text-background hover:bg-brand/90 font-black transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/25"
                           title="Open VidVault Instant Media Downloader"
                         >
@@ -1133,7 +1283,15 @@ export function DownloadPage() {
                         <div className="flex items-center gap-1.5">
                           <button
                             type="button"
-                            onClick={() => setActiveScreenScapeUrl(item.url)}
+                            onClick={() => {
+                              handleTrackDownload({
+                                linkId: item.id,
+                                quality: item.quality,
+                                provider: item.provider,
+                                url: item.url,
+                              });
+                              setActiveScreenScapeUrl(item.url);
+                            }}
                             className="flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black font-bold transition-all hover:scale-105 cursor-pointer shadow-md shadow-amber-500/25"
                             title="Launch ScreenScape with built-in Download Sources (Sealx / HDHub / Mamba)"
                           >
@@ -1145,7 +1303,7 @@ export function DownloadPage() {
                             href={item.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                            className="p-2 rounded-xl bg-secondary hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                             title="Open ScreenScape in a new browser tab"
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
@@ -1157,6 +1315,14 @@ export function DownloadPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                           download={item.directUrl ? item.name : undefined}
+                          onClick={() =>
+                            handleTrackDownload({
+                              linkId: item.id,
+                              quality: item.quality,
+                              provider: item.provider,
+                              url: webDlUrl,
+                            })
+                          }
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-brand text-background hover:bg-brand/90 font-bold transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/25"
                           title="Direct web download in your browser via cloud stream"
                         >
@@ -1169,6 +1335,14 @@ export function DownloadPage() {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() =>
+                            handleTrackDownload({
+                              linkId: item.id,
+                              quality: item.quality,
+                              provider: item.provider,
+                              url: item.url,
+                            })
+                          }
                           className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs bg-purple-600/80 hover:bg-purple-600 text-white font-semibold transition-all hover:scale-105 cursor-pointer shadow-sm"
                           title="Open cloud mirrors hub"
                         >
@@ -1181,24 +1355,40 @@ export function DownloadPage() {
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() =>
+                            handleTrackDownload({
+                              linkId: item.id,
+                              quality: item.quality,
+                              provider: item.provider,
+                              url: item.url,
+                            })
+                          }
                           className="flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs bg-cyan-600/80 hover:bg-cyan-600 text-black font-semibold transition-all hover:scale-105 cursor-pointer shadow-sm"
                           title="Watch video stream"
                         >
                           <Play className="w-3.5 h-3.5 fill-current" />
                           <span>Stream</span>
-                          <ExternalLink className="w-3 h-3 opacity-60" />
+                          <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                         </a>
                       ) : (
                         <a
                           href={item.url}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() =>
+                            handleTrackDownload({
+                              linkId: item.id,
+                              quality: item.quality,
+                              provider: item.provider,
+                              url: item.url,
+                            })
+                          }
                           className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs bg-brand text-background hover:bg-brand/90 font-bold transition-all hover:scale-105 cursor-pointer shadow-md shadow-brand/25"
                           title="Download file"
                         >
                           <Download className="w-3.5 h-3.5" />
                           <span>Download</span>
-                          <ExternalLink className="w-3 h-3 opacity-60" />
+                          <ExternalLink className="w-3.5 h-3.5 opacity-60" />
                         </a>
                       )}
                     </div>
@@ -1208,7 +1398,7 @@ export function DownloadPage() {
             </div>
 
             {/* Direct Download & IDM Pro-Tips Guide */}
-            <div className="mt-8 p-5 rounded-2xl bg-white/5 border border-white/10 text-xs text-muted-foreground space-y-3">
+            <div className="mt-8 p-5 rounded-2xl bg-muted/40 border border-border text-xs text-muted-foreground space-y-3">
               <div className="flex items-center gap-2 text-foreground font-bold">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <span>Verified Working Download Methods — Fast & Reliable</span>
@@ -1218,7 +1408,7 @@ export function DownloadPage() {
                 <strong>{mediaInfo?.title}</strong>:
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-                <div className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-1">
+                <div className="p-3 rounded-xl bg-card border border-border space-y-1">
                   <p className="font-semibold text-emerald-400 flex items-center gap-1.5">
                     <Zap className="w-3.5 h-3.5 fill-current" /> 1. Web Download & Swarms
                   </p>
@@ -1226,7 +1416,7 @@ export function DownloadPage() {
                     Click <strong>Web Download</strong> to stream and save files directly in your browser without any apps, or use <strong>Magnet</strong> for 1DM / IDM.
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-1">
+                <div className="p-3 rounded-xl bg-card border border-border space-y-1">
                   <p className="font-semibold text-amber-400 flex items-center gap-1.5">
                     <Download className="w-3.5 h-3.5 text-amber-400" /> 2. ScreenScape In-Player
                   </p>
@@ -1234,7 +1424,7 @@ export function DownloadPage() {
                     Click <strong>Launch Downloader</strong> to open the player. Click the <strong>Download</strong> button in the bottom control bar to access <strong>Sealx</strong> & <strong>HDHub</strong> direct MP4 links.
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-1">
+                <div className="p-3 rounded-xl bg-card border border-border space-y-1">
                   <p className="font-semibold text-amber-300 flex items-center gap-1.5">
                     <HardDrive className="w-3.5 h-3.5 text-amber-400" /> 3. Archive.org Direct MP4
                   </p>
@@ -1242,7 +1432,7 @@ export function DownloadPage() {
                     For vintage and classic cinema, <strong>1-Click Direct MP4</strong> streams and downloads genuine high-bitrate video files directly to your storage with resume support.
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-black/20 border border-white/5 space-y-1">
+                <div className="p-3 rounded-xl bg-card border border-border space-y-1">
                   <p className="font-semibold text-purple-300 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-purple-400" /> 4. Multi-Host Cloud Hubs
                   </p>
@@ -1256,9 +1446,9 @@ export function DownloadPage() {
             {/* ScreenScape In-Player Downloader Modal */}
             {activeScreenScapeUrl && (
               <div className="fixed inset-0 z-[300] bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in">
-                <div className="bg-card border border-white/15 rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+                <div className="bg-card border border-border rounded-2xl w-full max-w-4xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
                   {/* Modal Header */}
-                  <div className="p-4 sm:px-6 flex items-center justify-between border-b border-white/10 bg-white/[0.02]">
+                  <div className="p-4 sm:px-6 flex items-center justify-between border-b border-border bg-card">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
                         <Download className="w-4 h-4 stroke-[2.5]" />
@@ -1278,7 +1468,7 @@ export function DownloadPage() {
                         href={activeScreenScapeUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-white/5 hover:bg-white/10 border border-white/10 text-foreground transition-all"
+                        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs bg-secondary hover:bg-muted border border-border text-foreground transition-all"
                         title="Open full screen in a new browser tab"
                       >
                         <span>Open in New Tab</span>
@@ -1287,7 +1477,7 @@ export function DownloadPage() {
                       <button
                         type="button"
                         onClick={() => setActiveScreenScapeUrl(null)}
-                        className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-foreground transition-all cursor-pointer"
+                        className="p-2 rounded-xl bg-secondary hover:bg-muted border border-border text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                         title="Close modal"
                       >
                         <X className="w-4 h-4" />

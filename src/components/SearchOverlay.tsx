@@ -267,11 +267,11 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -50 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="fixed inset-0 z-[100] bg-[#0b0b0d]/96 backdrop-blur-2xl flex flex-col safe-top safe-bottom"
+            className="fixed inset-0 z-[100] bg-background/96 backdrop-blur-2xl flex flex-col safe-top safe-bottom"
           >
             <div className="w-full max-w-5xl mx-auto px-4 md:px-8 py-4 sm:py-8 flex-1 flex flex-col min-h-0">
-              <div className="flex items-center gap-2 sm:gap-4 border-b border-white/[0.12] pb-3 sm:pb-4">
-                <Search className="w-5 h-5 sm:w-7 sm:h-7 text-[#929093] shrink-0" aria-hidden="true" />
+              <div className="flex items-center gap-2 sm:gap-4 border-b border-border pb-3 sm:pb-4">
+                <Search className="w-5 h-5 sm:w-7 sm:h-7 text-muted-foreground shrink-0" aria-hidden="true" />
                 <label className="sr-only" htmlFor="search-input">
                   Search movies, shows and anime
                 </label>
@@ -299,7 +299,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     }
                   }}
                   placeholder="Search movies, shows, anime…"
-                  className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-3xl font-display text-[#f3f0ea] placeholder-[#929093]/40 min-w-0"
+                  className="flex-1 bg-transparent border-none outline-none text-lg sm:text-2xl md:text-3xl font-display text-foreground placeholder-muted-foreground/40 min-w-0"
                 />
                 {query.length > 0 && (
                   <button
@@ -310,7 +310,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                       inputRef.current?.focus();
                     }}
                     aria-label="Clear search input"
-                    className="p-1.5 text-[#929093] hover:text-[#f3f0ea] bg-white/[0.04] hover:bg-white/[0.08] rounded-full transition-colors shrink-0 cursor-pointer"
+                    className="p-1.5 text-muted-foreground hover:text-foreground bg-secondary hover:bg-muted rounded-full transition-colors shrink-0 cursor-pointer"
                   >
                     <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
@@ -319,7 +319,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   type="button"
                   onClick={onClose}
                   aria-label="Close search"
-                  className="p-1.5 sm:p-2 text-[#929093] hover:text-[#f3f0ea] hover:bg-white/[0.06] rounded-full transition-colors shrink-0 cursor-pointer"
+                  className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full transition-colors shrink-0 cursor-pointer"
                 >
                   <X className="w-6 h-6 sm:w-7 sm:h-7" aria-hidden="true" />
                 </button>
@@ -356,8 +356,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                   ) : results.length > 0 ? (
                     <div>
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
-                        <h2 className="text-base sm:text-lg text-[#929093] font-display flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-[#f3f0ea]" aria-hidden="true" /> Top matches
+                        <h2 className="text-base sm:text-lg text-muted-foreground font-display flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-brand" aria-hidden="true" /> Top matches
                         </h2>
 
                         <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 font-mono text-xs" role="tablist">
@@ -369,8 +369,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                             className={cn(
                               'px-3.5 py-1.5 rounded-full transition-all border cursor-pointer',
                               activeTab === 'all'
-                                ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
-                                : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                                ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                                : 'bg-secondary text-muted-foreground hover:text-foreground border-border'
                             )}
                           >
                             All ({results.length})
@@ -384,11 +384,11 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               className={cn(
                                 'px-3.5 py-1.5 rounded-full transition-all border flex items-center gap-1 cursor-pointer',
                                 activeTab === 'anime'
-                                  ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
-                                  : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                                  ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                                  : 'bg-secondary text-muted-foreground hover:text-foreground border-border'
                               )}
                             >
-                              <Sparkles className="w-3 h-3 text-[#929093]" />
+                              <Sparkles className="w-3 h-3 text-muted-foreground" />
                               Anime ({animeCount})
                             </button>
                           )}
@@ -401,8 +401,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               className={cn(
                                 'px-3.5 py-1.5 rounded-full transition-all border cursor-pointer',
                                 activeTab === 'movie'
-                                  ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
-                                  : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                                  ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                                  : 'bg-secondary text-muted-foreground hover:text-foreground border-border'
                               )}
                             >
                               Movies ({movieCount})
@@ -417,8 +417,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               className={cn(
                                 'px-3.5 py-1.5 rounded-full transition-all border cursor-pointer',
                                 activeTab === 'tv'
-                                  ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-semibold'
-                                  : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08]'
+                                  ? 'bg-primary text-primary-foreground border-primary font-semibold'
+                                  : 'bg-secondary text-muted-foreground hover:text-foreground border-border'
                               )}
                             >
                               TV Shows ({tvCount})
@@ -467,24 +467,24 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                   />
                                   <span className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                    <span className="bg-[#f3f0ea] text-[#0b0b0d] px-3.5 py-1.5 rounded-full font-bold flex items-center gap-1.5 text-xs shadow-lg">
+                                    <span className="bg-primary text-primary-foreground px-3.5 py-1.5 rounded-full font-bold flex items-center gap-1.5 text-xs shadow-lg">
                                       View <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
                                     </span>
                                   </span>
-                                  <span className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-[#929093] px-2 py-0.5 rounded-full border border-white/10">
+                                  <span className="absolute top-2 left-2 bg-black/75 backdrop-blur-md text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground px-2 py-0.5 rounded-full border border-border">
                                     {movie.type}
                                   </span>
                                 </div>
-                                <span className="font-display font-medium text-sm text-[#f3f0ea] group-hover:text-white transition-colors line-clamp-1">
+                                <span className="font-display font-medium text-sm text-foreground group-hover:text-brand transition-colors line-clamp-1">
                                   {movie.title}
                                 </span>
-                                <span className="flex items-center gap-2 mt-1 font-mono text-xs text-[#929093]">
+                                <span className="flex items-center gap-2 mt-1 font-mono text-xs text-muted-foreground">
                                   {movie.year > 0 && (
                                     <span>{movie.year}</span>
                                   )}
                                   {movie.rating !== null && (
-                                    <span className="text-[#f3f0ea] flex items-center gap-1">
-                                      <Star className="w-3 h-3 fill-[#f5c518] text-[#f5c518]" aria-hidden="true" />
+                                    <span className="text-foreground flex items-center gap-1">
+                                      <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" aria-hidden="true" />
                                       {formatRating(movie.rating)}
                                     </span>
                                   )}
@@ -495,8 +495,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                         </ul>
                       )}
 
-                      <div className="mt-8 pt-4 border-t border-white/[0.08] flex flex-col sm:flex-row items-center justify-between gap-4">
-                        <p className="text-xs text-[#929093] text-center sm:text-left font-mono">
+                      <div className="mt-8 pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <p className="text-xs text-muted-foreground text-center sm:text-left font-mono">
                           Found {results.length} matches across movies, TV, and anime.
                         </p>
                         <button
@@ -510,8 +510,8 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                       </div>
                     </div>
                   ) : (
-                    <div className="text-center py-20 text-[#929093]">
-                      <p className="text-xl font-display mb-2 text-[#f3f0ea]">No results for “{query}”</p>
+                    <div className="text-center py-20 text-muted-foreground">
+                      <p className="text-xl font-display mb-2 text-foreground">No results for “{query}”</p>
                       <p className="text-sm">Try a different title or spelling.</p>
                     </div>
                   )
@@ -520,13 +520,13 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     {history.length > 0 && (
                       <div>
                         <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-sm text-[#929093] font-mono uppercase tracking-wider flex items-center gap-2">
+                          <h2 className="text-sm text-muted-foreground font-mono uppercase tracking-wider flex items-center gap-2">
                             <Clock className="w-4 h-4" aria-hidden="true" /> Recent searches
                           </h2>
                           <button
                             type="button"
                             onClick={clearHistory}
-                            className="text-xs text-[#929093] hover:text-[#f3f0ea] flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-lg hover:bg-white/5 cursor-pointer font-mono"
+                            className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors px-2.5 py-1 rounded-lg hover:bg-muted cursor-pointer font-mono"
                             aria-label="Clear all search history"
                           >
                             <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
@@ -537,7 +537,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                           {history.map((term) => (
                             <div
                               key={term}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-white/[0.08] text-[#929093] hover:text-[#f3f0ea] hover:border-white/20 bg-white/[0.03] transition-all text-xs font-mono group"
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-border/80 bg-secondary transition-all text-xs font-mono group"
                             >
                               <button
                                 type="button"
@@ -549,7 +549,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                               <button
                                 type="button"
                                 onClick={(e) => removeHistoryItem(term, e)}
-                                className="text-[#929093]/60 hover:text-[#f3f0ea] transition-colors p-0.5 rounded-full cursor-pointer"
+                                className="text-muted-foreground/60 hover:text-foreground transition-colors p-0.5 rounded-full cursor-pointer"
                                 aria-label={`Remove ${term} from history`}
                                 title={`Remove "${term}"`}
                               >
@@ -562,7 +562,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                     )}
 
                     <div>
-                      <h2 className="text-sm text-[#929093] mb-4 font-mono uppercase tracking-wider flex items-center gap-2">
+                      <h2 className="text-sm text-muted-foreground mb-4 font-mono uppercase tracking-wider flex items-center gap-2">
                         <TrendingUp className="w-4 h-4" aria-hidden="true" /> Popular searches
                       </h2>
                       <div className="flex flex-wrap gap-2">
@@ -571,7 +571,7 @@ export function SearchOverlay({ isOpen, onClose, onMovieSelect }: SearchOverlayP
                             key={term}
                             type="button"
                             onClick={() => submit(term)}
-                            className="px-3.5 py-1.5 rounded-full border border-white/[0.08] text-[#929093] hover:text-[#f3f0ea] hover:border-white/20 transition-colors bg-white/[0.03] font-mono text-xs cursor-pointer"
+                            className="px-3.5 py-1.5 rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors bg-secondary font-mono text-xs cursor-pointer"
                           >
                             {term}
                           </button>

@@ -124,11 +124,11 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
     <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12">
       <div>
         <p className="eyebrow">The week&apos;s most watched</p>
-        <h3 className="font-display font-medium text-base sm:text-lg lg:text-xl tracking-tight text-[#f3f0ea] m-0">
+        <h3 className="font-display font-medium text-base sm:text-lg lg:text-xl tracking-tight text-foreground m-0">
           Top 10 in {regionLabel} Today
         </h3>
       </div>
-      <p className="text-[10px] font-mono text-[#77737a] tracking-wider uppercase hidden sm:block">
+      <p className="text-[10px] font-mono text-muted-foreground tracking-wider uppercase hidden sm:block">
         Refreshed daily
       </p>
     </div>
@@ -141,8 +141,8 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
         <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12 py-6">
           {Array.from({ length: 8 }, (_, i) => (
             <div key={`top10-skeleton-${i}`} className="flex items-end shrink-0">
-              <div className="w-[120px] sm:w-[140px] md:w-[160px] aspect-[2/3] rounded-[12px] bg-[#141417] border border-white/5 relative z-10 overflow-hidden">
-                <div className="w-full h-full skeleton-shimmer bg-[#1b191c] rounded-[12px]" />
+              <div className="w-[120px] sm:w-[140px] md:w-[160px] aspect-[2/3] rounded-[12px] bg-card border border-border relative z-10 overflow-hidden">
+                <div className="w-full h-full skeleton-shimmer bg-muted rounded-[12px]" />
               </div>
             </div>
           ))}
@@ -159,9 +159,9 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
         {heading}
         <div
           role="alert"
-          className="w-full py-12 bg-[#141417] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4"
+          className="w-full py-12 bg-card border border-border rounded-2xl flex flex-col items-center justify-center text-muted-foreground backdrop-blur gap-4"
         >
-          <p className="text-sm sm:text-base font-medium text-[#f3f0ea]">
+          <p className="text-sm sm:text-base font-medium text-foreground">
             Couldn’t load the top ten for {regionLabel}.
           </p>
           <button

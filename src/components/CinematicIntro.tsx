@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'motion/react';
 import { Volume2, VolumeX } from 'lucide-react';
 import { useApp } from '../store';
@@ -44,7 +44,7 @@ export function CinematicIntro({ onComplete }: { onComplete: () => void }) {
   }, [userProfile.isLoggedIn]);
 
   // Audio synthesizer for typewriter keystroke clicks and cinematic bass swell
-  const playCinematicAudio = () => {
+  const playCinematicAudio = useCallback(() => {
     if (soundPlayedRef.current || isMuted) return;
     soundPlayedRef.current = true;
 
@@ -90,10 +90,10 @@ export function CinematicIntro({ onComplete }: { onComplete: () => void }) {
     } catch {
       // Audio autoplay policy fallback
     }
-  };
+  }, [isMuted]);
 
   // Play subtle mechanical key click
-  const playTypewriterClick = () => {
+  const playTypewriterClick = useCallback(() => {
     if (isMuted || !audioCtxRef.current || audioCtxRef.current.state === 'closed') return;
     try {
       const ctx = audioCtxRef.current;
@@ -111,7 +111,7 @@ export function CinematicIntro({ onComplete }: { onComplete: () => void }) {
     } catch {
       // ignore
     }
-  };
+  }, [isMuted]);
 
   // Typewriter and lifecycle sequencing
   useEffect(() => {
@@ -177,7 +177,7 @@ export function CinematicIntro({ onComplete }: { onComplete: () => void }) {
         audioCtxRef.current.close().catch(() => {});
       }
     };
-  }, [onComplete]);
+  }, [onComplete, playCinematicAudio, playTypewriterClick]);
 
   return (
     <div

@@ -801,7 +801,7 @@ function AppContent() {
         />
       </motion.div>
     );
-  }, [homeFilters, userPreferences, isKidsMode, continueWatching]);
+  }, [homeFilters, userPreferences, isKidsMode, continueWatching, genreAffinity]);
 
   const renderRouteContent = (route: string) => {
     switch (route) {

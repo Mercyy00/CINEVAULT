@@ -313,39 +313,39 @@ export function AnimeDetail({ id }: { id: string }) {
     return (
       <div className="min-h-screen bg-background pb-28 sm:pb-36 relative overflow-hidden" role="status" aria-label="Loading anime">
         {/* Banner shimmer */}
-        <div className="absolute top-0 inset-x-0 h-[75vh] pointer-events-none skeleton-shimmer bg-[#12131a] opacity-30">
+        <div className="absolute top-0 inset-x-0 h-[75vh] pointer-events-none skeleton-shimmer bg-card opacity-30">
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/80 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/50 to-transparent" />
         </div>
 
         <div className="relative z-10 w-full px-4 sm:px-8 lg:px-12 pt-[15vh]">
-          <div className="w-24 h-8 rounded-full skeleton-shimmer bg-white/10 mb-8" />
+          <div className="w-24 h-8 rounded-full skeleton-shimmer bg-muted mb-8" />
 
           <div className="flex flex-col lg:flex-row gap-8 lg:gap-16 mb-16 items-start">
             {/* Poster Skeleton */}
-            <div className="w-full max-w-[320px] mx-auto lg:mx-0 aspect-[2/3] rounded-xl skeleton-shimmer bg-[#15161f] border border-white/10 shrink-0 shadow-card" />
+            <div className="w-full max-w-[320px] mx-auto lg:mx-0 aspect-[2/3] rounded-xl skeleton-shimmer bg-muted/60 border border-border shrink-0 shadow-card" />
 
             {/* Content Skeleton */}
             <div className="flex-1 w-full space-y-5 pt-4 lg:pt-0">
-              <div className="h-10 sm:h-14 w-3/4 max-w-xl rounded-xl skeleton-shimmer bg-white/10" />
-              <div className="h-5 w-1/2 max-w-sm rounded-lg skeleton-shimmer bg-white/5" />
+              <div className="h-10 sm:h-14 w-3/4 max-w-xl rounded-xl skeleton-shimmer bg-muted" />
+              <div className="h-5 w-1/2 max-w-sm rounded-lg skeleton-shimmer bg-muted/50" />
 
               <div className="flex items-center gap-3 pt-1">
-                <div className="h-7 w-16 rounded-full skeleton-shimmer bg-white/10" />
-                <div className="h-7 w-20 rounded-full skeleton-shimmer bg-white/10" />
-                <div className="h-7 w-24 rounded-full skeleton-shimmer bg-white/10" />
+                <div className="h-7 w-16 rounded-full skeleton-shimmer bg-muted" />
+                <div className="h-7 w-20 rounded-full skeleton-shimmer bg-muted" />
+                <div className="h-7 w-24 rounded-full skeleton-shimmer bg-muted" />
               </div>
 
               <div className="flex items-center gap-3 pt-3">
                 <div className="h-12 w-36 rounded-full skeleton-shimmer bg-brand/30" />
-                <div className="h-12 w-12 rounded-full skeleton-shimmer bg-white/10" />
-                <div className="h-12 w-12 rounded-full skeleton-shimmer bg-white/10" />
+                <div className="h-12 w-12 rounded-full skeleton-shimmer bg-muted" />
+                <div className="h-12 w-12 rounded-full skeleton-shimmer bg-muted" />
               </div>
 
               <div className="space-y-2.5 pt-4 max-w-3xl">
-                <div className="h-4 w-full rounded skeleton-shimmer bg-white/5" />
-                <div className="h-4 w-11/12 rounded skeleton-shimmer bg-white/5" />
-                <div className="h-4 w-4/5 rounded skeleton-shimmer bg-white/5" />
+                <div className="h-4 w-full rounded skeleton-shimmer bg-muted/40" />
+                <div className="h-4 w-11/12 rounded skeleton-shimmer bg-muted/40" />
+                <div className="h-4 w-4/5 rounded skeleton-shimmer bg-muted/40" />
               </div>
             </div>
           </div>
@@ -468,7 +468,7 @@ export function AnimeDetail({ id }: { id: string }) {
 
         {/* Mobile Header: Side-by-side poster + primary metadata */}
         <div className="flex sm:hidden items-start gap-4 mb-5">
-          <div className="w-28 aspect-[2/3] rounded-xl overflow-hidden border border-white/15 relative shadow-card shrink-0">
+          <div className="w-28 aspect-[2/3] rounded-xl overflow-hidden border border-border relative shadow-card shrink-0">
             <PosterImage
               src={movie.posterUrl}
               title={movie.title}
@@ -506,7 +506,7 @@ export function AnimeDetail({ id }: { id: string }) {
                 </>
               )}
               {movie.ageRating && (
-                <span className="px-1.5 py-0.2 border border-white/20 rounded text-[10px] font-mono">
+                <span className="px-1.5 py-0.2 border border-border rounded text-[10px] font-mono">
                   {movie.ageRating}
                 </span>
               )}
@@ -515,7 +515,7 @@ export function AnimeDetail({ id }: { id: string }) {
               {movie.genres?.slice(0, 3).map((g) => (
                 <span
                   key={g}
-                  className="px-2 py-0.5 bg-white/5 border border-white/10 rounded-full text-foreground/70 text-[10px] font-mono"
+                  className="px-2 py-0.5 bg-secondary border border-border rounded-full text-foreground/70 text-[10px] font-mono"
                 >
                   {g}
                 </span>
@@ -536,7 +536,7 @@ export function AnimeDetail({ id }: { id: string }) {
             <motion.div 
               whileHover={{ rotateX: 5, rotateY: -5 }}
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="aspect-[2/3] rounded-xl overflow-hidden border border-white/10 relative shadow-card"
+              className="aspect-[2/3] rounded-xl overflow-hidden border border-border relative shadow-card"
             >
               <PosterImage
                 src={movie.posterUrl}
@@ -571,7 +571,7 @@ export function AnimeDetail({ id }: { id: string }) {
             )}
 
             {movie.tagline && (
-              <p className="text-sm sm:text-lg font-display italic text-[#929093] mb-4">
+              <p className="text-sm sm:text-lg font-display italic text-muted-foreground mb-4">
                 "{movie.tagline}"
               </p>
             )}
@@ -586,15 +586,15 @@ export function AnimeDetail({ id }: { id: string }) {
             )}
 
             {/* Modern Metadata Badges in DM Mono */}
-            <div className="hidden sm:flex flex-wrap items-center gap-3 text-xs sm:text-sm font-medium text-[#f3f0ea] mb-6 font-mono">
-              <div className="flex items-center gap-1.5 text-[#f3f0ea] bg-white/[0.04] px-3 py-1 rounded-full border border-white/10">
+            <div className="hidden sm:flex flex-wrap items-center gap-3 text-xs sm:text-sm font-medium text-foreground mb-6 font-mono">
+              <div className="flex items-center gap-1.5 text-foreground bg-muted/40 px-3 py-1 rounded-full border border-border">
                 <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" />
-                <span className="font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-[#929093] text-xs font-normal">/ 10</span></span>
+                <span className="font-bold tracking-wide">{formatRating(movie.rating)} <span className="text-muted-foreground text-xs font-normal">/ 10</span></span>
               </div>
-              <span className="flex items-center gap-1.5 text-[#929093]"><Calendar className="w-3.5 h-3.5" /> {movie.year}</span>
-              <span className="flex items-center gap-1.5 text-[#929093]"><Clock className="w-3.5 h-3.5" /> {movie.duration}</span>
+              <span className="flex items-center gap-1.5 text-muted-foreground"><Calendar className="w-3.5 h-3.5" /> {movie.year}</span>
+              <span className="flex items-center gap-1.5 text-muted-foreground"><Clock className="w-3.5 h-3.5" /> {movie.duration}</span>
               {movie.ageRating && (
-                <span className="px-2 py-0.5 border border-white/20 rounded-full text-[#929093] text-xs">{movie.ageRating}</span>
+                <span className="px-2 py-0.5 border border-border rounded-full text-muted-foreground text-xs">{movie.ageRating}</span>
               )}
             </div>
 
@@ -610,7 +610,7 @@ export function AnimeDetail({ id }: { id: string }) {
                 <button
                   type="button"
                   onClick={() => setShowFullDesc(!showFullDesc)}
-                  className="sm:hidden text-xs text-[#f3f0ea] underline font-mono mt-1.5 cursor-pointer block"
+                  className="sm:hidden text-xs text-foreground underline font-mono mt-1.5 cursor-pointer block"
                 >
                   {showFullDesc ? 'Show less' : 'Read more'}
                 </button>
@@ -667,10 +667,10 @@ export function AnimeDetail({ id }: { id: string }) {
                   onClick={handleWatchlistToggle}
                   className={cn(
                     "flex-1 sm:flex-none secondary-btn flex items-center justify-center gap-2 cursor-pointer",
-                    inWatchlist && "bg-white/[0.14] border-white/30 text-white"
+                    inWatchlist && "bg-secondary border-border text-foreground"
                   )}
                 >
-                  {inWatchlist ? <Check className="w-4 h-4 text-[#f3f0ea]" /> : <Plus className="w-4 h-4" />}
+                  {inWatchlist ? <Check className="w-4 h-4 text-brand" /> : <Plus className="w-4 h-4" />}
                   {inWatchlist ? 'In Watchlist' : 'Watchlist'}
                 </button>
 
@@ -701,7 +701,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   transition={{ delay: idx * 0.05, duration: 0.3 }}
                   className="flex flex-col items-center text-center group cursor-pointer w-24 shrink-0 relative"
                 >
-                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-white/10 group-hover:border-brand transition-colors mb-2.5">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-border group-hover:border-brand transition-colors mb-2.5">
                     <img loading="lazy" src={actor.photoUrl} alt={actor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                   </div>
                   <span className="text-xs sm:text-sm font-semibold text-foreground mb-1 truncate w-full">{actor.name}</span>
@@ -731,7 +731,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   <button
                     key={rel.id}
                     onClick={() => goToDetail(rel.id, 'anime')}
-                    className="flex items-center gap-4 p-4 rounded-2xl glass border border-white/10 hover:border-brand/40 hover:bg-white/10 transition-all text-left group cursor-pointer"
+                    className="flex items-center gap-4 p-4 rounded-2xl bg-card border border-border hover:border-brand/40 hover:bg-muted/40 transition-all text-left group cursor-pointer"
                   >
                     <div className="w-20 h-28 rounded-xl overflow-hidden shrink-0 bg-black/40 relative">
                       <img
@@ -743,7 +743,7 @@ export function AnimeDetail({ id }: { id: string }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div
-                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider mb-2 backdrop-blur-md border border-white/10 shadow-sm"
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider mb-2 backdrop-blur-md border border-border shadow-sm"
                         style={{
                           backgroundColor: isPrequel ? 'rgba(99, 102, 241, 0.2)' : 'rgba(16, 185, 129, 0.2)',
                           color: isPrequel ? '#a5b4fc' : '#6ee7b7',
@@ -774,7 +774,7 @@ export function AnimeDetail({ id }: { id: string }) {
         )}
 
         {/* Episode Selector & Grid (Full Width) */}
-        <div className="mb-14 glass rounded-3xl p-6 sm:p-8 border border-white/10 w-full">
+        <div className="mb-14 bg-card rounded-3xl p-6 sm:p-8 border border-border w-full">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
             <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
               <Play className="w-5 h-5 text-brand fill-current" /> Episodes
@@ -787,7 +787,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   Syncing details...
                 </span>
               ) : episodes.length > 0 ? (
-                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-white/10 text-muted-foreground">
+                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
                   {episodes.length} {episodes.length === 1 ? 'episode' : 'episodes'}
                 </span>
               ) : null}
@@ -797,7 +797,7 @@ export function AnimeDetail({ id }: { id: string }) {
                 <select
                   value={selectedChunk}
                   onChange={(e) => setSelectedChunk(parseInt(e.target.value))}
-                  className="w-full appearance-none bg-black/40 border border-white/20 hover:border-brand rounded-full px-6 py-3 text-foreground focus:outline-none focus:border-brand text-base font-display transition-colors cursor-pointer"
+                  className="w-full appearance-none bg-black/40 border border-border hover:border-brand rounded-full px-6 py-3 text-foreground focus:outline-none focus:border-brand text-base font-display transition-colors cursor-pointer"
                 >
                   {chunkOptions.map((chunk, idx) => (
                     <option key={idx} value={idx} className="bg-background text-foreground">
@@ -813,12 +813,12 @@ export function AnimeDetail({ id }: { id: string }) {
           {isEpisodesLoading && episodes.length === 0 ? (
             <div className="space-y-4">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-full flex flex-col md:flex-row gap-4 p-4 rounded-2xl bg-white/5 animate-pulse border border-white/5">
-                  <div className="w-full md:w-48 aspect-video rounded-xl bg-white/10 shrink-0 skeleton-shimmer" />
+                <div key={i} className="w-full flex flex-col md:flex-row gap-4 p-4 rounded-2xl bg-muted/40 animate-pulse border border-border">
+                  <div className="w-full md:w-48 aspect-video rounded-xl bg-muted shrink-0 skeleton-shimmer" />
                   <div className="flex-1 space-y-3 py-2">
-                    <div className="h-4 bg-white/10 rounded w-24 skeleton-shimmer" />
-                    <div className="h-5 bg-white/15 rounded w-2/3 skeleton-shimmer" />
-                    <div className="h-3 bg-white/5 rounded w-1/2 skeleton-shimmer" />
+                    <div className="h-4 bg-muted rounded w-24 skeleton-shimmer" />
+                    <div className="h-5 bg-muted/70 rounded w-2/3 skeleton-shimmer" />
+                    <div className="h-3 bg-muted/40 rounded w-1/2 skeleton-shimmer" />
                   </div>
                 </div>
               ))}
@@ -850,7 +850,7 @@ export function AnimeDetail({ id }: { id: string }) {
                     "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer items-start md:items-center justify-between",
                     selectedEpisode === ep.number 
                       ? "bg-brand/10 border border-brand/40 shadow-card" 
-                      : "bg-white/5 border border-transparent hover:bg-white/10 hover:border-white/10"
+                      : "bg-secondary/50 border border-transparent hover:bg-secondary hover:border-border"
                   )}
                 >
                   <div className="flex flex-col md:flex-row gap-4 flex-1 min-w-0 w-full items-start md:items-center">
@@ -902,7 +902,7 @@ export function AnimeDetail({ id }: { id: string }) {
                         e.stopPropagation();
                         goToDownload(id, 'anime', 1, ep.number, movie.malId || '0');
                       }}
-                      className="px-3.5 py-2 rounded-xl glass border border-white/10 hover:border-brand/40 hover:bg-brand/20 text-muted-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-bold active:scale-95 cursor-pointer"
+                      className="px-3.5 py-2 rounded-xl bg-secondary border border-border hover:border-brand/40 hover:bg-brand/20 text-muted-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-bold active:scale-95 cursor-pointer"
                       title={`Download Episode ${ep.number}`}
                     >
                       <Download className="w-3.5 h-3.5" />
@@ -946,7 +946,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   <button
                     key={rel.id}
                     onClick={() => goToDetail(rel.id, 'anime')}
-                    className="flex flex-col rounded-2xl glass border border-white/10 hover:border-brand/40 overflow-hidden hover:bg-white/10 transition-all text-left group cursor-pointer"
+                    className="flex flex-col rounded-2xl bg-card border border-border hover:border-brand/40 overflow-hidden hover:bg-muted/40 transition-all text-left group cursor-pointer"
                   >
                     <div className="w-full aspect-[2/3] bg-black/40 relative overflow-hidden">
                       <img
@@ -955,7 +955,7 @@ export function AnimeDetail({ id }: { id: string }) {
                         alt={rel.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
-                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/80 text-brand backdrop-blur border border-white/10">
+                      <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-black/80 text-brand backdrop-blur border border-border">
                         {formatLabel}
                       </div>
                     </div>
@@ -1054,11 +1054,11 @@ export function AnimeDetail({ id }: { id: string }) {
           onClick={() => setShowDownloadModal(false)}
         >
           <div
-            className="bg-[#0f1117] border border-white/10 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
+            className="bg-card border border-border rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="p-4 sm:p-6 border-b border-white/10 flex items-center justify-between gap-4">
+            <div className="p-4 sm:p-6 border-b border-border flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest text-brand bg-brand/10 px-2.5 py-0.5 rounded-full border border-brand/20">
@@ -1075,17 +1075,17 @@ export function AnimeDetail({ id }: { id: string }) {
               <button
                 type="button"
                 onClick={() => setShowDownloadModal(false)}
-                className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
+                className="w-9 h-9 rounded-full bg-secondary hover:bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground transition-all shrink-0 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Track Switcher & Filter */}
-            <div className="p-4 sm:px-6 bg-white/[0.02] border-b border-white/5 flex flex-wrap items-center justify-between gap-3">
+            <div className="p-4 sm:px-6 bg-muted/20 border-b border-border flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-muted-foreground">Audio:</span>
-                <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1">
+                <div className="flex items-center bg-secondary border border-border rounded-xl p-1">
                   <button
                     type="button"
                     onClick={() => setDownloadTrack('sub')}
@@ -1121,7 +1121,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   placeholder="Filter episode..."
                   value={downloadSearch}
                   onChange={(e) => setDownloadSearch(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-brand/50"
+                  className="w-full bg-secondary border border-border rounded-xl pl-8 pr-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-brand/50"
                 />
               </div>
             </div>
@@ -1145,7 +1145,7 @@ export function AnimeDetail({ id }: { id: string }) {
                   .map((ep: any) => (
                     <div
                       key={ep.id || ep.number}
-                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/5 hover:border-brand/30 hover:bg-white/10 transition-all"
+                      className="flex items-center justify-between gap-3 p-3 rounded-xl bg-secondary/60 border border-border/50 hover:border-brand/30 hover:bg-secondary transition-all"
                     >
                       <div className="min-w-0 flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-brand/10 border border-brand/20 flex items-center justify-center text-xs font-mono font-bold text-brand shrink-0">

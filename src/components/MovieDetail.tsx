@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Play,
@@ -85,6 +85,13 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
     }
     return () => setAmbientColor(null);
   }, [movie, setAmbientColor, type]);
+
+  const continueWatchingRef = useRef(continueWatching);
+  useEffect(() => {
+    continueWatchingRef.current = continueWatching;
+  }, [continueWatching]);
+
+  const loadSeasonRef = useRef<(seasonNumber: number, defaultEp?: number) => Promise<void>>(async () => {});
 
   useEffect(() => {
     let mounted = true;
@@ -207,14 +214,14 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           let defaultSeason = validSeasons.length > 0 ? validSeasons[0].season_number : 1;
           let defaultEpisode = 1;
 
-          const cwItem = continueWatching.find((i) => i.id === id);
+          const cwItem = continueWatchingRef.current.find((i: any) => i.id === id);
           if (cwItem && cwItem.season_number) {
             defaultSeason = cwItem.season_number;
             defaultEpisode = cwItem.episode_number || 1;
           }
 
           if (validSeasons.length > 0) {
-            await loadSeason(defaultSeason, defaultEpisode);
+            await loadSeasonRef.current(defaultSeason, defaultEpisode);
           }
         }
       } catch (err) {
@@ -228,7 +235,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
     };
   }, [type, id]);
 
-  const loadSeason = async (seasonNumber: number, defaultEp: number = 1) => {
+  const loadSeason = useCallback(async (seasonNumber: number, defaultEp: number = 1) => {
     setSelectedSeason(seasonNumber);
     if (seasonCache.has(seasonNumber)) {
       setEpisodes(seasonCache.get(seasonNumber)!);
@@ -248,7 +255,8 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
     } finally {
       setIsLoadingEpisodes(false);
     }
-  };
+  }, [id, seasonCache]);
+  loadSeasonRef.current = loadSeason;
 
   const handleDownload = (targetSeason?: number, targetEp?: number) => {
     const finalImdb = imdbId || movie?.imdbId || id;
@@ -261,15 +269,15 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
   if (!movie) {
     return (
       <div className="min-h-screen bg-background text-foreground animate-pulse" aria-busy="true">
-        <div className="w-full h-[50vh] sm:h-[65vh] skeleton-shimmer bg-[#0f1016]" />
+        <div className="w-full h-[50vh] sm:h-[65vh] skeleton-shimmer bg-card" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 -mt-32 sm:-mt-48 relative z-10">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-16 mb-12">
-            <div className="w-48 sm:w-72 aspect-[2/3] rounded-2xl skeleton-shimmer bg-[#14151f] mx-auto lg:mx-0 shrink-0 border border-white/10" />
+            <div className="w-48 sm:w-72 aspect-[2/3] rounded-2xl skeleton-shimmer bg-muted mx-auto lg:mx-0 shrink-0 border border-border" />
             <div className="flex-1 space-y-4 pt-4">
-              <div className="h-10 w-3/4 rounded-xl skeleton-shimmer bg-[#181926]" />
-              <div className="h-5 w-1/3 rounded-lg skeleton-shimmer bg-[#14151f]" />
-              <div className="h-24 w-full rounded-xl skeleton-shimmer bg-[#14151f]" />
-              <div className="h-12 w-48 rounded-full skeleton-shimmer bg-[#181926]" />
+              <div className="h-10 w-3/4 rounded-xl skeleton-shimmer bg-muted" />
+              <div className="h-5 w-1/3 rounded-lg skeleton-shimmer bg-muted" />
+              <div className="h-24 w-full rounded-xl skeleton-shimmer bg-muted" />
+              <div className="h-12 w-48 rounded-full skeleton-shimmer bg-muted" />
             </div>
           </div>
         </div>
@@ -471,7 +479,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             )}
 
             {movie.tagline && (
-              <p className="text-sm sm:text-lg font-display italic text-[#929093] mb-4">
+              <p className="text-sm sm:text-lg font-display italic text-muted-foreground mb-4">
                 "{movie.tagline}"
               </p>
             )}
@@ -486,44 +494,44 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             )}
 
             {/* Modern Metadata Line in DM Mono */}
-            <div className="hidden sm:flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-[#f3f0ea] mb-6 font-mono">
-              <div className="flex items-center gap-1.5 text-[#f3f0ea] bg-white/[0.04] px-3 py-1 rounded-full border border-white/10">
+            <div className="hidden sm:flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs sm:text-sm font-medium text-foreground mb-6 font-mono">
+              <div className="flex items-center gap-1.5 text-foreground bg-muted/40 px-3 py-1 rounded-full border border-border">
                 <Star className="w-3.5 h-3.5 fill-[#f5c518] text-[#f5c518]" />
                 <span className="font-bold tracking-wide">
                   {formatRating(movie.rating)}{' '}
-                  <span className="text-[#929093] text-[10px] sm:text-xs font-normal">/ 10</span>
+                  <span className="text-muted-foreground text-[10px] sm:text-xs font-normal">/ 10</span>
                 </span>
               </div>
 
               {movie.imdbRating && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[#f3f0ea] font-bold text-xs">
-                  <span className="bg-[#f5c518] text-[#0b0b0d] text-[9px] font-black px-1 py-0.5 rounded leading-none tracking-wide">IMDb</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-foreground font-bold text-xs">
+                  <span className="bg-[#f5c518] text-black text-[9px] font-black px-1 py-0.5 rounded leading-none tracking-wide">IMDb</span>
                   <span>{movie.imdbRating}</span>
                 </div>
               )}
 
               {movie.rtRating && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[#f3f0ea] font-bold text-xs">
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-foreground font-bold text-xs">
                   <Star className="w-3.5 h-3.5 fill-current text-rose-400" aria-hidden="true" />
                   <span>{movie.rtRating}</span>
                 </div>
               )}
 
               {movie.metacriticRating && (
-                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/10 text-[#f3f0ea] font-bold text-xs">
-                  <span className="bg-white/15 text-[#f3f0ea] text-[9px] font-black px-1 py-0.5 rounded leading-none tracking-wide">META</span>
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-muted/40 border border-border text-foreground font-bold text-xs">
+                  <span className="bg-muted text-foreground text-[9px] font-black px-1 py-0.5 rounded leading-none tracking-wide">META</span>
                   <span>{movie.metacriticRating}</span>
                 </div>
               )}
 
-              <span className="flex items-center gap-1.5 text-[#929093]">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Calendar className="w-3.5 h-3.5" /> {movie.year}
               </span>
-              <span className="flex items-center gap-1.5 text-[#929093]">
+              <span className="flex items-center gap-1.5 text-muted-foreground">
                 <Clock className="w-3.5 h-3.5" /> {movie.duration}
               </span>
               {movie.ageRating && (
-                <span className="px-2 py-0.5 border border-white/20 rounded-full text-[#929093] text-[10px] sm:text-xs">
+                <span className="px-2 py-0.5 border border-border rounded-full text-muted-foreground text-[10px] sm:text-xs">
                   {movie.ageRating}
                 </span>
               )}
@@ -541,7 +549,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                 <button
                   type="button"
                   onClick={() => setShowFullDesc(!showFullDesc)}
-                  className="sm:hidden text-xs text-[#f3f0ea] underline font-mono mt-1.5 cursor-pointer block"
+                  className="sm:hidden text-xs text-foreground underline font-mono mt-1.5 cursor-pointer block"
                 >
                   {showFullDesc ? 'Show less' : 'Read more'}
                 </button>
@@ -608,10 +616,10 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   onClick={handleWatchlistToggle}
                   className={cn(
                     'flex-1 sm:flex-none secondary-btn flex items-center justify-center gap-2 cursor-pointer',
-                    inWatchlist && 'bg-white/[0.14] border-white/30 text-white'
+                    inWatchlist && 'bg-primary/20 border-primary text-foreground'
                   )}
                 >
-                  {inWatchlist ? <Check className="w-4 h-4 text-[#f3f0ea]" /> : <Plus className="w-4 h-4" />}
+                  {inWatchlist ? <Check className="w-4 h-4 text-brand" /> : <Plus className="w-4 h-4" />}
                   {inWatchlist ? 'In Watchlist' : 'Watchlist'}
                 </button>
 
@@ -645,9 +653,9 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     </span>
                     <div className="flex gap-3">
                       {providers.map(p => (
-                        <div key={p.id} className="group relative w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-white/10 shadow-sm cursor-pointer">
+                        <div key={p.id} className="group relative w-10 h-10 rounded-xl overflow-hidden bg-secondary border border-border shadow-sm cursor-pointer">
                           {p.logoUrl && <img src={p.logoUrl} alt={p.name} className="w-full h-full object-cover" />}
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/90 text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 font-bold border border-white/10 text-white">
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-card text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 font-bold border border-border text-foreground">
                             {p.name}
                           </div>
                         </div>
@@ -662,10 +670,10 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
 
         {/* ═══ FULL-WIDTH SECTION 1: TV EPISODE SELECTOR ═══ */}
         {type === 'tv' && seasons.length > 0 && (
-          <div className="mb-14 bg-[#111215] rounded-[22px] p-6 sm:p-8 border border-white/[0.08] w-full shadow-2xl">
+          <div className="mb-14 bg-card rounded-[22px] p-6 sm:p-8 border border-border w-full shadow-2xl">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-              <h3 className="text-xl sm:text-2xl font-display font-bold text-[#f3f0ea] flex items-center gap-2">
-                <Play className="w-5 h-5 fill-current text-[#f3f0ea]" /> Episodes
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
+                <Play className="w-5 h-5 fill-current text-brand" /> Episodes
               </h3>
               <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2 max-w-full">
                 {seasons.map((s: any) => (
@@ -675,8 +683,8 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     className={cn(
                       'px-4 sm:px-5 py-2 sm:py-2.5 rounded-full whitespace-nowrap text-xs sm:text-sm font-mono transition-all border cursor-pointer',
                       selectedSeason === s.season_number
-                        ? 'bg-[#f3f0ea] text-[#0b0b0d] border-[#f3f0ea] font-bold shadow-md'
-                        : 'bg-white/[0.03] text-[#929093] hover:text-[#f3f0ea] border-white/[0.08] hover:border-white/20'
+                        ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md'
+                        : 'bg-muted/40 text-muted-foreground hover:text-foreground border-border hover:border-brand/40'
                     )}
                   >
                     Season {s.season_number}
@@ -688,7 +696,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
             <div className="space-y-3.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
               {isLoadingEpisodes ? (
                 <div className="py-12 flex justify-center">
-                  <LemniscateBloom size={56} className="text-[#f3f0ea]" ariaLabel="Loading episodes" />
+                  <LemniscateBloom size={56} className="text-foreground" ariaLabel="Loading episodes" />
                 </div>
               ) : (
                 episodes.map((ep: any) => (
@@ -701,8 +709,8 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     className={cn(
                       'w-full text-left flex flex-col md:flex-row items-start md:items-center gap-4 p-4 rounded-[16px] transition-all group cursor-pointer border',
                       selectedEpisode === ep.episode_number
-                        ? 'bg-[#18191f] border-white/25 shadow-lg'
-                        : 'bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.05] hover:border-white/15'
+                        ? 'bg-secondary border-border shadow-lg ring-1 ring-brand/30'
+                        : 'bg-card/40 border-border hover:bg-muted/50 hover:border-border'
                     )}
                   >
                     <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
@@ -782,7 +790,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   onClick={() => goToDetail(part.id, part.type)}
                   className="w-32 sm:w-40 shrink-0 cursor-pointer group flex flex-col"
                 >
-                  <div className="aspect-[2/3] rounded-2xl overflow-hidden border border-white/10 group-hover:border-brand transition-all relative shadow-card mb-2">
+                  <div className="aspect-[2/3] rounded-2xl overflow-hidden border border-border group-hover:border-brand transition-all relative shadow-card mb-2">
                     <PosterImage src={part.posterUrl} title={part.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <p className="text-sm font-semibold text-foreground group-hover:text-brand line-clamp-1">{part.title}</p>
@@ -797,10 +805,10 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         {movie.cast && movie.cast.length > 0 && (
           <div className="mb-14 w-full">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xl sm:text-2xl font-display font-bold text-[#f3f0ea] flex items-center gap-2">
-                <Users className="w-5 h-5 text-[#929093]" /> Principal Cast
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
+                <Users className="w-5 h-5 text-muted-foreground" /> Principal Cast
               </h3>
-              <span className="text-xs text-[#929093] font-mono">Filmography</span>
+              <span className="text-xs text-muted-foreground font-mono">Filmography</span>
             </div>
             <div className="flex gap-4 sm:gap-6 overflow-x-auto scrollbar-none pb-4 -mx-4 px-4 lg:mx-0 lg:px-0">
               {movie.cast.map((actor, idx) => (
@@ -819,17 +827,17 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   }
                   className="flex flex-col items-center text-center group cursor-pointer w-24 sm:w-28 shrink-0 relative"
                 >
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-white/10 group-hover:border-white/30 transition-all mb-2.5 relative">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-border group-hover:border-border/80 transition-all mb-2.5 relative">
                     <PosterImage
                       src={actor.photoUrl}
                       title={actor.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
-                  <span className="text-xs sm:text-sm font-semibold text-[#f3f0ea] group-hover:text-white transition-colors line-clamp-1 w-full font-display">
+                  <span className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1 w-full font-display">
                     {actor.name}
                   </span>
-                  <span className="text-[11px] text-[#929093] line-clamp-1 font-mono w-full">
+                  <span className="text-[11px] text-muted-foreground line-clamp-1 font-mono w-full">
                     {actor.character || 'Cast'}
                   </span>
                 </motion.div>
@@ -842,10 +850,10 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         {videos.length > 0 && (
           <div className="mb-14 w-full">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xl sm:text-2xl font-display font-bold text-[#f3f0ea] flex items-center gap-2">
-                <Clapperboard className="w-5 h-5 text-[#929093]" /> Trailers & Extras
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
+                <Clapperboard className="w-5 h-5 text-muted-foreground" /> Trailers & Extras
               </h3>
-              <span className="text-xs text-[#929093] font-mono">{videos.length} Clips</span>
+              <span className="text-xs text-muted-foreground font-mono">{videos.length} Clips</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -853,7 +861,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                 <div
                   key={`trailer-${vid.id}`}
                   onClick={() => setActiveTrailer(vid.key)}
-                  className="group cursor-pointer rounded-[14px] overflow-hidden border border-white/[0.08] hover:border-white/20 bg-[#141417] transition-all relative flex flex-col shadow-card"
+                  className="group cursor-pointer rounded-[14px] overflow-hidden border border-border hover:border-border/80 bg-card transition-all relative flex flex-col shadow-card"
                 >
                   <div className="aspect-video relative overflow-hidden bg-black/60">
                     <img
@@ -863,7 +871,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                     <div className="absolute inset-0 bg-black/30 group-hover:bg-black/10 transition-colors flex items-center justify-center">
-                      <div className="w-10 h-10 rounded-full bg-[#f3f0ea] text-[#0b0b0d] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                      <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                         <Play className="w-4 h-4 fill-current ml-0.5" />
                       </div>
                     </div>
@@ -872,10 +880,10 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     </span>
                   </div>
                   <div className="p-3.5">
-                    <h4 className="text-sm font-semibold text-[#f3f0ea] group-hover:text-white transition-colors line-clamp-1 font-display">
+                    <h4 className="text-sm font-semibold text-foreground group-hover:text-brand transition-colors line-clamp-1 font-display">
                       {vid.name}
                     </h4>
-                    <p className="text-[11px] text-[#929093] font-mono mt-0.5">Watch Preview</p>
+                    <p className="text-[11px] text-muted-foreground font-mono mt-0.5">Watch Preview</p>
                   </div>
                 </div>
               ))}
@@ -886,23 +894,23 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         {/* ═══ FULL-WIDTH SECTION: REVIEWS ═══ */}
         {reviews && reviews.length > 0 && (
           <div className="mb-14 w-full">
-            <h3 className="text-xl sm:text-2xl font-display font-bold text-[#f3f0ea] mb-5">
+            <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5">
               Reviews
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {reviews.slice(0, 3).map(review => (
-                <div key={review.id} className="p-5 bg-[#141417] border border-white/[0.08] rounded-[16px] flex flex-col gap-3">
+                <div key={review.id} className="p-5 bg-card border border-border rounded-[16px] flex flex-col gap-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-white/[0.06] overflow-hidden flex items-center justify-center shrink-0 border border-white/10">
+                    <div className="w-10 h-10 rounded-full bg-secondary overflow-hidden flex items-center justify-center shrink-0 border border-border">
                       {review.avatarUrl ? (
                         <img src={review.avatarUrl} alt={review.user} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-[#f3f0ea] font-bold text-sm uppercase">{review.user.charAt(0)}</span>
+                        <span className="text-foreground font-bold text-sm uppercase">{review.user.charAt(0)}</span>
                       )}
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-[#f3f0ea] line-clamp-1 font-display">{review.user}</h4>
-                      <div className="flex items-center gap-2 text-xs text-[#929093] font-mono">
+                      <h4 className="font-bold text-sm text-foreground line-clamp-1 font-display">{review.user}</h4>
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
                         <span className="flex items-center gap-1">
                           <Star className="w-3 h-3 text-[#f5c518] fill-[#f5c518]" />
                           {review.rating ? `${review.rating}/10` : '—'}
@@ -911,7 +919,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                       </div>
                     </div>
                   </div>
-                  <p className="text-sm text-[#929093] line-clamp-3 hover:line-clamp-none transition-all cursor-pointer flex-1 leading-relaxed">
+                  <p className="text-sm text-muted-foreground line-clamp-3 hover:line-clamp-none transition-all cursor-pointer flex-1 leading-relaxed">
                     {review.content}
                   </p>
                 </div>
@@ -924,7 +932,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         <div className="mt-8 space-y-10 w-full">
           {movie.recommendations && movie.recommendations.length > 0 ? (
             <div className="mb-14 w-full">
-              <h3 className="text-xl sm:text-2xl font-display font-bold text-[#f3f0ea] mb-5 px-3 sm:px-6 lg:px-8">
+              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground mb-5 px-3 sm:px-6 lg:px-8">
                 More Like This
               </h3>
               <div className="flex gap-4 sm:gap-5 overflow-x-auto scrollbar-none pb-8 px-4 sm:px-8 lg:px-12 -mx-4 lg:-mx-8">
@@ -934,18 +942,18 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                     onClick={() => goToDetail(rec.id, rec.type)}
                     className="w-[150px] sm:w-[180px] md:w-[200px] shrink-0 cursor-pointer group flex flex-col"
                   >
-                    <div className="aspect-[2/3] rounded-[12px] overflow-hidden border border-white/[0.08] group-hover:border-white/25 transition-all relative shadow-lg mb-2.5 bg-[#141417]">
+                    <div className="aspect-[2/3] rounded-[12px] overflow-hidden border border-border group-hover:border-border/80 transition-all relative shadow-lg mb-2.5 bg-card">
                       <PosterImage src={rec.posterUrl} title={rec.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white flex items-center gap-1">
                          <Star className="w-2.5 h-2.5 text-[#f5c518] fill-[#f5c518]" />
                          <span>{formatRating(rec.rating)}</span>
                       </div>
-                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[9px] font-mono uppercase font-bold text-[#929093]">
+                      <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/75 backdrop-blur-md border border-white/10 text-[9px] font-mono uppercase font-bold text-muted-foreground">
                          {rec.type}
                       </div>
                     </div>
-                    <p className="text-sm font-semibold text-[#f3f0ea] group-hover:text-white line-clamp-1 font-display">{rec.title}</p>
-                    <p className="text-[11px] text-[#929093] font-mono mt-0.5">{rec.year || 'Released'}</p>
+                    <p className="text-sm font-semibold text-foreground group-hover:text-brand line-clamp-1 font-display">{rec.title}</p>
+                    <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{rec.year || 'Released'}</p>
                   </div>
                 ))}
               </div>

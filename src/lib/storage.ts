@@ -39,6 +39,7 @@ export const StorageKeys = {
   font: `${NAMESPACE}font`,
   playerMode: `${NAMESPACE}playerMode`,
   uiMode: `${NAMESPACE}uiMode`,
+  downloadHistory: `${NAMESPACE}downloadHistory`,
 } as const;
 
 /** localStorage throws in private browsing modes and when the quota is full. */
@@ -193,3 +194,81 @@ export const LIGHT_THEME_IDS: ReadonlySet<string> = new Set([
   'matcha-cream',
   'sunset-rose',
 ]);
+
+export interface DownloadHistoryItem {
+  id: string;
+  mediaId: string;
+  title: string;
+  type: 'movie' | 'tv' | 'anime';
+  quality?: string;
+  provider?: string;
+  episode?: number;
+  season?: number;
+  track?: string;
+  url?: string;
+  downloadedAt: number;
+}
+
+export function getDownloadHistory(): DownloadHistoryItem[] {
+  return readJSON<DownloadHistoryItem[]>(StorageKeys.downloadHistory, [], Array.isArray);
+}
+
+export function addDownloadHistoryItem(item: Omit<DownloadHistoryItem, 'downloadedAt'>): void {
+  const current = getDownloadHistory();
+  const filtered = current.filter(
+    (existing) =>
+      !(
+        existing.mediaId === item.mediaId &&
+        existing.season === item.season &&
+        existing.episode === item.episode &&
+        existing.quality === item.quality
+      )
+  );
+  const updated: DownloadHistoryItem[] = [
+    { ...item, downloadedAt: Date.now() },
+    ...filtered,
+  ].slice(0, 50);
+  writeJSON(StorageKeys.downloadHistory, updated);
+}
+
+export function clearDownloadHistory(): void {
+  remove(StorageKeys.downloadHistory);
+}
+
+export interface StorageEstimateResult {
+  usage: number;
+  quota: number;
+  usagePercent: number;
+  formattedUsage: string;
+  formattedQuota: string;
+}
+
+export async function getStorageEstimate(): Promise<StorageEstimateResult | null> {
+  if (typeof navigator === 'undefined' || !navigator.storage || !navigator.storage.estimate) {
+    return null;
+  }
+  try {
+    const estimate = await navigator.storage.estimate();
+    const usage = estimate.usage || 0;
+    const quota = estimate.quota || 0;
+    const usagePercent = quota > 0 ? (usage / quota) * 100 : 0;
+
+    const formatBytes = (bytes: number): string => {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+    };
+
+    return {
+      usage,
+      quota,
+      usagePercent,
+      formattedUsage: formatBytes(usage),
+      formattedQuota: formatBytes(quota),
+    };
+  } catch {
+    return null;
+  }
+}
+

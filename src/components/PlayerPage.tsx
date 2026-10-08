@@ -580,6 +580,46 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     };
   }, [movie, type, episodeNumber, seasonNumber]);
 
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      const rootEl = containerRef.current || iframeRef.current;
+      const isCurrentlyFs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
+      if (!isCurrentlyFs) {
+        if (rootEl?.requestFullscreen) {
+          await rootEl.requestFullscreen();
+        } else if ((rootEl as any)?.webkitRequestFullscreen) {
+          await (rootEl as any).webkitRequestFullscreen();
+        }
+        setIsFullscreen(true);
+        try {
+          if (screen.orientation && 'lock' in screen.orientation) {
+            await (screen.orientation as any).lock('landscape').catch(() => {});
+          }
+        } catch {
+          // Orientation lock is a progressive enhancement; unsupported on
+          // desktop and some browsers reject it outside a user gesture.
+        }
+      } else {
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        } else if ((document as any).webkitExitFullscreen) {
+          await (document as any).webkitExitFullscreen();
+        }
+        setIsFullscreen(false);
+        setPlayerMode('contained');
+        try {
+          if (screen.orientation && 'unlock' in screen.orientation) {
+            screen.orientation.unlock();
+          }
+        } catch {
+          // Orientation unlock is best-effort; unsupported on some platforms.
+        }
+      }
+    } catch (err) {
+      console.error('Fullscreen toggle failed:', err);
+    }
+  }, [setPlayerMode]);
+
   /* ---------------------------------------------------------------------- */
   /* Trusted embed messages                                                 */
   /* ---------------------------------------------------------------------- */
@@ -739,7 +779,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [movie, id, type, userProfile.autoPlayNext]);
+  }, [movie, id, type, userProfile.autoPlayNext, isFullscreen, toggleFullscreen]);
 
   /* ---------------------------------------------------------------------- */
   /* Navigation                                                             */
@@ -826,45 +866,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     []
   );
 
-  const toggleFullscreen = useCallback(async () => {
-    try {
-      const rootEl = containerRef.current || iframeRef.current;
-      const isCurrentlyFs = !!document.fullscreenElement || !!(document as any).webkitFullscreenElement;
-      if (!isCurrentlyFs) {
-        if (rootEl?.requestFullscreen) {
-          await rootEl.requestFullscreen();
-        } else if ((rootEl as any)?.webkitRequestFullscreen) {
-          await (rootEl as any).webkitRequestFullscreen();
-        }
-        setIsFullscreen(true);
-        try {
-          if (screen.orientation && 'lock' in screen.orientation) {
-            await (screen.orientation as any).lock('landscape').catch(() => {});
-          }
-        } catch {
-          // Orientation lock is a progressive enhancement; unsupported on
-          // desktop and some browsers reject it outside a user gesture.
-        }
-      } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-          await (document as any).webkitExitFullscreen();
-        }
-        setIsFullscreen(false);
-        setPlayerMode('contained');
-        try {
-          if (screen.orientation && 'unlock' in screen.orientation) {
-            screen.orientation.unlock();
-          }
-        } catch {
-          // Orientation unlock is best-effort; unsupported on some platforms.
-        }
-      }
-    } catch (err) {
-      console.error('Fullscreen toggle failed:', err);
-    }
-  }, [setPlayerMode]);
 
   useEffect(() => {
     const onFsChange = () => {
@@ -1002,8 +1003,22 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       }
     };
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [type, hasNextEpisode, handleGoToNextEpisode, hasPrevEpisode, handleGoToPrevEpisode, sidebarOpen, showNextEpisode, restartPromptDismissed, isFullscreen, toggleFullscreen]);
+  }, [
+    type,
+    id,
+    selectedSeason,
+    selectedEpisode?.episode_number,
+    setPlayerMode,
+    hasNextEpisode,
+    handleGoToNextEpisode,
+    hasPrevEpisode,
+    handleGoToPrevEpisode,
+    sidebarOpen,
+    showNextEpisode,
+    restartPromptDismissed,
+    isFullscreen,
+    toggleFullscreen,
+  ]);
 
   useEffect(() => {
     if (!showNextEpisode) return;
@@ -1627,31 +1642,31 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
       {!isFullscreen && playerMode !== 'floating' && (
         <div className="w-full max-w-[1780px] 2xl:max-w-[1920px] mx-auto px-2 sm:px-4 md:px-6 lg:px-8 space-y-4 pb-20 pt-1">
           {/* Streamlined Info & Controls Bar */}
-          <div className="p-4 sm:p-5 rounded-[20px] bg-[#111215] border border-white/[0.08] flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+          <div className="p-4 sm:p-5 rounded-[20px] bg-card border border-border flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
             {/* Title & Metadata */}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2.5 flex-wrap">
-                <h1 className="text-base sm:text-lg font-display font-bold text-[#f3f0ea] truncate">
+                <h1 className="text-base sm:text-lg font-display font-bold text-foreground truncate">
                   {movie?.title}
                 </h1>
                 {(movie?.rating ?? 0) > 0 && (
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#f3f0ea] bg-white/[0.04] border border-white/10 px-2.5 py-0.5 rounded-full shrink-0 font-mono">
+                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-foreground bg-muted/40 border border-border px-2.5 py-0.5 rounded-full shrink-0 font-mono">
                     <Star className="w-3 h-3 fill-[#f5c518] text-[#f5c518]" /> {movie.rating?.toFixed(1)}
                   </span>
                 )}
                 {movie?.year ? (
-                  <span className="text-xs text-[#929093] font-mono">
+                  <span className="text-xs text-muted-foreground font-mono">
                     {movie.year}
                   </span>
                 ) : null}
                 {movie?.duration ? (
-                  <span className="text-xs text-[#929093] font-mono">
+                  <span className="text-xs text-muted-foreground font-mono">
                     • {movie.duration}
                   </span>
                 ) : null}
               </div>
               {type === 'tv' && selectedEpisode && (
-                <p className="text-xs text-[#929093] truncate font-mono mt-1">
+                <p className="text-xs text-muted-foreground truncate font-mono mt-1">
                   S{selectedSeason} E{selectedEpisode.episode_number}
                   {selectedEpisode.name ? ` — ${selectedEpisode.name}` : ''}
                 </p>
@@ -1665,10 +1680,10 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                 <select
                   value={selectedSeason}
                   onChange={(e) => goToWatch(id, 'tv', Number(e.target.value), 1)}
-                  className="bg-[#18191d] border border-white/10 rounded-full px-3.5 py-1.5 text-xs text-[#f3f0ea] font-mono focus:outline-none focus:border-white/30 cursor-pointer shrink-0"
+                  className="bg-secondary border border-border rounded-full px-3.5 py-1.5 text-xs text-foreground font-mono focus:outline-none focus:border-border/80 cursor-pointer shrink-0"
                 >
                   {seasons.map((s) => (
-                    <option key={s.season_number} value={s.season_number} className="bg-[#0b0b0d]">
+                    <option key={s.season_number} value={s.season_number} className="bg-card text-foreground">
                       {s.name || `Season ${s.season_number}`}
                     </option>
                   ))}
@@ -1683,7 +1698,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   className="secondary-btn !py-1.5 !px-3.5 text-xs font-mono flex items-center gap-1.5 cursor-pointer"
                   title="Browse all episodes"
                 >
-                  <Menu className="w-3.5 h-3.5 text-[#f3f0ea]" />
+                  <Menu className="w-3.5 h-3.5 text-foreground" />
                   <span>Episodes</span>
                 </button>
               )}
@@ -1692,9 +1707,9 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
 
           {/* Overview */}
           {movie?.description && (
-            <div className="pt-2 border-t border-white/[0.06] space-y-1 px-1">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-[#929093] font-mono">Overview</h2>
-              <p className="text-xs sm:text-sm text-[#929093] leading-relaxed max-w-4xl line-clamp-3 hover:line-clamp-none transition-all">
+            <div className="pt-2 border-t border-border space-y-1 px-1">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground font-mono">Overview</h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-4xl line-clamp-3 hover:line-clamp-none transition-all">
                 {movie.description}
               </p>
             </div>
@@ -2010,5 +2025,3 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   );
 }
 
-/** Kept for callers that resolve a source id from a URL or saved preference. */
-export { findSource };
