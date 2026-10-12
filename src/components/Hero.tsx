@@ -717,46 +717,71 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
         </motion.div>
       </div>
 
-      {/* Slide switcher. Now announces which slide is current, and the group is
-          labelled -- it was five unlabelled thumbnails before. */}
+      {/* Slide switcher: Responsive indicators for mobile & rich thumbnails for desktop */}
       {movies.length > 1 && (
-        <div
-          role="group"
-          aria-label="Choose a featured title"
-          className="absolute bottom-24 sm:bottom-28 right-4 sm:right-10 z-30 hidden sm:flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl"
-        >
-          {movies.map((movie, idx) => (
-            <button
-              key={`${movie.type}-${movie.id}`}
-              type="button"
-              onClick={() => setIndex(idx)}
-              aria-label={`Show ${movie.title}`}
-              aria-current={idx === safeIndex}
-              className={cn(
-                'relative rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-brand',
-                idx === safeIndex
-                  ? 'w-8 h-8 sm:w-10 sm:h-10 ring-2 ring-brand shadow-lg'
-                  : 'w-6 h-6 sm:w-8 sm:h-8 opacity-60 hover:opacity-100'
-              )}
-            >
-              {movie.posterUrl ? (
-                <img
-                  src={movie.posterUrl}
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-white/20" />
-              )}
-              {idx === safeIndex && (
-                <div className="absolute inset-0 bg-brand/20 backdrop-blur-[0.5px]" />
-              )}
-            </button>
-          ))}
-        </div>
+        <>
+          {/* Mobile slide indicators */}
+          <div
+            role="tablist"
+            aria-label="Hero slide pagination"
+            className="absolute bottom-12 left-1/2 -translate-x-1/2 z-30 flex sm:hidden items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/10 shadow-lg"
+          >
+            {movies.map((movie, idx) => (
+              <button
+                key={`mobile-dot-${movie.type}-${movie.id}`}
+                type="button"
+                onClick={() => setIndex(idx)}
+                aria-label={`Jump to slide ${idx + 1}: ${movie.title}`}
+                aria-current={idx === safeIndex}
+                className={cn(
+                  'h-1.5 rounded-full transition-all duration-300 cursor-pointer',
+                  idx === safeIndex
+                    ? 'w-6 bg-brand shadow-sm'
+                    : 'w-1.5 bg-white/40 hover:bg-white/70'
+                )}
+              />
+            ))}
+          </div>
+
+          {/* Desktop thumbnail carousel */}
+          <div
+            role="group"
+            aria-label="Choose a featured title"
+            className="absolute bottom-24 sm:bottom-28 right-4 sm:right-10 z-30 hidden sm:flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl"
+          >
+            {movies.map((movie, idx) => (
+              <button
+                key={`${movie.type}-${movie.id}`}
+                type="button"
+                onClick={() => setIndex(idx)}
+                aria-label={`Show ${movie.title}`}
+                aria-current={idx === safeIndex}
+                className={cn(
+                  'relative rounded-full transition-all duration-300 cursor-pointer overflow-hidden flex items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-brand',
+                  idx === safeIndex
+                    ? 'w-8 h-8 sm:w-10 sm:h-10 ring-2 ring-brand shadow-lg scale-105'
+                    : 'w-6 h-6 sm:w-8 sm:h-8 opacity-60 hover:opacity-100 hover:scale-105'
+                )}
+              >
+                {movie.posterUrl ? (
+                  <img
+                    src={movie.posterUrl}
+                    alt=""
+                    aria-hidden="true"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-white/20" />
+                )}
+                {idx === safeIndex && (
+                  <div className="absolute inset-0 bg-brand/20 backdrop-blur-[0.5px]" />
+                )}
+              </button>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

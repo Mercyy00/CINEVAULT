@@ -23,7 +23,7 @@ import { BackToTop } from './components/BackToTop';
 import { NetworkStatusBanner } from './components/NetworkStatusBanner';
 import { PwaInstallBanner } from './components/PwaInstallBanner';
 import { LemniscateBloom } from './components/LemniscateBloom';
-import { AlertCircle, RefreshCw, Home, Dice5, AlertTriangle } from 'lucide-react';
+import { AlertCircle, RefreshCw, Home, Dice5, AlertTriangle, Sparkles } from 'lucide-react';
 
 function safeLazy<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
@@ -826,22 +826,18 @@ function AppContent() {
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('trigger-surprise-me'))}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-[#f3f0ea] rounded-full text-xs font-mono uppercase tracking-wider transition-all cursor-pointer"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-card/60 hover:bg-brand/10 border border-border hover:border-brand/40 text-foreground hover:text-brand rounded-full text-xs font-semibold tracking-wide transition-all duration-200 shadow-sm cursor-pointer hover:scale-[1.02] active:scale-98"
                   >
-                    <span className="text-sm" aria-hidden="true">
-                      🎲
-                    </span>
-                    Surprise me
+                    <Dice5 className="w-3.5 h-3.5 text-brand" aria-hidden="true" />
+                    <span>Surprise Me</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => window.dispatchEvent(new CustomEvent('trigger-mood-finder'))}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-white/20 text-[#f3f0ea] rounded-full text-xs font-mono uppercase tracking-wider transition-all cursor-pointer"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-card/60 hover:bg-brand/10 border border-border hover:border-brand/40 text-foreground hover:text-brand rounded-full text-xs font-semibold tracking-wide transition-all duration-200 shadow-sm cursor-pointer hover:scale-[1.02] active:scale-98"
                   >
-                    <span className="text-sm" aria-hidden="true">
-                      🎭
-                    </span>
-                    Find by mood
+                    <Sparkles className="w-3.5 h-3.5 text-brand" aria-hidden="true" />
+                    <span>Find by Mood</span>
                   </button>
                 </div>
               </div>

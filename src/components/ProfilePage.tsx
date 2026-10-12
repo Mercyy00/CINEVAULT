@@ -22,6 +22,7 @@ import {
   Layout,
   ExternalLink,
   HardDrive,
+  Bookmark,
 } from 'lucide-react';
 import { useApp, Theme, UIMode } from '../store';
 import { ThemeSwitchOverlay } from './ThemeSwitchOverlay';
@@ -121,6 +122,7 @@ export function ProfilePage() {
   });
   const [storageEstimate, setStorageEstimate] = useState<StorageEstimateResult | null>(null);
   const [storageLoading, setStorageLoading] = useState(false);
+  const [isRandomizing, setIsRandomizing] = useState(false);
 
   const refreshStorage = async () => {
     setStorageLoading(true);
@@ -244,20 +246,20 @@ export function ProfilePage() {
   ];
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/60 backdrop-blur-md animate-fade-in text-foreground">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/70 backdrop-blur-xl animate-fade-in text-foreground">
 
       <motion.div 
         initial={{ opacity: 0, scale: 0.96, y: 15 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.96, y: 15 }}
         transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-        className="w-full max-w-5xl h-[92vh] max-h-[740px] bg-card border border-border text-foreground rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col md:flex-row overflow-hidden relative"
+        className="w-full max-w-5xl h-[92vh] max-h-[760px] bg-card/95 border border-border/80 text-foreground rounded-2xl sm:rounded-3xl shadow-[0_32px_96px_-12px_rgba(0,0,0,0.85)] ring-1 ring-white/10 backdrop-blur-2xl flex flex-col md:flex-row overflow-hidden relative"
       >
         {/* Close Button */}
         <button
           onClick={handleClose}
           aria-label="Close Settings"
-          className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer border border-border shadow-sm"
+          className="absolute top-4 right-4 z-50 w-8 h-8 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer border border-border/70 shadow-sm"
         >
           <X className="w-4 h-4" />
         </button>
@@ -267,7 +269,7 @@ export function ProfilePage() {
           <div>
             {/* User Profile Summary */}
             <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border shadow-sm mb-4">
-              <div className="w-10 h-10 rounded-full overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shadow-sm shrink-0">
+              <div className="w-10 h-10 rounded-full overflow-hidden bg-black/60 border border-brand/40 flex items-center justify-center p-0.5 shadow-sm shrink-0 ring-2 ring-brand/20">
                 <img
                   src={getUserAvatarUrl(activeProfile?.avatar || userProfile.avatar, activeProfile?.name || userProfile.name)}
                   alt="User Avatar"
@@ -276,9 +278,15 @@ export function ProfilePage() {
               </div>
               <div className="min-w-0 flex-1">
                 <h4 className="text-sm font-bold text-foreground truncate">{activeProfile?.name || userProfile.name || 'User'}</h4>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {userProfile.isLoggedIn ? userProfile.email : (activeProfile?.isKids ? 'Kids Profile' : 'Local Profile')}
-                </p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={cn(
+                    "w-1.5 h-1.5 rounded-full shrink-0",
+                    userProfile.isLoggedIn ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground"
+                  )} />
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {userProfile.isLoggedIn ? userProfile.email : (activeProfile?.isKids ? 'Kids Profile' : 'Local Profile')}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -292,14 +300,24 @@ export function ProfilePage() {
                     key={item.id}
                     onClick={() => setActiveTab(item.id)}
                     className={cn(
-                      "flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left whitespace-nowrap cursor-pointer",
+                      "flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left whitespace-nowrap cursor-pointer",
                       isActive 
                         ? "bg-brand/15 border border-brand/35 text-brand shadow-sm font-bold" 
                         : "text-muted-foreground hover:text-foreground hover:bg-muted/50 border border-transparent"
                     )}
                   >
-                    <Icon className={cn("w-4 h-4 shrink-0", isActive ? "text-brand" : "text-muted-foreground")} />
-                    <span>{item.label}</span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Icon className={cn("w-4 h-4 shrink-0 transition-colors", isActive ? "text-brand" : "text-muted-foreground")} />
+                      <span className="truncate">{item.label}</span>
+                    </div>
+                    {item.id === 'history' && continueWatching.length > 0 && (
+                      <span className={cn(
+                        "ml-2 px-1.5 py-0.2 rounded-full text-[10px] font-mono",
+                        isActive ? "bg-brand/20 text-brand font-bold" : "bg-muted text-muted-foreground"
+                      )}>
+                        {continueWatching.length}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -337,12 +355,20 @@ export function ProfilePage() {
 
               {/* Profile Card with Banner */}
               <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card relative">
-                <div className="h-28 bg-gradient-to-r from-white/[0.06] via-white/[0.02] to-transparent border-b border-border relative" />
-                <div className="absolute left-6 top-14 w-20 h-20 rounded-full border-4 border-card bg-black/80 shadow-md flex items-center justify-center p-1 overflow-hidden">
+                <div className="h-32 bg-gradient-to-r from-brand/20 via-brand/10 to-transparent border-b border-border/80 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(255,255,255,0.12),transparent_70%)]" />
+                  <div className="absolute top-3.5 right-4 flex items-center gap-2">
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-mono uppercase tracking-wider bg-black/40 backdrop-blur-md border border-white/10 text-muted-foreground">
+                      {userProfile.isLoggedIn ? 'Cloud Synced' : 'Local Storage'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="absolute left-6 top-16 w-20 h-20 rounded-2xl border-2 border-brand/40 bg-card shadow-2xl p-1 overflow-hidden ring-4 ring-card">
                   <img
                     src={getUserAvatarUrl(activeProfile?.avatar || userProfile.avatar, activeProfile?.name || userProfile.name)}
                     alt="User Avatar"
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain rounded-xl"
                   />
                 </div>
 
@@ -367,28 +393,30 @@ export function ProfilePage() {
                     <div className={cn(
                       "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium self-start sm:self-center border",
                       userProfile.isLoggedIn
-                        ? "bg-white/[0.04] border-white/15 text-foreground"
+                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
                         : "bg-white/[0.02] border-white/10 text-muted-foreground"
                     )}>
                       <span className={cn(
                         "w-2 h-2 rounded-full",
-                        userProfile.isLoggedIn ? "bg-white animate-pulse" : "bg-muted-foreground"
+                        userProfile.isLoggedIn ? "bg-emerald-400 animate-pulse" : "bg-muted-foreground"
                       )} />
                       {userProfile.isLoggedIn ? 'Live Cloud Sync Active' : 'Saved on this device only'}
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-3">
-                    <input
-                      type="text"
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      placeholder="Display Name"
-                      className="flex-1 bg-input/50 border border-border rounded-xl px-3.5 py-2 text-sm text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all placeholder:text-muted-foreground/60"
-                    />
+                  <div className="pt-4 border-t border-border flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={nameInput}
+                        onChange={(e) => setNameInput(e.target.value)}
+                        placeholder="Display Name"
+                        className="w-full bg-input/40 hover:bg-input/60 focus:bg-input border border-border rounded-xl px-4 py-2 text-sm text-foreground outline-none focus:border-brand focus:ring-1 focus:ring-brand transition-all placeholder:text-muted-foreground/60"
+                      />
+                    </div>
                     <button
                       onClick={handleNameSave}
-                      className="px-5 py-2 bg-brand text-brand-foreground font-bold text-xs sm:text-sm rounded-xl hover:opacity-90 transition-opacity shadow-card cursor-pointer whitespace-nowrap"
+                      className="px-5 py-2 bg-brand text-brand-foreground font-bold text-xs sm:text-sm rounded-xl hover:opacity-90 active:scale-98 transition-all shadow-card cursor-pointer whitespace-nowrap"
                     >
                       Save Changes
                     </button>
@@ -398,7 +426,7 @@ export function ProfilePage() {
                         setOnboardingComplete(false);
                         showToast('Re-opening CineVault Welcome & Taste Setup...');
                       }}
-                      className="px-4 py-2 bg-white/5 hover:bg-white/10 text-foreground font-semibold text-xs sm:text-sm rounded-xl border border-white/10 transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
+                      className="px-4 py-2 bg-muted/40 hover:bg-muted text-foreground font-semibold text-xs sm:text-sm rounded-xl border border-border transition-colors flex items-center justify-center gap-1.5 cursor-pointer whitespace-nowrap"
                       title="Relaunch onboarding setup wizard"
                     >
                       <Sparkles className="w-3.5 h-3.5 text-brand" /> Setup Wizard
@@ -485,6 +513,7 @@ export function ProfilePage() {
                   <button
                     type="button"
                     onClick={() => {
+                      setIsRandomizing(true);
                       const randomSeed = (activeProfile?.name || userProfile.name || 'User') + '_' + Math.floor(Math.random() * 9999);
                       const newUrl = getBoringAvatarUrl('beam', randomSeed, THEME_BEAM_COLORS);
                       if (activeProfile?.id) {
@@ -492,10 +521,11 @@ export function ProfilePage() {
                       }
                       updateUserProfile({ avatar: newUrl });
                       showToast(`Generated new avatar for ${activeProfile?.name || 'profile'}`);
+                      setTimeout(() => setIsRandomizing(false), 500);
                     }}
-                    className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
+                    className="text-xs font-mono font-bold text-brand px-3 py-1.5 rounded-full bg-brand/10 hover:bg-brand/20 border border-brand/30 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-sm shrink-0"
                   >
-                    <RefreshCw className="w-3.5 h-3.5" /> Randomize
+                    <RefreshCw className={cn("w-3.5 h-3.5", isRandomizing && "animate-spin")} /> Randomize
                   </button>
                 </div>
 
@@ -971,8 +1001,8 @@ export function ProfilePage() {
                         onFocus={() => loadAppFont(f.id)}
                         onClick={() => { setAppFont(f.id); showToast(`Font: ${f.name}`); }}
                         className={cn(
-                          "p-3.5 rounded-xl border transition-all text-left cursor-pointer flex flex-col justify-between gap-2 shadow-sm",
-                          isSelected ? "bg-brand/10 border-brand ring-1 ring-brand/30" : "bg-card hover:bg-muted/40 border-border"
+                          "p-3.5 rounded-xl border transition-all text-left cursor-pointer flex flex-col justify-between gap-2.5 shadow-sm hover:scale-[1.01] active:scale-99",
+                          isSelected ? "bg-brand/10 border-brand ring-1 ring-brand/30 shadow-md" : "bg-card hover:bg-muted/40 border-border"
                         )}
                       >
                         <div className="flex items-center justify-between">
@@ -981,7 +1011,10 @@ export function ProfilePage() {
                           </span>
                           {isSelected && <Check className="w-4 h-4 text-brand shrink-0" />}
                         </div>
-                        <span className="text-[11px] text-muted-foreground truncate">{f.tag}</span>
+                        <div className="text-xs text-muted-foreground/85 font-normal tracking-wide" style={{ fontFamily: f.fontFamily }}>
+                          The quick brown fox jumps over the lazy dog
+                        </div>
+                        <span className="text-[10px] text-muted-foreground font-mono truncate">{f.tag}</span>
                       </button>
                     );
                   })}
@@ -1109,18 +1142,33 @@ export function ProfilePage() {
                 <p className="text-xs sm:text-sm text-muted-foreground">Manage continue watching items & stored playback progress</p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex flex-col justify-center">
-                  <span className="text-2xl font-bold font-display text-brand">{continueWatching.length}</span>
-                  <span className="text-xs text-muted-foreground mt-1">In Progress Videos</span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex items-center gap-3.5 hover:border-brand/40 transition-colors">
+                  <div className="w-11 h-11 rounded-xl bg-brand/10 border border-brand/25 flex items-center justify-center text-brand shrink-0">
+                    <Film className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-2xl font-bold font-display text-foreground block leading-tight">{continueWatching.length}</span>
+                    <span className="text-xs text-muted-foreground">In Progress Videos</span>
+                  </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex flex-col justify-center">
-                  <span className="text-2xl font-bold font-display text-brand">{watchlist.length}</span>
-                  <span className="text-xs text-muted-foreground mt-1">Items in Watchlist</span>
+                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex items-center gap-3.5 hover:border-brand/40 transition-colors">
+                  <div className="w-11 h-11 rounded-xl bg-brand/10 border border-brand/25 flex items-center justify-center text-brand shrink-0">
+                    <Bookmark className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-2xl font-bold font-display text-foreground block leading-tight">{watchlist.length}</span>
+                    <span className="text-xs text-muted-foreground">Items in Watchlist</span>
+                  </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex flex-col justify-center">
-                  <span className="text-2xl font-bold font-display text-brand">{downloadHistoryList.length}</span>
-                  <span className="text-xs text-muted-foreground mt-1">Tracked Downloads</span>
+                <div className="p-4 rounded-2xl bg-card border border-border shadow-card flex items-center gap-3.5 hover:border-brand/40 transition-colors">
+                  <div className="w-11 h-11 rounded-xl bg-brand/10 border border-brand/25 flex items-center justify-center text-brand shrink-0">
+                    <Download className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-2xl font-bold font-display text-foreground block leading-tight">{downloadHistoryList.length}</span>
+                    <span className="text-xs text-muted-foreground">Tracked Downloads</span>
+                  </div>
                 </div>
               </div>
 
