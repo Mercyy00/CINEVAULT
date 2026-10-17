@@ -746,7 +746,8 @@ function AppContent() {
             api.discover('movie', {
               with_original_language: 'hi',
               sort_by: 'popularity.desc',
-              'primary_release_date.gte': new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              'primary_release_date.gte': new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              'primary_release_date.lte': new Date().toISOString().split('T')[0],
               page,
             })
           }
@@ -760,7 +761,8 @@ function AppContent() {
             api.discover('movie', {
               with_original_language: 'te|ta|ml|kn',
               sort_by: 'popularity.desc',
-              'primary_release_date.gte': new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              'primary_release_date.gte': new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              'primary_release_date.lte': new Date().toISOString().split('T')[0],
               page,
             })
           }

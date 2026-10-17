@@ -31,10 +31,16 @@ const CACHE_TTL_MS = 10 * 60 * 1000;
 const heroCache = new Map<HeroType, { movies: Movie[]; at: number }>();
 
 async function loadHero(type: HeroType): Promise<Movie[]> {
+  const now = new Date();
+  const todayDate = now.toISOString().split('T')[0];
+  // 1-year cutoff window strictly enforces latest releases (excludes older catalogue & unreleased future)
+  const cutoffDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
   if (type === 'anime') {
+    const currentYear = now.getFullYear();
     const payload = await anilistApi.getTrending(1, 20);
     const slides = (payload.results ?? [])
-      .filter((movie) => Boolean(movie.backdropUrl))
+      .filter((movie) => Boolean(movie.backdropUrl) && (!movie.year || movie.year >= currentYear - 1))
       .slice(0, SLIDE_COUNT);
     await Promise.all(
       slides.map(async (slide) => {
@@ -50,13 +56,16 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
     return slides;
   }
 
-  // 2.5-year cutoff window ensures latest releases and blockbusters are prioritized
-  const cutoffDate = new Date(Date.now() - 2.5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
+  // Filter strictly to latest releases:
+  // 1. Must have backdrop artwork
+  // 2. Cannot be person
+  // 3. Must be released within latest window (cutoffDate <= release_date <= todayDate)
   const clean = (arr: unknown): TmdbItem[] =>
-    (Array.isArray((arr as any)?.results) ? (arr as any).results : []).filter(
-      (item: any) => item.media_type !== 'person' && Boolean(item.backdrop_path)
-    );
+    (Array.isArray((arr as any)?.results) ? (arr as any).results : []).filter((item: any) => {
+      if (item.media_type === 'person' || !item.backdrop_path) return false;
+      const releaseDate = item.release_date || item.first_air_date || '';
+      return releaseDate >= cutoffDate && releaseDate <= todayDate;
+    });
 
   if (type === 'tv') {
     const [trendingPayload, indianTvPayload] = await Promise.all([
@@ -65,6 +74,7 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
         with_original_language: 'hi|te|ta',
         sort_by: 'popularity.desc',
         'first_air_date.gte': cutoffDate,
+        'first_air_date.lte': todayDate,
         'vote_count.gte': 2,
       }).catch(() => ({ results: [] })),
     ]);
@@ -129,8 +139,8 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
   }
 
   // Home page ('all') and Movies page ('movie')
-  // Concurrently fetch:
-  // 1. Global / Hollywood trending
+  // Concurrently fetch latest releases:
+  // 1. Global / Hollywood trending (strictly filtered to latest)
   // 2. Latest Bollywood (Hindi - 'hi')
   // 3. Latest Tollywood (Telugu - 'te')
   // 4. Latest South Indian & Pan-Indian (Tamil, Malayalam, Kannada - 'ta|ml|kn')
@@ -140,19 +150,22 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
       with_original_language: 'hi',
       sort_by: 'popularity.desc',
       'primary_release_date.gte': cutoffDate,
+      'primary_release_date.lte': todayDate,
       'vote_count.gte': 3,
     }).catch(() => ({ results: [] })),
     api.discover('movie', {
       with_original_language: 'te',
       sort_by: 'popularity.desc',
       'primary_release_date.gte': cutoffDate,
-      'vote_count.gte': 3,
+      'primary_release_date.lte': todayDate,
+      'vote_count.gte': 2,
     }).catch(() => ({ results: [] })),
     api.discover('movie', {
       with_original_language: 'ta|ml|kn',
       sort_by: 'popularity.desc',
       'primary_release_date.gte': cutoffDate,
-      'vote_count.gte': 3,
+      'primary_release_date.lte': todayDate,
+      'vote_count.gte': 2,
     }).catch(() => ({ results: [] })),
   ]);
 
