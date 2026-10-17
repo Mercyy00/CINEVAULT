@@ -145,6 +145,8 @@ export interface Movie {
   rtRating?: string | null;
   /** Metacritic score, e.g. '80'. Null when unavailable. */
   metacriticRating?: string | null;
+  /** ISO 639-1 original language code, e.g. 'hi', 'te', 'en', 'ja'. */
+  originalLanguage?: string;
 }
 
 export interface ContinueWatchingItem {

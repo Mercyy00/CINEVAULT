@@ -41,6 +41,8 @@ const DEFAULT_FILTERS: AdvancedFilters = {
 
 const MOVIE_PILLS = [
   { id: 'all', label: 'All' },
+  { id: 'bollywood', label: 'Bollywood' },
+  { id: 'tollywood', label: 'Tollywood & South' },
   { id: '28', label: 'Action' },
   { id: '35', label: 'Comedy' },
   { id: '18', label: 'Drama' },
@@ -55,6 +57,7 @@ const MOVIE_PILLS = [
 
 const TV_PILLS = [
   { id: 'all', label: 'All' },
+  { id: 'indian_series', label: 'Indian Series' },
   { id: '18', label: 'Drama' },
   { id: '35', label: 'Comedy' },
   { id: '10765', label: 'Sci-Fi & Fantasy' },
@@ -84,6 +87,8 @@ const PILLS_BY_TYPE = { movie: MOVIE_PILLS, tv: TV_PILLS, anime: ANIME_PILLS } a
 const FEATURED_MOVIE_CATEGORIES = [
   { id: 'trending', label: 'Trending Movies', fetchFn: (p: number) => api.getTrending('movie', 'week', p) },
   { id: 'popular', label: 'Popular Blockbusters', fetchFn: (p: number) => api.getPopular('movie', p) },
+  { id: 'bollywood', label: 'Latest Bollywood Hits', fetchFn: (p: number) => api.discover('movie', { with_original_language: 'hi', sort_by: 'popularity.desc', page: p }), pillId: 'bollywood' },
+  { id: 'tollywood', label: 'Tollywood & South Cinema', fetchFn: (p: number) => api.discover('movie', { with_original_language: 'te|ta|ml|kn', sort_by: 'popularity.desc', page: p }), pillId: 'tollywood' },
   { id: 'top_rated', label: 'Top Rated All-Time', fetchFn: (p: number) => api.getTopRated('movie', p) },
   { id: '28', label: 'Action & Adventure', fetchFn: (p: number) => api.discover('movie', { with_genres: '28', sort_by: 'popularity.desc', page: p }), pillId: '28' },
   { id: '878', label: 'Sci-Fi & Cyberpunk', fetchFn: (p: number) => api.discover('movie', { with_genres: '878', sort_by: 'popularity.desc', page: p }), pillId: '878' },
@@ -98,6 +103,7 @@ const FEATURED_MOVIE_CATEGORIES = [
 const FEATURED_TV_CATEGORIES = [
   { id: 'trending', label: 'Trending TV Shows', fetchFn: (p: number) => api.getTrending('tv', 'week', p) },
   { id: 'popular', label: 'Popular TV Series', fetchFn: (p: number) => api.getPopular('tv', p) },
+  { id: 'indian_series', label: 'Indian Series & Shows', fetchFn: (p: number) => api.discover('tv', { with_original_language: 'hi|te|ta', sort_by: 'popularity.desc', page: p }), pillId: 'indian_series' },
   { id: 'top_rated', label: 'Critically Acclaimed TV', fetchFn: (p: number) => api.getTopRated('tv', p) },
   { id: '10765', label: 'Sci-Fi & Fantasy Series', fetchFn: (p: number) => api.discover('tv', { with_genres: '10765', sort_by: 'popularity.desc', page: p }), pillId: '10765' },
   { id: '80', label: 'Crime & Investigation', fetchFn: (p: number) => api.discover('tv', { with_genres: '80', sort_by: 'popularity.desc', page: p }), pillId: '80' },
@@ -271,7 +277,15 @@ export function PageShell({
           more = response.hasNextPage;
         } else {
           const params: Record<string, string | number> = { page };
-          if (activePill !== 'all') params.with_genres = activePill;
+          if (activePill === 'bollywood') {
+            params.with_original_language = 'hi';
+          } else if (activePill === 'tollywood') {
+            params.with_original_language = 'te|ta|ml|kn';
+          } else if (activePill === 'indian_series') {
+            params.with_original_language = 'hi|te|ta';
+          } else if (activePill !== 'all') {
+            params.with_genres = activePill;
+          }
 
           if (!filtersAreDefault(appliedFilters)) {
             const dateField =

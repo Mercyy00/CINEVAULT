@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion, useSpring } from 'motion/react';
 import { Play, Plus, Check, Info, Star, VolumeX, RotateCcw } from 'lucide-react';
 import { Movie, formatRating } from '../types';
-import { api, anilistApi, BACKDROP_SIZES } from '../api';
+import { api, anilistApi, BACKDROP_SIZES, type TmdbItem } from '../api';
 import { useApp } from '../store';
 import { getDominantColor } from '../lib/colorThief';
 import { goToWatch } from '../lib/navigation';
@@ -16,7 +16,7 @@ interface HeroProps {
   onMovieSelect: (id: string, type: string) => void;
 }
 
-const SLIDE_COUNT = 5;
+const SLIDE_COUNT = 7;
 const SLIDE_MS = 7_000;
 
 /** How long a slide holds while its trailer plays before rotating on. */
@@ -50,13 +50,163 @@ async function loadHero(type: HeroType): Promise<Movie[]> {
     return slides;
   }
 
-  const payload = await api.getTrending(type, 'day');
-  const results = Array.isArray(payload?.results) ? payload.results : [];
-  const slides = results
-    // `/trending/all` also returns people, which map to a Movie with no title.
-    .filter((item) => item.media_type !== 'person')
-    // A spotlight with no backdrop is a black rectangle.
-    .filter((item) => Boolean(item.backdrop_path))
+  // 2.5-year cutoff window ensures latest releases and blockbusters are prioritized
+  const cutoffDate = new Date(Date.now() - 2.5 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const clean = (arr: unknown): TmdbItem[] =>
+    (Array.isArray((arr as any)?.results) ? (arr as any).results : []).filter(
+      (item: any) => item.media_type !== 'person' && Boolean(item.backdrop_path)
+    );
+
+  if (type === 'tv') {
+    const [trendingPayload, indianTvPayload] = await Promise.all([
+      api.getTrending('tv', 'day').catch(() => ({ results: [] })),
+      api.discover('tv', {
+        with_original_language: 'hi|te|ta',
+        sort_by: 'popularity.desc',
+        'first_air_date.gte': cutoffDate,
+        'vote_count.gte': 2,
+      }).catch(() => ({ results: [] })),
+    ]);
+
+    const trendingList = clean(trendingPayload).map((it) => ({ ...it, media_type: 'tv' as const }));
+    const indianList = clean(indianTvPayload).map((it) => ({ ...it, media_type: 'tv' as const }));
+
+    const seen = new Set<string>();
+    const rawSlides: TmdbItem[] = [];
+
+    const pick = (list: TmdbItem[]) => {
+      while (list.length > 0) {
+        const item = list.shift();
+        if (!item) continue;
+        const key = String(item.id);
+        if (!seen.has(key)) {
+          seen.add(key);
+          rawSlides.push(item);
+          return;
+        }
+      }
+    };
+
+    const sequence = [
+      () => pick(trendingList),
+      () => pick(indianList),
+      () => pick(trendingList),
+      () => pick(indianList),
+      () => pick(trendingList),
+      () => pick(trendingList),
+      () => pick(indianList),
+    ];
+
+    for (const step of sequence) {
+      step();
+      if (rawSlides.length >= SLIDE_COUNT) break;
+    }
+
+    const remaining = [...trendingList, ...indianList];
+    while (rawSlides.length < SLIDE_COUNT && remaining.length > 0) {
+      pick(remaining);
+    }
+
+    const slides = rawSlides.slice(0, SLIDE_COUNT).map((item) => api.mapToInternalMovie(item));
+
+    await Promise.all(
+      slides.map(async (slide) => {
+        if (!slide.logoUrl) {
+          try {
+            slide.logoUrl = await api.resolveTmdbLogo('tv', slide.id);
+          } catch {}
+          if (!slide.logoUrl) {
+            try {
+              slide.logoUrl = await api.resolveTitleLogo(slide.title, 'tv');
+            } catch {}
+          }
+        }
+      })
+    );
+
+    return slides;
+  }
+
+  // Home page ('all') and Movies page ('movie')
+  // Concurrently fetch:
+  // 1. Global / Hollywood trending
+  // 2. Latest Bollywood (Hindi - 'hi')
+  // 3. Latest Tollywood (Telugu - 'te')
+  // 4. Latest South Indian & Pan-Indian (Tamil, Malayalam, Kannada - 'ta|ml|kn')
+  const [trendingPayload, bollywoodPayload, tollywoodPayload, southPayload] = await Promise.all([
+    api.getTrending(type, 'day').catch(() => ({ results: [] })),
+    api.discover('movie', {
+      with_original_language: 'hi',
+      sort_by: 'popularity.desc',
+      'primary_release_date.gte': cutoffDate,
+      'vote_count.gte': 3,
+    }).catch(() => ({ results: [] })),
+    api.discover('movie', {
+      with_original_language: 'te',
+      sort_by: 'popularity.desc',
+      'primary_release_date.gte': cutoffDate,
+      'vote_count.gte': 3,
+    }).catch(() => ({ results: [] })),
+    api.discover('movie', {
+      with_original_language: 'ta|ml|kn',
+      sort_by: 'popularity.desc',
+      'primary_release_date.gte': cutoffDate,
+      'vote_count.gte': 3,
+    }).catch(() => ({ results: [] })),
+  ]);
+
+  const trendingList = clean(trendingPayload);
+  const bollywoodList = clean(bollywoodPayload).map((it) => ({ ...it, media_type: 'movie' as const }));
+  const tollywoodList = clean(tollywoodPayload).map((it) => ({ ...it, media_type: 'movie' as const }));
+  const southList = clean(southPayload).map((it) => ({ ...it, media_type: 'movie' as const }));
+
+  const seen = new Set<string>();
+  const rawSlides: TmdbItem[] = [];
+
+  const pick = (list: TmdbItem[]) => {
+    while (list.length > 0) {
+      const item = list.shift();
+      if (!item) continue;
+      const key = String(item.id);
+      if (!seen.has(key)) {
+        seen.add(key);
+        rawSlides.push(item);
+        return;
+      }
+    }
+  };
+
+  // Diverse curation:
+  // 1. Global / Hollywood trending blockbuster #1
+  // 2. Latest Bollywood blockbuster #1
+  // 3. Latest Tollywood blockbuster #1
+  // 4. Latest South Indian / Pan-Indian hit #1
+  // 5. Global / Hollywood trending blockbuster #2
+  // 6. Latest Bollywood blockbuster #2
+  // 7. Latest Tollywood blockbuster #2
+  const sequence = [
+    () => pick(trendingList),
+    () => pick(bollywoodList),
+    () => pick(tollywoodList),
+    () => pick(southList),
+    () => pick(trendingList),
+    () => pick(bollywoodList),
+    () => pick(tollywoodList),
+  ];
+
+  for (const step of sequence) {
+    step();
+    if (rawSlides.length >= SLIDE_COUNT) break;
+  }
+
+  // Fallback fill from any remaining if a category had sparse results
+  const remaining = [...bollywoodList, ...tollywoodList, ...southList, ...trendingList];
+  while (rawSlides.length < SLIDE_COUNT && remaining.length > 0) {
+    pick(remaining);
+  }
+
+  const slides = rawSlides
     .slice(0, SLIDE_COUNT)
     .map((item) => api.mapToInternalMovie(item));
 
@@ -407,10 +557,18 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
 
   const typeLabel = useMemo(() => {
     if (type === 'anime') return 'Anime Spotlight';
-    if (type === 'tv') return 'TV Spotlight';
+    if (type === 'tv') {
+      if (current?.originalLanguage === 'hi') return 'Hindi Series';
+      if (current?.originalLanguage === 'te') return 'Telugu Series';
+      if (current?.originalLanguage === 'ta') return 'Tamil Series';
+      return 'TV Spotlight';
+    }
+    if (current?.originalLanguage === 'hi') return 'Bollywood Spotlight';
+    if (current?.originalLanguage === 'te') return 'Tollywood Spotlight';
+    if (['ta', 'ml', 'kn'].includes(current?.originalLanguage || '')) return 'South Indian Spotlight';
     if (type === 'movie') return 'Movie Spotlight';
     return current?.type === 'tv' ? 'Series' : 'Featured';
-  }, [type, current?.type]);
+  }, [type, current?.type, current?.originalLanguage]);
 
   if (status === 'loading') return <HeroSkeleton label="Loading featured content" />;
 
@@ -534,6 +692,22 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
               {current.ageRating && (
                 <span className="px-2 py-1 rounded-full border border-white/25 text-[11px] font-mono text-foreground/80">
                   {current.ageRating}
+                </span>
+              )}
+
+              {current.originalLanguage === 'hi' && (
+                <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
+                  Bollywood
+                </span>
+              )}
+              {current.originalLanguage === 'te' && (
+                <span className="bg-orange-500/20 text-orange-300 border border-orange-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
+                  Tollywood
+                </span>
+              )}
+              {['ta', 'ml', 'kn'].includes(current.originalLanguage || '') && (
+                <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-xs font-semibold backdrop-blur-md">
+                  South Cinema
                 </span>
               )}
 

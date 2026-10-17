@@ -410,6 +410,36 @@ function extractCertification(item: TmdbItem, region = TMDB_REGION): string | nu
   return tvResults.find((entry) => entry.rating?.trim())?.rating?.trim() || null;
 }
 
+const TMDB_GENRE_NAMES: Record<number, string> = {
+  28: 'Action',
+  12: 'Adventure',
+  16: 'Animation',
+  35: 'Comedy',
+  80: 'Crime',
+  99: 'Documentary',
+  18: 'Drama',
+  10751: 'Family',
+  14: 'Fantasy',
+  36: 'History',
+  27: 'Horror',
+  10402: 'Music',
+  9648: 'Mystery',
+  10749: 'Romance',
+  878: 'Sci-Fi',
+  10770: 'TV Movie',
+  53: 'Thriller',
+  10752: 'War',
+  37: 'Western',
+  10759: 'Action & Adventure',
+  10762: 'Kids',
+  10763: 'News',
+  10764: 'Reality',
+  10765: 'Sci-Fi & Fantasy',
+  10766: 'Soap',
+  10767: 'Talk',
+  10768: 'War & Politics',
+};
+
 export const api = {
   /**
    * Builds a TMDB image URL. Returns null when there is no artwork, so callers
@@ -663,7 +693,10 @@ export const api = {
       rating: hasRating ? Math.round(item.vote_average! * 10) / 10 : null,
       voteCount: item.vote_count ?? 0,
       ageRating: extractCertification(item),
-      genres: item.genres?.map((genre) => genre.name) ?? [],
+      genres:
+        item.genres && item.genres.length > 0
+          ? item.genres.map((genre) => genre.name)
+          : (item.genre_ids?.map((id) => TMDB_GENRE_NAMES[id]).filter(Boolean) as string[]) ?? [],
       posterUrl: api.getImageUrl(item.poster_path, 'w500'),
       posterSrcSet: buildSrcSet(item.poster_path, POSTER_WIDTHS),
       posterThumbUrl: item.poster_path ? `${IMAGE_BASE}/w92${item.poster_path}` : null,
@@ -688,6 +721,7 @@ export const api = {
       reviews: [],
       recommendations: item.recommendations?.results?.map(r => api.mapToInternalMovie({ ...r, media_type: r.media_type || item.media_type })) || [],
       imdbId: item.imdb_id || item.external_ids?.imdb_id || '',
+      originalLanguage: item.original_language || '',
     };
   },
 

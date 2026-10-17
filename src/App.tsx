@@ -716,7 +716,7 @@ function AppContent() {
       const affB = genreAffinity[b.label.trim().toLowerCase()] ?? 0;
       return affB - affA;
     });
-    const likedOffset = 2 + becauseWatched.length;
+    const likedOffset = 4 + becauseWatched.length;
     const tailOffset = likedOffset + sortedLikedRows.length;
 
     return (
@@ -739,11 +739,39 @@ function AppContent() {
           region={homeFilters.country}
         />
 
+        <MovieRow
+          index={2}
+          title="Latest Bollywood Hits"
+          fetchFn={(page) =>
+            api.discover('movie', {
+              with_original_language: 'hi',
+              sort_by: 'popularity.desc',
+              'primary_release_date.gte': new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              page,
+            })
+          }
+          onMovieSelect={goToDetail}
+        />
+
+        <MovieRow
+          index={3}
+          title="Tollywood & South Cinema"
+          fetchFn={(page) =>
+            api.discover('movie', {
+              with_original_language: 'te|ta|ml|kn',
+              sort_by: 'popularity.desc',
+              'primary_release_date.gte': new Date(Date.now() - 3 * 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              page,
+            })
+          }
+          onMovieSelect={goToDetail}
+        />
+
         {/* Dynamic 'Because you watched' personalized rows */}
         {becauseWatched.map((item, position) => (
           <MovieRow
             key={`because-watched-${item.media_type}-${item.id}`}
-            index={2 + position}
+            index={4 + position}
             title={`Because you watched ${item.title}`}
             fetchFn={async (page) => {
               if (item.media_type === 'anime') {
