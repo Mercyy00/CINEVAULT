@@ -4,6 +4,11 @@ import fs from 'fs';
 import { defineConfig } from 'vite';
 
 const rootPath = fs.realpathSync(process.cwd());
+if (process.cwd() !== rootPath) {
+  try {
+    process.chdir(rootPath);
+  } catch {}
+}
 
 export default defineConfig(({ mode }) => ({
   root: rootPath,

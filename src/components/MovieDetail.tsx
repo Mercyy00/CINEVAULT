@@ -24,7 +24,7 @@ import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
 import { ActorModal } from './ActorModal';
 import { Breadcrumbs } from './Breadcrumbs';
-import { LemniscateBloom } from './LemniscateBloom';
+import { EpisodesSection } from './EpisodesSection';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 import { navigate, goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 import { triggerHaptic } from '../lib/mobile';
@@ -270,7 +270,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
     return (
       <div className="min-h-screen bg-background text-foreground animate-pulse" aria-busy="true">
         <div className="w-full h-[50vh] sm:h-[65vh] skeleton-shimmer bg-card" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 -mt-32 sm:-mt-48 relative z-10">
+        <div className="w-full px-4 sm:px-8 lg:px-12 py-8 sm:py-12 -mt-32 sm:-mt-48 relative z-10">
           <div className="flex flex-col lg:flex-row gap-6 lg:gap-16 mb-12">
             <div className="w-48 sm:w-72 aspect-[2/3] rounded-2xl skeleton-shimmer bg-muted mx-auto lg:mx-0 shrink-0 border border-border" />
             <div className="flex-1 space-y-4 pt-4">
@@ -332,7 +332,7 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
         <div className="hero-fade" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28">
+      <div className="w-full px-4 sm:px-8 lg:px-12 pt-20 sm:pt-28">
         {/* Breadcrumb navigation */}
         <Breadcrumbs
           items={[
@@ -635,6 +635,26 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
           </motion.div>
         </div>
 
+        {/* ═══ FULL-WIDTH SECTION: TV EPISODES (DIRECTLY BELOW MOVIE DETAIL CARD) ═══ */}
+        {type === 'tv' && seasons.length > 0 && (
+          <EpisodesSection
+            id={id}
+            movie={movie}
+            seasons={seasons}
+            selectedSeason={selectedSeason}
+            episodes={episodes}
+            selectedEpisode={selectedEpisode}
+            isLoadingEpisodes={isLoadingEpisodes}
+            onSelectSeason={loadSeason}
+            onSelectEpisode={(epNum) => {
+              setSelectedEpisode(epNum);
+              goToWatch(id, 'tv', selectedSeason, epNum);
+            }}
+            onDownload={handleDownload}
+            progressItem={progressItem}
+          />
+        )}
+
         {/* ═══ FULL-WIDTH SECTION: WHERE TO WATCH ═══ */}
         {movie.providers && movie.providers.length > 0 && (
           <div className="mb-14 w-full">
@@ -664,114 +684,6 @@ export function MovieDetail({ type, id }: { type: 'movie' | 'tv'; id: string }) 
                   </div>
                 );
               })}
-            </div>
-          </div>
-        )}
-
-        {/* ═══ FULL-WIDTH SECTION 1: TV EPISODE SELECTOR ═══ */}
-        {type === 'tv' && seasons.length > 0 && (
-          <div className="mb-14 bg-card rounded-[22px] p-6 sm:p-8 border border-border w-full shadow-2xl">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-              <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
-                <Play className="w-5 h-5 fill-current text-brand" /> Episodes
-              </h3>
-              <div className="flex gap-2 overflow-x-auto scrollbar-none pb-2 max-w-full">
-                {seasons.map((s: any) => (
-                  <button
-                    key={s.season_number}
-                    onClick={() => loadSeason(s.season_number)}
-                    className={cn(
-                      'px-4 sm:px-5 py-2 sm:py-2.5 rounded-full whitespace-nowrap text-xs sm:text-sm font-mono transition-all border cursor-pointer',
-                      selectedSeason === s.season_number
-                        ? 'bg-primary text-primary-foreground border-primary font-bold shadow-md'
-                        : 'bg-muted/40 text-muted-foreground hover:text-foreground border-border hover:border-brand/40'
-                    )}
-                  >
-                    Season {s.season_number}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3.5 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-              {isLoadingEpisodes ? (
-                <div className="py-12 flex justify-center">
-                  <LemniscateBloom size={56} className="text-foreground" ariaLabel="Loading episodes" />
-                </div>
-              ) : (
-                episodes.map((ep: any) => (
-                  <div
-                    key={ep.id}
-                    onClick={() => {
-                      setSelectedEpisode(ep.episode_number);
-                      goToWatch(id, 'tv', selectedSeason, ep.episode_number);
-                    }}
-                    className={cn(
-                      'w-full text-left flex flex-col md:flex-row items-start md:items-center gap-4 p-4 rounded-[16px] transition-all group cursor-pointer border',
-                      selectedEpisode === ep.episode_number
-                        ? 'bg-secondary border-border shadow-lg ring-1 ring-brand/30'
-                        : 'bg-card/40 border-border hover:bg-muted/50 hover:border-border'
-                    )}
-                  >
-                    <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
-                      {ep.still_path ? (
-                        <img
-                          loading="lazy"
-                          src={api.getImageUrl(ep.still_path) ?? undefined}
-                          alt={ep.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/30">
-                          <Play className="w-8 h-8" />
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur z-10">
-                        {ep.runtime || 45}m
-                      </div>
-                      {selectedEpisode === ep.episode_number && (
-                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px] z-10">
-                          <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
-                        </div>
-                      )}
-                      {progressItem?.season_number === selectedSeason && progressItem?.episode_number === ep.episode_number && progressItem?.progress_percentage > 0 && (
-                        <div className="absolute bottom-0 left-0 right-0 h-1 bg-white/20 z-20">
-                          <div className="h-full bg-brand" style={{ width: `${progressItem.progress_percentage}%` }} />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 w-full flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <h4
-                          className={cn(
-                            'text-base sm:text-lg font-bold mb-1 truncate',
-                            selectedEpisode === ep.episode_number
-                              ? 'text-brand'
-                              : 'text-foreground group-hover:text-brand transition-colors'
-                          )}
-                        >
-                          {ep.episode_number}. {ep.name}
-                        </h4>
-                        <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                          {ep.overview || 'No description available.'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDownload(selectedSeason, ep.episode_number);
-                        }}
-                        title={`Download S${selectedSeason} E${ep.episode_number} (Multi-Server Hub)`}
-                        className="self-start sm:self-center px-3 py-2 rounded-xl bg-white/5 hover:bg-brand/20 border border-white/10 hover:border-brand/40 text-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-semibold shrink-0 cursor-pointer shadow-sm"
-                      >
-                        <Download className="w-3.5 h-3.5 text-brand" />
-                        <span>Download</span>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         )}

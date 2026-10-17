@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, ChevronDown, Sparkles, Clapperboard, Download, X, Search } from 'lucide-react';
+import { Play, Plus, Check, ArrowLeft, ArrowRight, GitFork, Star, Clock, Calendar, Share2, Users, Sparkles, Clapperboard, Download, X, Search } from 'lucide-react';
 import { api, anilistApi, AnimeRelation } from '../api';
 import { cn } from '../lib/utils';
 import { useApp } from '../store';
@@ -10,6 +10,7 @@ import { MovieRow } from './MovieRow';
 import { getDominantColor } from '../lib/colorThief';
 import { PosterImage } from './PosterImage';
 import { Breadcrumbs } from './Breadcrumbs';
+import { AnimeEpisodesSection } from './AnimeEpisodesSection';
 import { updateSeoMetadata, generateMediaStructuredData } from '../lib/seo';
 import { navigate, goToWatch, goToDetail, goToDownload } from '../lib/navigation';
 import { triggerHaptic } from '../lib/mobile';
@@ -685,6 +686,34 @@ export function AnimeDetail({ id }: { id: string }) {
           </motion.div>
         </div>
 
+        {/* ═══ FULL-WIDTH SECTION: ANIME EPISODES (DIRECTLY BELOW DETAIL CARD) ═══ */}
+        <AnimeEpisodesSection
+          id={id}
+          movie={movie}
+          episodes={episodes}
+          selectedEpisode={selectedEpisode}
+          isEpisodesLoading={isEpisodesLoading}
+          seasonChain={seasonChain}
+          chunkOptions={chunkOptions}
+          selectedChunk={selectedChunk}
+          onSelectChunk={setSelectedChunk}
+          onSelectEpisode={(epNum) => {
+            setSelectedEpisode(epNum);
+            goToWatch(id, 'anime', undefined, epNum, movie.malId || '0');
+          }}
+          onDownload={(epNum) => {
+            goToDownload(id, 'anime', 1, epNum, movie.malId || '0');
+          }}
+          progressItem={
+            progressItem
+              ? {
+                  episode_number: progressItem.episode_number,
+                  progress_percentage: progressItem.progress_percentage,
+                }
+              : undefined
+          }
+        />
+
         {/* Principal Cast / Characters (Full Width) */}
         {cast.length > 0 && (
           <div className="mb-14 w-full">
@@ -772,148 +801,6 @@ export function AnimeDetail({ id }: { id: string }) {
             </div>
           </div>
         )}
-
-        {/* Episode Selector & Grid (Full Width) */}
-        <div className="mb-14 bg-card rounded-3xl p-6 sm:p-8 border border-border w-full">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
-            <h3 className="text-xl sm:text-2xl font-display font-bold text-foreground flex items-center gap-2">
-              <Play className="w-5 h-5 text-brand fill-current" /> Episodes
-              {isEpisodesLoading && episodes.length === 0 ? (
-                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-brand/10 text-brand animate-pulse">
-                  Loading episodes...
-                </span>
-              ) : isEpisodesLoading ? (
-                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-brand/10 text-brand animate-pulse">
-                  Syncing details...
-                </span>
-              ) : episodes.length > 0 ? (
-                <span className="text-xs font-normal font-mono px-2.5 py-1 rounded-full bg-secondary text-muted-foreground">
-                  {episodes.length} {episodes.length === 1 ? 'episode' : 'episodes'}
-                </span>
-              ) : null}
-            </h3>
-            {chunkOptions.length > 0 && (
-              <div className="relative min-w-[220px]">
-                <select
-                  value={selectedChunk}
-                  onChange={(e) => setSelectedChunk(parseInt(e.target.value))}
-                  className="w-full appearance-none bg-black/40 border border-border hover:border-brand rounded-full px-6 py-3 text-foreground focus:outline-none focus:border-brand text-base font-display transition-colors cursor-pointer"
-                >
-                  {chunkOptions.map((chunk, idx) => (
-                    <option key={idx} value={idx} className="bg-background text-foreground">
-                      {chunk.label}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-              </div>
-            )}
-          </div>
-
-          {isEpisodesLoading && episodes.length === 0 ? (
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="w-full flex flex-col md:flex-row gap-4 p-4 rounded-2xl bg-muted/40 animate-pulse border border-border">
-                  <div className="w-full md:w-48 aspect-video rounded-xl bg-muted shrink-0 skeleton-shimmer" />
-                  <div className="flex-1 space-y-3 py-2">
-                    <div className="h-4 bg-muted rounded w-24 skeleton-shimmer" />
-                    <div className="h-5 bg-muted/70 rounded w-2/3 skeleton-shimmer" />
-                    <div className="h-3 bg-muted/40 rounded w-1/2 skeleton-shimmer" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : episodes.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <p className="text-base font-medium">Episodes for this anime have not aired yet or are currently unavailable.</p>
-              <p className="text-xs text-muted-foreground/80 mt-1">Check back once the official broadcast begins!</p>
-            </div>
-          ) : (
-            <div className="space-y-4 max-h-[600px] overflow-y-auto custom-scrollbar pr-2">
-              {(chunkOptions.length > 0 ? episodes.slice(chunkOptions[selectedChunk].start, chunkOptions[selectedChunk].end) : episodes).map((ep: any) => (
-                <div
-                  key={ep.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => {
-                    setSelectedEpisode(ep.number);
-                    goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      setSelectedEpisode(ep.number);
-                      goToWatch(id, 'anime', undefined, ep.number, movie.malId || '0');
-                    }
-                  }}
-                  className={cn(
-                    "w-full text-left flex flex-col md:flex-row gap-4 p-4 rounded-2xl transition-all group cursor-pointer items-start md:items-center justify-between",
-                    selectedEpisode === ep.number 
-                      ? "bg-brand/10 border border-brand/40 shadow-card" 
-                      : "bg-secondary/50 border border-transparent hover:bg-secondary hover:border-border"
-                  )}
-                >
-                  <div className="flex flex-col md:flex-row gap-4 flex-1 min-w-0 w-full items-start md:items-center">
-                    <div className="w-full md:w-48 aspect-video rounded-xl overflow-hidden shrink-0 relative bg-black/50">
-                      <img
-                        loading="lazy"
-                        referrerPolicy="no-referrer"
-                        src={ep.image || movie?.backdropUrl || movie?.posterUrl || undefined}
-                        alt={ep.title}
-                        onError={(e) => {
-                          const target = e.currentTarget;
-                          const fallback = movie?.backdropUrl || movie?.posterUrl;
-                          if (fallback && target.src !== fallback) {
-                            target.src = fallback;
-                          }
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      {!ep.image && (
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                          <Play className="w-8 h-8 text-white/70 group-hover:text-brand transition-colors" />
-                        </div>
-                      )}
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/80 rounded text-xs font-bold text-foreground backdrop-blur">
-                        24m
-                      </div>
-                      {selectedEpisode === ep.number && (
-                        <div className="absolute inset-0 bg-brand/20 flex items-center justify-center backdrop-blur-[1px]">
-                          <Play className="w-8 h-8 text-brand fill-current drop-shadow-lg" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={cn("text-base sm:text-lg font-bold mb-2 truncate", selectedEpisode === ep.number ? "text-brand" : "text-foreground group-hover:text-brand transition-colors")}>
-                        {ep.title && !ep.title.toLowerCase().startsWith('episode')
-                          ? `${ep.number}. ${ep.title}`
-                          : ep.title || `Episode ${ep.number}`}
-                      </h4>
-                      <p className="text-sm text-muted-foreground line-clamp-3 leading-relaxed">
-                        {ep.overview || `Episode ${ep.number} of ${movie.title}`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2 shrink-0 self-end md:self-center mt-2 md:mt-0">
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        goToDownload(id, 'anime', 1, ep.number, movie.malId || '0');
-                      }}
-                      className="px-3.5 py-2 rounded-xl bg-secondary border border-border hover:border-brand/40 hover:bg-brand/20 text-muted-foreground hover:text-brand transition-all flex items-center gap-1.5 text-xs font-bold active:scale-95 cursor-pointer"
-                      title={`Download Episode ${ep.number}`}
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>Download</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* Related Content & Spin-offs */}
         {relatedContent.length > 0 && (
