@@ -1620,8 +1620,8 @@ textarea {
   letter-spacing: 0.05em;
   padding: 1px 6px;
   border-radius: 4px;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .card-rating-star {
@@ -1679,6 +1679,12 @@ textarea {
 .card-watchlist.is-saved {
   color: var(--theme-primary-fg, #111);
   background: var(--theme-primary, var(--paper, #f3f0ea));
+}
+
+/* Performance optimization for poster rails: skip off-screen layout passes */
+.rail {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 340px;
 }
 
 /* Modern Rail Arrow */

@@ -68,7 +68,7 @@ export function MovieCard({
         onClick={onClick}
         onKeyDown={handleKeyDown}
         data-movie-card
-        className="group block relative w-full aspect-[2/3] rounded-2xl overflow-hidden glass border border-white/10 shadow-card hover:shadow-hover hover:border-brand/40 transition-all duration-300 transform-gpu hover:-translate-y-1.5 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none select-none text-left cursor-pointer"
+        className="group block relative w-full aspect-[2/3] rounded-2xl overflow-hidden bg-[#13141a] border border-white/10 shadow-card hover:shadow-hover hover:border-brand/40 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1.5 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none select-none text-left cursor-pointer"
       >
         <PosterImage
           src={movie.posterUrl}
@@ -84,13 +84,13 @@ export function MovieCard({
 
         {/* Media type (Top-Right) */}
         <div className="absolute top-2.5 right-2.5 z-20 flex items-center gap-1">
-          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/70 backdrop-blur-xl text-white/90 border border-white/15">
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider bg-black/85 text-white/90 border border-white/15 shadow-sm">
             {typeLabel}
           </span>
         </div>
 
         {/* Rating pill (Top-Left) */}
-        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xl px-2 py-0.5 rounded-full border border-white/15">
+        <div className="absolute top-2.5 left-2.5 z-20 flex items-center gap-1 bg-black/85 px-2 py-0.5 rounded-full border border-white/15 shadow-sm">
           <Star className="w-3 h-3 text-brand fill-brand" aria-hidden="true" />
           <span className="text-[10px] font-bold text-white font-mono">
             {formatRating(movie.rating)}
@@ -118,10 +118,10 @@ export function MovieCard({
               type="button"
               onClick={toggleWatchlist}
               className={cn(
-                'w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition-all active:scale-90 cursor-pointer shadow-md',
+                'w-8 h-8 rounded-full flex items-center justify-center border transition-all active:scale-90 cursor-pointer shadow-md',
                 inWatchlist
                   ? 'bg-brand/20 border-brand text-brand'
-                  : 'bg-black/60 border-white/20 text-white hover:bg-white/20 hover:border-white/50'
+                  : 'bg-black/75 border-white/20 text-white hover:bg-white/20 hover:border-white/50'
               )}
               aria-pressed={inWatchlist}
               aria-label={
@@ -240,7 +240,7 @@ export function MovieCard({
             <span>Play</span>
           </button>
           {matchScore !== null && (
-            <span className="text-[10px] font-mono font-bold text-white/90 bg-black/60 backdrop-blur-md px-1.5 py-0.5 rounded">
+            <span className="text-[10px] font-mono font-bold text-white/90 bg-black/80 px-1.5 py-0.5 rounded shadow-sm">
               {matchScore}%
             </span>
           )}

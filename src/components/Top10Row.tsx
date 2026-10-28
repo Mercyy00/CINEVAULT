@@ -202,7 +202,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
 
         <ul
           {...scrollerProps}
-          className="card-row flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 items-end will-change-scroll"
+          className="card-row flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 items-end"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;
@@ -247,7 +247,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                 <div className="w-[115px] sm:w-[135px] md:w-[155px] lg:w-[170px] xl:w-[180px] 2xl:w-[185px] relative z-10 flex flex-col">
                   {rank === 1 && (
                     <div className="mb-2 flex items-center gap-1.5 self-start">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-gradient-to-r from-[#ffcf33]/25 to-[#e8852a]/20 text-[#ffe885] border border-[#ffcf33]/40 backdrop-blur-md shadow-sm">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-gradient-to-r from-[#ffcf33]/25 to-[#e8852a]/20 text-[#ffe885] border border-[#ffcf33]/40 bg-[#161208]/90 shadow-sm">
                         <Crown className="w-3 h-3 text-[#ffe270] fill-[#ffe270]" aria-hidden="true" />
                         <span>#1 in {regionLabel}</span>
                       </span>

@@ -363,7 +363,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
 
         <ul
           {...scrollerProps}
-          className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 will-change-scroll"
+          className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0"
         >
           {movies.map((movie, idx) => (
             <li

@@ -110,10 +110,8 @@ export function PosterImage({
         srcSet={srcSet}
         alt={decorative ? '' : `${title} poster`}
         className={cn(
-          "w-full h-full object-cover transition-all duration-300 ease-out relative z-10",
-          loaded
-            ? "opacity-100 filter-none blur-0 scale-100"
-            : "opacity-0 filter blur-sm scale-105",
+          "w-full h-full object-cover transition-opacity duration-300 ease-out relative z-10",
+          loaded ? "opacity-100" : "opacity-0",
           className
         )}
         loading={loading}
