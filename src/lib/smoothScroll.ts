@@ -36,14 +36,13 @@ export function initSmoothScroll(): Lenis | null {
     touchMultiplier: 1.0,
     infinite: false,
     autoResize: true,
+    allowNestedScroll: true,
     prevent: (node: HTMLElement) => {
-      // Prevent Lenis from intercepting scroll inside modals, drawers, or horizontal carousels
+      // Only prevent page scroll if an element explicitly requests it or is an internal scrollable region in a modal
       return Boolean(
         node.hasAttribute?.('data-lenis-prevent') ||
           node.closest?.('[data-lenis-prevent]') ||
-          node.closest?.('.card-row') ||
-          node.closest?.('.custom-scrollbar') ||
-          node.closest?.('[role="dialog"]')
+          (node.closest?.('[role="dialog"]') && node.closest?.('.overflow-y-auto'))
       );
     },
   });
