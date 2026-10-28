@@ -363,6 +363,7 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
 
         <ul
           {...scrollerProps}
+          data-lenis-prevent
           className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (

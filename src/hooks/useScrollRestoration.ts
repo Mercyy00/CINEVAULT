@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { getSmoothScroll } from '../lib/smoothScroll';
 
 /**
  * Remembers how far each URL was scrolled and puts the user back there on Back
@@ -103,6 +104,7 @@ export function useScrollRestoration(): ScrollRestoration {
 
       if (target <= 0) {
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        getSmoothScroll()?.scrollTo(0, { immediate: true });
         return;
       }
 
@@ -112,6 +114,7 @@ export function useScrollRestoration(): ScrollRestoration {
       const step = () => {
         frame.current = null;
         window.scrollTo({ top: target, left: 0, behavior: 'instant' });
+        getSmoothScroll()?.scrollTo(target, { immediate: true });
         const settled = Math.abs(window.scrollY - target) <= RESTORE_EPSILON_PX;
         if (settled || performance.now() >= deadline) {
           restoring.current = false;

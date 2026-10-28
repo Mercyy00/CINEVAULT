@@ -4,6 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import { installRippleEffect } from './lib/ripple.ts';
 import { registerServiceWorker } from './lib/registerServiceWorker.ts';
+import { initSmoothScroll } from './lib/smoothScroll.ts';
 
 // Auto-recover from stale chunks when a new deployment goes live
 window.addEventListener('vite:preloadError', (event) => {
@@ -20,6 +21,7 @@ sessionStorage.removeItem('cv_chunk_reload');
 
 installRippleEffect();
 registerServiceWorker();
+initSmoothScroll();
 
 const container = document.getElementById('root');
 if (!container) {

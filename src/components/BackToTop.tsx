@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronUp } from 'lucide-react';
+import { scrollTo } from '../lib/smoothScroll';
 
 export function BackToTop() {
   const [visible, setVisible] = useState(false);
@@ -16,7 +17,7 @@ export function BackToTop() {
   }, []);
 
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollTo(0, { duration: 1.4 });
   };
 
   return (
