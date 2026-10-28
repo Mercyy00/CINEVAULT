@@ -811,10 +811,10 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
               <button
                 type="button"
                 onClick={handlePlay}
-                className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-5 pr-2 py-2 text-xs sm:text-base font-bold shadow-card hover:scale-[1.03] active:scale-95 transition-all duration-300 cursor-pointer"
+                className="group relative flex items-center gap-3 bg-brand text-brand-foreground rounded-full pl-6 pr-2.5 py-2 sm:py-2.5 text-xs sm:text-base font-bold shadow-[0_8px_30px_rgba(232,133,42,0.35),inset_0_1px_1px_rgba(255,255,255,0.4)] hover:shadow-[0_12px_40px_rgba(232,133,42,0.5),inset_0_1px_1px_rgba(255,255,255,0.6)] hover:scale-[1.03] active:scale-[0.97] transition-all duration-300 cursor-pointer"
               >
-                <span>Watch Now</span>
-                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/15 flex items-center justify-center group-hover:translate-x-0.5 transition-transform">
+                <span className="tracking-tight">Watch Now</span>
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-black/20 flex items-center justify-center transition-all duration-300 group-hover:scale-105 group-hover:translate-x-1 shadow-inner">
                   <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5" aria-hidden="true" />
                 </div>
               </button>
@@ -823,7 +823,7 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
                 type="button"
                 onClick={handleWatchlistToggle}
                 aria-pressed={inWatchlist}
-                className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 text-foreground rounded-full px-5 py-3 text-xs sm:text-sm font-semibold backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-md cursor-pointer"
+                className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/15 text-foreground rounded-full px-5 py-3 text-xs sm:text-sm font-semibold backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 shadow-lg cursor-pointer"
               >
                 {inWatchlist ? (
                   <Check className="w-4 h-4 text-brand" aria-hidden="true" />
@@ -836,7 +836,7 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
               <button
                 type="button"
                 onClick={() => onMovieSelect(current.id, current.type)}
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/5 hover:bg-white/15 border border-white/15 flex items-center justify-center text-foreground backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-md"
+                className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white/10 hover:bg-white/20 border border-white/15 flex items-center justify-center text-foreground backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer shadow-lg"
                 aria-label={`More info about ${current.title}`}
               >
                 <Info className="w-4 h-4 sm:w-5 sm:h-5" aria-hidden="true" />
@@ -934,7 +934,7 @@ export function Hero({ type = 'all', onMovieSelect }: HeroProps) {
           <div
             role="group"
             aria-label="Choose a featured title"
-            className="absolute bottom-24 sm:bottom-28 right-4 sm:right-10 z-30 hidden sm:flex items-center gap-2 bg-black/50 backdrop-blur-xl border border-white/10 p-1.5 rounded-full shadow-2xl"
+            className="absolute bottom-24 sm:bottom-28 right-4 sm:right-10 z-30 hidden sm:flex items-center gap-2.5 bg-black/60 backdrop-blur-2xl border border-white/12 p-2 rounded-full shadow-[0_16px_40px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.15)]"
           >
             {movies.map((movie, idx) => (
               <button

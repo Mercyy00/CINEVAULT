@@ -666,7 +666,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
               <button
                 type="button"
                 onClick={onSearchClick}
-                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer"
+                className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-foreground hover:text-brand transition-all duration-200 shadow-md hover:scale-105 active:scale-95 cursor-pointer"
                 aria-label="Search titles"
                 title="Search (Ctrl + K)"
               >
@@ -683,8 +683,8 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     setShowProfile(false);
                   }}
                   className={cn(
-                    "h-9 w-9 sm:h-10 sm:w-10 rounded-full glass border border-white/10 flex items-center justify-center text-foreground hover:text-brand transition-colors shadow-card cursor-pointer",
-                    showCustomizer && "border-brand ring-2 ring-brand/30"
+                    "h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-white/[0.06] hover:bg-white/[0.12] border border-white/12 flex items-center justify-center text-foreground hover:text-brand transition-all duration-200 shadow-md hover:scale-105 active:scale-95 cursor-pointer",
+                    showCustomizer && "border-brand ring-2 ring-brand/40 bg-brand/10 text-brand"
                   )}
                   aria-label="Customize theme and typography"
                   title="Themes & Typography"
@@ -704,9 +704,9 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     setShowCustomizer(false);
                   }}
                   className={cn(
-                    "w-9 h-9 sm:w-10 sm:h-10 rounded-full border overflow-hidden flex items-center justify-center transition-all cursor-pointer relative shrink-0",
+                    "w-9 h-9 sm:w-10 sm:h-10 rounded-full border overflow-hidden flex items-center justify-center transition-all duration-200 cursor-pointer relative shrink-0 shadow-md hover:scale-105 active:scale-95",
                     showProfile
-                      ? "border-brand ring-2 ring-brand/40"
+                      ? "border-brand ring-2 ring-brand/40 shadow-brand/20"
                       : isKidsMode
                       ? "border-pink-500/60 ring-2 ring-pink-500/20"
                       : "border-white/20 hover:border-white/50"
@@ -739,7 +739,7 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
             aria-label="Main Navigation"
             className="fixed bottom-0 inset-x-0 sm:bottom-7 sm:left-1/2 sm:-translate-x-1/2 sm:inset-x-auto z-[100] pointer-events-auto select-none safe-bottom"
           >
-            <div className="w-full sm:w-auto px-1.5 py-1 sm:p-2 sm:rounded-full flex items-center justify-around sm:justify-start gap-0.5 sm:gap-2 border-t sm:border border-white/10 sm:border-white/12 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] sm:shadow-dock backdrop-blur-3xl bg-[#0a0b10]/95 sm:bg-[#0a0b10]/80 transition-all duration-300">
+            <div className="w-full sm:w-auto px-1.5 py-1 sm:p-1.5 sm:rounded-full flex items-center justify-around sm:justify-start gap-0.5 sm:gap-2 border-t sm:border border-white/10 sm:border-white/15 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] sm:shadow-[0_20px_50px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.22)] backdrop-blur-3xl bg-[#0a0b10]/95 sm:bg-[#0a0b10]/85 transition-all duration-300">
               {navLinks.map((link) => {
                 const isActive =
                   link.href === '/'
@@ -764,10 +764,10 @@ export function Navbar({ onSearchClick }: { onSearchClick: () => void }) {
                     {isActive && (
                       <motion.div
                         layoutId="active-dock-pill"
-                        className="hidden sm:block absolute inset-0 rounded-full bg-brand"
+                        className="hidden sm:block absolute inset-0 rounded-full bg-brand shadow-[0_4px_20px_rgba(232,133,42,0.45),inset_0_1px_1px_rgba(255,255,255,0.4)]"
                         transition={{
                           type: "spring",
-                          stiffness: 400,
+                          stiffness: 420,
                           damping: 28,
                         }}
                       />

@@ -68,7 +68,7 @@ export function MovieCard({
         onClick={onClick}
         onKeyDown={handleKeyDown}
         data-movie-card
-        className="group block relative w-full aspect-[2/3] rounded-2xl overflow-hidden bg-[#13141a] border border-white/10 shadow-card hover:shadow-hover hover:border-brand/40 transition-[transform,box-shadow,border-color] duration-200 hover:-translate-y-1.5 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none select-none text-left cursor-pointer"
+        className="group block relative w-full aspect-[2/3] rounded-[1.25rem] overflow-hidden bg-[#13141a] border border-white/[0.12] shadow-[0_8px_24px_rgba(0,0,0,0.65),inset_0_1px_1px_rgba(255,255,255,0.1)] hover:shadow-[0_18px_42px_rgba(0,0,0,0.85),inset_0_1px_1px_rgba(255,255,255,0.22)] hover:border-white/30 transition-all duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] hover:-translate-y-2 focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 focus-visible:ring-offset-background outline-none select-none text-left cursor-pointer before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:opacity-0 group-hover:before:opacity-100 before:transition-opacity before:duration-300 before:z-30"
       >
         <PosterImage
           src={movie.posterUrl}
@@ -141,10 +141,12 @@ export function MovieCard({
               <button
                 type="button"
                 onClick={handlePlay}
-                className="flex items-center justify-center gap-1.5 py-1.5 px-3.5 rounded-full bg-white hover:bg-white/90 text-black font-extrabold text-xs shadow-md transition-all active:scale-95 cursor-pointer"
+                className="group/play flex items-center gap-2 pl-2 pr-3.5 py-1.5 rounded-full bg-white hover:bg-[#f3f0ea] text-black font-extrabold text-xs shadow-lg transition-all active:scale-95 cursor-pointer"
                 aria-label={`Play ${movie.title}`}
               >
-                <Play className="w-3 h-3 fill-current ml-0.5" aria-hidden="true" />
+                <span className="w-5 h-5 rounded-full bg-black/10 flex items-center justify-center transition-transform group-hover/play:scale-110">
+                  <Play className="w-2.5 h-2.5 fill-current ml-0.5" aria-hidden="true" />
+                </span>
                 <span>Play</span>
               </button>
               {matchScore !== null && (

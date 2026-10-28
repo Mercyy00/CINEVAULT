@@ -121,15 +121,21 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
   }, [regionCode, reloadToken, resetFocus]);
 
   const heading = (
-    <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12">
+    <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12 group/header">
       <div>
-        <p className="eyebrow">The week&apos;s most watched</p>
-        <h3 className="font-display font-medium text-base sm:text-lg lg:text-xl tracking-tight text-foreground m-0">
+        <p className="eyebrow flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-brand animate-pulse" />
+          <span>Curated Chart</span>
+          <i aria-hidden="true" className="w-5 h-px bg-gradient-to-r from-brand/60 to-transparent" />
+          <em>The week&apos;s most watched</em>
+        </p>
+        <h3 className="font-display font-semibold text-base sm:text-lg lg:text-xl tracking-tight text-foreground m-0 flex items-center gap-2">
           Top 10 in {regionLabel} Today
         </h3>
       </div>
-      <p className="text-[10px] font-mono text-muted-foreground tracking-wider uppercase hidden sm:block">
-        Refreshed daily
+      <p className="text-[10px] font-mono text-muted-foreground tracking-widest uppercase hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.04] border border-white/5">
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+        <span>Refreshed Daily</span>
       </p>
     </div>
   );

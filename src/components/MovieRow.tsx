@@ -259,10 +259,18 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
   }
 
   const heading = (
-    <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12">
+    <div className="rail-heading flex items-end justify-between mb-3 px-3 sm:px-8 lg:px-12 group/header">
       <div>
-        <p className="eyebrow">Selection</p>
-        <h3 className="font-display font-medium text-base sm:text-lg lg:text-xl tracking-tight text-[#f3f0ea] m-0">
+        <p className="eyebrow flex items-center gap-2">
+          {typeof index === 'number' && (
+            <span className="opacity-40 font-mono text-[9px] tracking-widest">
+              {String(index + 1).padStart(2, '0')} /
+            </span>
+          )}
+          <span>Selection</span>
+          <i aria-hidden="true" className="w-5 h-px bg-gradient-to-r from-brand/60 to-transparent" />
+        </p>
+        <h3 className="font-display font-semibold text-base sm:text-lg lg:text-xl tracking-tight text-[#f3f0ea] m-0">
           {title}
         </h3>
       </div>
@@ -271,13 +279,14 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
         <button
           type="button"
           onClick={onExploreAll}
-          className="text-[11px] font-mono tracking-wider uppercase text-[#929093] hover:text-[#f3f0ea] transition-colors cursor-pointer hidden sm:inline-block"
+          className="text-[11px] font-mono tracking-widest uppercase text-[#929093] hover:text-brand transition-colors cursor-pointer hidden sm:flex items-center gap-1.5 group/btn"
         >
-          {`Explore all →`}
+          <span>Explore all</span>
+          <span className="transition-transform group-hover/btn:translate-x-1 font-bold">→</span>
         </button>
       ) : (
         movies.length > 0 && (
-          <span className="text-[10px] font-mono text-[#77737a] tracking-wider uppercase hidden sm:inline-block">
+          <span className="text-[10px] font-mono text-[#77737a] tracking-wider uppercase hidden sm:inline-block px-2.5 py-0.5 rounded-full bg-white/[0.04] border border-white/5">
             {movies.length} {movies.length === 1 ? 'title' : 'titles'}
           </span>
         )

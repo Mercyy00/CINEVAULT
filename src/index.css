@@ -1694,24 +1694,29 @@ textarea {
   z-index: 30;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 52px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: var(--radius-sm, 6px);
+  width: 38px;
+  height: 58px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
   color: #fff;
-  background: rgba(10, 10, 10, 0.78);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  background: rgba(14, 15, 20, 0.88);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   cursor: pointer;
   opacity: 0;
   transform: translateY(-50%);
-  transition: opacity 0.25s ease, background 0.25s ease, transform 0.2s ease;
+  transition: opacity 0.25s ease, background 0.25s ease, transform 0.2s cubic-bezier(0.32, 0.72, 0, 1), border-color 0.2s ease;
   backdrop-filter: blur(8px);
 }
 
 .rail-arrow:hover {
-  background: rgba(25, 25, 28, 0.95);
+  background: rgba(22, 23, 30, 0.98);
   border-color: rgba(255, 255, 255, 0.35);
-  transform: translateY(-50%) scale(1.05);
+  transform: translateY(-50%) scale(1.08);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.rail-arrow:active {
+  transform: translateY(-50%) scale(0.96);
 }
 
 .group\/row:hover .rail-arrow,
