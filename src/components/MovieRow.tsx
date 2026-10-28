@@ -303,11 +303,11 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
         aria-label={`${title}, loading`}
       >
         {heading}
-        <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12">
-          {Array.from({ length: 8 }, (_, i) => (
+        <div className="flex gap-3 sm:gap-4 overflow-hidden px-3 sm:px-8 lg:px-12">
+          {Array.from({ length: 6 }, (_, i) => (
             <div
               key={`skeleton-${i}`}
-              className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[165px] lg:w-[175px] aspect-[2/3] rounded-[12px] bg-[#141417] border border-white/5 relative overflow-hidden"
+              className="card-row-item aspect-[2/3] rounded-[12px] bg-[#141417] border border-white/5 relative overflow-hidden"
             >
               <div className="w-full h-full skeleton-shimmer bg-[#1b191c] rounded-[12px]" />
             </div>
@@ -372,23 +372,23 @@ export function MovieRow({ title, index, fetchFn, onMovieSelect, onExploreAll }:
 
         <ul
           {...scrollerProps}
-          className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0"
+          className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 scroll-pl-3 sm:scroll-pl-8 lg:scroll-pl-12 scroll-pr-3 sm:scroll-pr-8 lg:scroll-pr-12 pt-2 pb-6 snap-x select-none list-none m-0 will-change-scroll"
         >
           {movies.map((movie, idx) => (
             <li
               key={`${movie.type}-${movie.id}`}
-              className="snap-start flex-shrink-0 w-[130px] sm:w-[150px] md:w-[165px] lg:w-[175px] relative"
+              className="snap-start card-row-item relative"
             >
               <MovieCard
                 movie={movie}
                 onClick={() => onMovieSelect(movie.id, movie.type)}
                 tabIndex={idx === rovingIndex ? 0 : -1}
-                priority={isLeadRow && idx < 8}
+                priority={isLeadRow && idx < 6}
               />
             </li>
           ))}
           {loadingMore && (
-            <li className="flex-shrink-0 w-[130px] sm:w-[150px] md:w-[165px] lg:w-[175px] aspect-[2/3] rounded-[12px] skeleton-shimmer bg-[#1b191c] border border-white/5" />
+            <li className="card-row-item aspect-[2/3] rounded-[12px] skeleton-shimmer bg-[#1b191c] border border-white/5" />
           )}
         </ul>
 

@@ -1687,6 +1687,50 @@ textarea {
   contain-intrinsic-size: auto 340px;
 }
 
+/* Unified Carousel Card Sizing:
+   Configured so desktop (>=1024px) has EXACTLY 6 tiles per line!
+   Mobile (<640px): 2 tiles with preview peek
+   Small Tablet (640px-767px): 3 tiles with preview peek
+   Medium Tablet (768px-1023px): 4 tiles with preview peek
+   Desktop & Large Screens (>=1024px): Exactly 6 tiles in each line
+*/
+.card-row-item {
+  flex: 0 0 calc((100% - 12px) / 2.2);
+  width: calc((100% - 12px) / 2.2);
+  max-width: calc((100% - 12px) / 2.2);
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .card-row-item {
+    flex: 0 0 calc((100% - 32px) / 3.2);
+    width: calc((100% - 32px) / 3.2);
+    max-width: calc((100% - 32px) / 3.2);
+  }
+}
+
+@media (min-width: 768px) {
+  .card-row-item {
+    flex: 0 0 calc((100% - 48px) / 4.2);
+    width: calc((100% - 48px) / 4.2);
+    max-width: calc((100% - 48px) / 4.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  .card-row-item {
+    flex: 0 0 calc((100% - 80px) / 6);
+    width: calc((100% - 80px) / 6);
+    max-width: calc((100% - 80px) / 6);
+  }
+}
+
+/* Carousel track smooth scroll behavior */
+.card-row {
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+
 /* Modern Rail Arrow */
 .rail-arrow {
   position: absolute;

@@ -144,10 +144,10 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
     return (
       <section className="rail top10-rail mb-12 sm:mb-16 w-full select-none" aria-busy="true" aria-label="Loading Top 10 Today">
         {heading}
-        <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12 py-6">
-          {Array.from({ length: 8 }, (_, i) => (
-            <div key={`top10-skeleton-${i}`} className="flex items-end shrink-0">
-              <div className="w-[120px] sm:w-[140px] md:w-[160px] aspect-[2/3] rounded-[12px] bg-card border border-border relative z-10 overflow-hidden">
+        <div className="flex gap-3 sm:gap-4 overflow-hidden px-3 sm:px-8 lg:px-12 py-6">
+          {Array.from({ length: 6 }, (_, i) => (
+            <div key={`top10-skeleton-${i}`} className="card-row-item flex items-end shrink-0">
+              <div className="w-full aspect-[2/3] rounded-[12px] bg-card border border-border relative z-10 overflow-hidden">
                 <div className="w-full h-full skeleton-shimmer bg-muted rounded-[12px]" />
               </div>
             </div>
@@ -208,7 +208,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
 
         <ul
           {...scrollerProps}
-          className="card-row flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-2 pb-6 snap-x select-none list-none m-0 items-end"
+          className="card-row flex gap-2 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 scroll-pl-3 sm:scroll-pl-8 lg:scroll-pl-12 scroll-pr-3 sm:scroll-pr-8 lg:scroll-pr-12 pt-2 pb-6 snap-x select-none list-none m-0 items-end will-change-scroll"
         >
           {movies.map((movie, idx) => {
             const rank = idx + 1;
@@ -233,7 +233,7 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
             return (
               <li
                 key={`top10-showcase-${movie.type}-${movie.id}`}
-                className="snap-start flex-shrink-0 flex items-end relative group/top10-item transition-transform duration-200 hover:-translate-y-1"
+                className="snap-start card-row-item flex items-end relative group/top10-item transition-transform duration-200 hover:-translate-y-1"
               >
                 {/* 3D sculpted numeral. Decorative: the rank is announced as part
                     of each card's accessible name instead, so screen readers get
@@ -241,16 +241,16 @@ export function Top10Row({ onMovieSelect, region = 'US' }: Top10RowProps) {
                 <div
                   aria-hidden="true"
                   className={cn(
-                    "top10-numeral-3d -mr-6 sm:-mr-8 md:-mr-10 lg:-mr-11 xl:-mr-12 z-0 relative",
-                    "text-[95px] sm:text-[115px] md:text-[135px] lg:text-[155px] xl:text-[170px] 2xl:text-[180px]",
+                    "top10-numeral-3d -mr-5 sm:-mr-7 md:-mr-9 lg:-mr-10 xl:-mr-11 z-0 relative shrink-0",
+                    "text-[80px] sm:text-[100px] md:text-[120px] lg:text-[135px] xl:text-[150px] 2xl:text-[160px]",
                     rankNumeralClass,
-                    rank === 10 && "-mr-8 sm:-mr-10 md:-mr-12 lg:-mr-14 xl:-mr-15 tracking-tighter"
+                    rank === 10 && "-mr-7 sm:-mr-9 md:-mr-11 lg:-mr-12 xl:-mr-13 tracking-tighter"
                   )}
                 >
                   {rank}
                 </div>
 
-                <div className="w-[115px] sm:w-[135px] md:w-[155px] lg:w-[170px] xl:w-[180px] 2xl:w-[185px] relative z-10 flex flex-col">
+                <div className="flex-1 min-w-0 relative z-10 flex flex-col">
                   {rank === 1 && (
                     <div className="mb-2 flex items-center gap-1.5 self-start">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider flex items-center gap-1 bg-gradient-to-r from-[#ffcf33]/25 to-[#e8852a]/20 text-[#ffe885] border border-[#ffcf33]/40 bg-[#161208]/90 shadow-sm">

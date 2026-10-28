@@ -103,11 +103,11 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
 
       {/* Loading Skeletons */}
       {loading ? (
-        <div className="flex gap-3 sm:gap-4 overflow-hidden px-4 sm:px-8 lg:px-12">
-          {Array.from({ length: 8 }, (_, i) => (
+        <div className="flex gap-3 sm:gap-4 overflow-hidden px-3 sm:px-8 lg:px-12">
+          {Array.from({ length: 6 }, (_, i) => (
             <div
               key={`sched-skel-${i}`}
-              className="flex-shrink-0 w-[125px] sm:w-[145px] md:w-[165px] lg:w-[180px] 2xl:w-[190px] aspect-[2/3] rounded-2xl bg-[#12131b] border border-white/5 relative overflow-hidden skeleton-shimmer"
+              className="card-row-item aspect-[2/3] rounded-2xl bg-[#12131b] border border-white/5 relative overflow-hidden skeleton-shimmer"
             />
           ))}
         </div>
@@ -163,7 +163,7 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
           {/* Carousel Track */}
           <ul
             {...scrollerProps}
-            className="flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 pt-3 pb-8 -my-2 snap-x select-none list-none m-0 will-change-scroll"
+            className="card-row flex gap-3 sm:gap-4 overflow-x-auto scroll-smooth overscroll-x-contain scrollbar-none px-3 sm:px-8 lg:px-12 scroll-pl-3 sm:scroll-pl-8 lg:scroll-pl-12 scroll-pr-3 sm:scroll-pr-8 lg:scroll-pr-12 pt-3 pb-8 -my-2 snap-x select-none list-none m-0 will-change-scroll"
           >
             {schedule.map((anime) => {
               const airingInfo = anime.nextAiringEpisode
@@ -173,7 +173,7 @@ export function AnimeScheduleRow({ onMovieSelect }: AnimeScheduleRowProps) {
               return (
                 <li
                   key={`sched-${anime.id}`}
-                  className="flex-shrink-0 w-[125px] sm:w-[145px] md:w-[165px] lg:w-[180px] 2xl:w-[190px] snap-start"
+                  className="card-row-item snap-start"
                 >
                   <button
                     type="button"

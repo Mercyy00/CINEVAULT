@@ -33,6 +33,7 @@ export function ContinueWatchingRow() {
   const handleMouseDown = (e: React.MouseEvent | React.TouchEvent) => {
     isDown.current = true;
     if (scrollContainerRef.current) {
+      scrollContainerRef.current.style.scrollBehavior = 'auto';
       startX.current =
         'touches' in e
           ? e.touches[0].pageX - scrollContainerRef.current.offsetLeft
@@ -43,10 +44,16 @@ export function ContinueWatchingRow() {
 
   const handleMouseLeave = () => {
     isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.style.scrollBehavior = '';
+    }
   };
 
   const handleMouseUp = () => {
     isDown.current = false;
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.style.scrollBehavior = '';
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent | React.TouchEvent) => {

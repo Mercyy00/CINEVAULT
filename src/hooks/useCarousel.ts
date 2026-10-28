@@ -61,7 +61,12 @@ export function useCarousel({ itemCount, onNearEnd }: CarouselOptions): Carousel
   const didDrag = useRef(false);
   const startX = useRef(0);
   const startScroll = useRef(0);
+  const lastX = useRef(0);
+  const lastTime = useRef(0);
+  const velocity = useRef(0);
   const scrollFrame = useRef<number | null>(null);
+  const animFrame = useRef<number | null>(null);
+  const targetScrollRef = useRef<number | null>(null);
 
   // `onNearEnd` is a fresh closure on most renders; a ref keeps the scroll
   // handler stable so the listener isn't swapped on every parent update.
@@ -94,8 +99,86 @@ export function useCarousel({ itemCount, onNearEnd }: CarouselOptions): Carousel
   useEffect(
     () => () => {
       if (scrollFrame.current !== null) cancelAnimationFrame(scrollFrame.current);
+      if (animFrame.current !== null) cancelAnimationFrame(animFrame.current);
     },
     []
+  );
+
+  const cancelSmoothScroll = useCallback(() => {
+    if (animFrame.current !== null) {
+      cancelAnimationFrame(animFrame.current);
+      animFrame.current = null;
+    }
+    targetScrollRef.current = null;
+    const element = rowRef.current;
+    if (element) {
+      element.style.scrollSnapType = '';
+      element.style.scrollBehavior = '';
+    }
+  }, []);
+
+  /**
+   * Ultra-smooth easing scroll that temporarily suspends CSS scroll-snap
+   * so the browser's snap engine doesn't stutter fighting RAF interpolation.
+   */
+  const smoothScrollToTarget = useCallback(
+    (element: HTMLUListElement, target: number, duration = 460) => {
+      const prefersReduced =
+        typeof window !== 'undefined' &&
+        window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+
+      if (prefersReduced) {
+        element.scrollLeft = target;
+        targetScrollRef.current = null;
+        updateArrows();
+        return;
+      }
+
+      if (animFrame.current !== null) {
+        cancelAnimationFrame(animFrame.current);
+        animFrame.current = null;
+      }
+
+      const start = element.scrollLeft;
+      const distance = target - start;
+      if (Math.abs(distance) < 1) {
+        targetScrollRef.current = null;
+        return;
+      }
+
+      targetScrollRef.current = target;
+
+      // Temporarily suspend snap & CSS smooth scroll during animation
+      element.style.scrollSnapType = 'none';
+      element.style.scrollBehavior = 'auto';
+
+      const startTime = performance.now();
+
+      // Silky smooth quintic/cubic ease-out deceleration curve
+      const ease = (t: number) => 1 - Math.pow(1 - t, 3.5);
+
+      const step = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(1, elapsed / duration);
+        const eased = ease(progress);
+
+        element.scrollLeft = start + distance * eased;
+
+        if (progress < 1) {
+          animFrame.current = requestAnimationFrame(step);
+        } else {
+          element.scrollLeft = target;
+          element.style.scrollSnapType = '';
+          element.style.scrollBehavior = '';
+          animFrame.current = null;
+          targetScrollRef.current = null;
+          updateArrows();
+        }
+      };
+
+      animFrame.current = requestAnimationFrame(step);
+    },
+    [updateArrows]
   );
 
   const handleScroll = useCallback(() => {
@@ -111,10 +194,7 @@ export function useCarousel({ itemCount, onNearEnd }: CarouselOptions): Carousel
   }, [updateArrows]);
 
   /**
-   * Width of one card plus the gap, measured rather than assumed. Card width is
-   * a five-breakpoint responsive value, so a hardcoded step would be wrong on
-   * four of them -- and `clientWidth * 0.75` stopped mid-poster, which fought
-   * `snap-start` and bounced the row back.
+   * Width of one card plus the gap, measured dynamically rather than assumed.
    */
   const cardStep = (element: HTMLElement): number => {
     const items = element.querySelectorAll<HTMLLIElement>(':scope > li');
@@ -123,18 +203,37 @@ export function useCarousel({ itemCount, onNearEnd }: CarouselOptions): Carousel
     return element.clientWidth * 0.8;
   };
 
-  const scrollByPage = useCallback((direction: 'left' | 'right') => {
-    const element = rowRef.current;
-    if (!element) return;
-    const step = cardStep(element);
-    // Advance by whole cards so the landing position agrees with snap-start.
-    const perView = Math.max(1, Math.floor(element.clientWidth / step));
-    const delta = step * perView;
-    element.scrollTo({
-      left: element.scrollLeft + (direction === 'left' ? -delta : delta),
-      behavior: 'smooth',
-    });
-  }, []);
+  const scrollByPage = useCallback(
+    (direction: 'left' | 'right') => {
+      const element = rowRef.current;
+      if (!element) return;
+      const step = cardStep(element);
+      if (step <= 0) return;
+
+      const items = element.querySelectorAll<HTMLLIElement>(':scope > li');
+      const itemWidth = items.length > 0 ? items[0].offsetWidth : step;
+      const gap = Math.max(0, step - itemWidth);
+
+      const computedStyle = window.getComputedStyle(element);
+      const paddingLeft = parseFloat(computedStyle.paddingLeft) || 0;
+      const paddingRight = parseFloat(computedStyle.paddingRight) || 0;
+      const innerWidth = element.clientWidth - paddingLeft - paddingRight;
+
+      // Accurately compute whole cards visible in the row viewport (e.g. 6 on desktop)
+      const perView = Math.max(1, Math.round((innerWidth + gap) / step));
+
+      const maxScroll = Math.max(0, element.scrollWidth - element.clientWidth);
+      // If a previous animation was running, extend from that target for seamless rapid clicks
+      const baseScroll = targetScrollRef.current ?? element.scrollLeft;
+      const currentCardIndex = Math.round(baseScroll / step);
+      const targetCardIndex =
+        direction === 'right' ? currentCardIndex + perView : currentCardIndex - perView;
+      const targetScroll = Math.max(0, Math.min(targetCardIndex * step, maxScroll));
+
+      smoothScrollToTarget(element, targetScroll);
+    },
+    [smoothScrollToTarget]
+  );
 
   const pointerX = (event: React.MouseEvent, element: HTMLElement) =>
     event.pageX - element.offsetLeft;
@@ -142,27 +241,60 @@ export function useCarousel({ itemCount, onNearEnd }: CarouselOptions): Carousel
   const handleDragStart = (event: React.MouseEvent) => {
     const element = rowRef.current;
     if (!element || event.button !== 0) return;
+    cancelSmoothScroll();
     isDown.current = true;
     didDrag.current = false;
     startX.current = pointerX(event, element);
     startScroll.current = element.scrollLeft;
-    // `scroll-smooth` animates direct scrollLeft writes too, which made the row
-    // lag behind the pointer. Suspend it for the duration of the drag.
+    lastX.current = pointerX(event, element);
+    lastTime.current = performance.now();
+    velocity.current = 0;
+    // Suspend smooth scrolling & snap during manual drag for 1:1 fluid tracking
     element.style.scrollBehavior = 'auto';
+    element.style.scrollSnapType = 'none';
   };
 
   const handleDragEnd = () => {
     const element = rowRef.current;
+    if (!isDown.current || !element) return;
     isDown.current = false;
-    if (element) element.style.scrollBehavior = '';
+
+    if (didDrag.current) {
+      const step = cardStep(element);
+      const maxScroll = Math.max(0, element.scrollWidth - element.clientWidth);
+      // Flick momentum if released with velocity
+      if (Math.abs(velocity.current) > 0.2) {
+        const momentumDistance = -velocity.current * 220;
+        const target = element.scrollLeft + momentumDistance;
+        const targetCard = Math.round(target / step) * step;
+        smoothScrollToTarget(element, Math.max(0, Math.min(targetCard, maxScroll)), 420);
+      } else {
+        // Soft landing on nearest card boundary
+        const nearestCard = Math.round(element.scrollLeft / step) * step;
+        smoothScrollToTarget(element, Math.max(0, Math.min(nearestCard, maxScroll)), 250);
+      }
+    } else {
+      element.style.scrollBehavior = '';
+      element.style.scrollSnapType = '';
+    }
   };
 
   const handleDragMove = (event: React.MouseEvent) => {
     const element = rowRef.current;
     if (!isDown.current || !element) return;
-    const travel = pointerX(event, element) - startX.current;
+    const currentX = pointerX(event, element);
+    const travel = currentX - startX.current;
     if (!didDrag.current && Math.abs(travel) < DRAG_SLOP_PX) return;
     didDrag.current = true;
+
+    const now = performance.now();
+    const dt = now - lastTime.current;
+    if (dt > 8) {
+      velocity.current = (currentX - lastX.current) / dt;
+      lastX.current = currentX;
+      lastTime.current = now;
+    }
+
     element.scrollLeft = startScroll.current - travel * DRAG_FACTOR;
   };
 

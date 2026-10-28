@@ -523,10 +523,10 @@ export function PageShell({
           </div>
         ) : loading && movies.length === 0 ? (
           <div
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3.5 sm:gap-4.5"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-3.5 sm:gap-4.5"
             aria-busy="true"
           >
-            {Array.from({ length: 16 }, (_, i) => (
+            {Array.from({ length: 12 }, (_, i) => (
               <div
                 key={`skeleton-${i}`}
                 className="aspect-[2/3] rounded-[1.25rem] double-bezel-card p-[1.5px] border border-white/5 relative overflow-hidden"
@@ -547,7 +547,7 @@ export function PageShell({
         ) : movies.length > 0 ? (
           <>
             <div
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-3.5 sm:gap-4.5"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-6 gap-3.5 sm:gap-4.5"
               role="tabpanel"
               aria-busy={loadingMore}
             >
