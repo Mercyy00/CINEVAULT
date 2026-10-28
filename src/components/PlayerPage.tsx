@@ -34,32 +34,24 @@ import { StorageKeys, readString, writeString } from '../lib/storage';
  * - **`postMessage` handlers verify the origin** before trusting a payload.
  */
 
-/**
- * How long to wait for an embed's `load` event before offering the next source.
- *
- * Was 12 s. Twelve seconds of a black screen is indistinguishable from a broken
- * site, and these sources fail often enough that the wait was the common case
- * rather than the exception. At 4.5 s the failover is offered while the viewer is
- * still expecting something to happen.
- */
-const EMBED_TIMEOUT_MS = 4_000;
 const CONTROLS_HIDE_MS = 3_000;
 const NEXT_EPISODE_SECONDS = 15;
 const TOP_ZONE_RATIO = 0.15;
+// Max time to display the loading spinner before revealing player iframe if onLoad didn't fire
+const EMBED_LOAD_FALLBACK_MS = 8_000;
 
 const serverProbeCache = new Map<string, { reachable: boolean; latencyMs: number }>();
 
-type EmbedState = 'idle' | 'loading' | 'ready' | 'slow';
+type EmbedState = 'idle' | 'loading' | 'ready';
 
 /**
  * Audio-language chooser for the movie/TV player.
  *
- * The viewer never picks a provider by hand in the normal flow — they pick a
- * language and the player auto-selects (and silently fails over between) the
- * sources that advertise it. `sourcesForLanguage` turns a language into an
- * ordered candidate pool: titles in the requested language first, then the
- * `multi` sources as a fallback, so a pool is never empty. `auto` keeps the
- * full reachability-ranked list.
+ * Audio-language filter for the movie/TV player.
+ *
+ * `sourcesForLanguage` filters available sources based on language: titles
+ * in the requested language first, then `multi` sources as fallback.
+ * Server selection remains stable during playback unless manually changed.
  */
 type AudioLanguage = 'auto' | 'hindi' | 'english';
 
@@ -103,7 +95,6 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   );
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const [rankedSources, setRankedSources] = useState<StreamSource[]>(STREAM_SOURCES);
-  const [failedSources, setFailedSources] = useState<Set<string>>(new Set());
   const [source, setSource] = useState<StreamSource>(() => {
     const lang = userProfile.languagePreference ?? 'auto';
     const pool = sourcesForLanguage(STREAM_SOURCES, lang);
@@ -432,42 +423,23 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
     // `retryToken` intentionally participates so "Try again" remounts the frame.
   }, [movie, missingImdbId, type, source, id, seasonNumber, episodeNumber, resolvedImdbId, effectiveProgress]);
 
-  const [failoverMessage, setFailoverMessage] = useState<string | null>(null);
-
   useEffect(() => {
     if (!embedSrc) {
       setEmbedState('idle');
       return;
     }
     setEmbedState('loading');
+    // Safety fallback: dismiss loading spinner after EMBED_LOAD_FALLBACK_MS in case
+    // cross-origin sandbox suppresses the iframe onLoad event.
+    // The server is NOT switched automatically.
     const timer = window.setTimeout(() => {
-      setEmbedState((state) => {
-        if (state === 'loading') {
-          setFailedSources(prev => new Set([...prev, source.id]));
-          return 'slow';
-        }
-        return state;
-      });
-    }, EMBED_TIMEOUT_MS);
+      setEmbedState((state) => (state === 'loading' ? 'ready' : state));
+    }, EMBED_LOAD_FALLBACK_MS);
     return () => window.clearTimeout(timer);
-  }, [embedSrc, retryToken, source.id]);
-
-  useEffect(() => {
-    if (embedState === 'slow') {
-      const pool = sourcesForLanguage(rankedSources, languagePreference);
-      const nextSource = pool.find(s => !failedSources.has(s.id) && s.id !== source.id && s.status !== 'maintenance');
-      if (nextSource) {
-        setFailoverMessage('Still loading — switching for you…');
-        setSource(nextSource);
-      } else {
-        setFailoverMessage('Having trouble reaching this title. Try another source below.');
-      }
-    }
-  }, [embedState, failedSources, rankedSources, source.id, languagePreference]);
+  }, [embedSrc, retryToken]);
 
   useEffect(() => {
     if (embedState === 'ready') {
-      setFailoverMessage(null);
       writeString(StorageKeys.preferredServer, source.id);
     }
   }, [embedState, source.id]);
@@ -829,20 +801,18 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
   const handleSourceChange = (next: StreamSource) => {
     if (next.status === 'maintenance') return;
     setSource(next);
+    writeString(StorageKeys.preferredServer, next.id);
   };
 
   const handleLanguageChange = (lang: AudioLanguage) => {
     setLanguagePreference(lang);
     setLanguageMenuOpen(false);
     updateUserProfile({ languagePreference: lang });
-    // A fresh language choice deserves a clean slate — forget prior failures so
-    // the full pool is reconsidered, then jump to the best source in it.
-    setFailedSources(new Set());
-    setFailoverMessage(null);
     const pool = sourcesForLanguage(rankedSources, lang);
     const next = pool.find((s) => s.status !== 'maintenance') ?? pool[0];
     if (next && next.id !== source.id) {
       setSource(next);
+      writeString(StorageKeys.preferredServer, next.id);
     }
   };
 
@@ -1545,23 +1515,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
           )}
         </AnimatePresence>
 
-        {/* Failover notification */}
-        <AnimatePresence>
-          {failoverMessage && embedState !== 'ready' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 max-w-[95vw] sm:max-w-2xl bg-card/95 backdrop-blur-xl border border-white/15 rounded-2xl p-3 sm:p-4 shadow-2xl flex items-center gap-3"
-              role="status"
-            >
-              <AlertTriangle className="w-4 h-4 text-brand shrink-0" aria-hidden="true" />
-              <p className="text-xs sm:text-sm text-foreground font-medium">
-                {failoverMessage}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+
 
         {/* Next episode */}
         <AnimatePresence>
@@ -1673,8 +1627,22 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
               )}
             </div>
 
-            {/* TV Controls */}
+            {/* Player Controls (Servers & TV) */}
             <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
+              {/* Server selector button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setServersOpen(true);
+                  setSidebarOpen(true);
+                }}
+                className="secondary-btn !py-1.5 !px-3.5 text-xs font-mono flex items-center gap-1.5 cursor-pointer"
+                title="Switch streaming server"
+              >
+                <Signal className="w-3.5 h-3.5 text-brand" />
+                <span>Server: <strong className="font-semibold text-foreground">{source.name}</strong></span>
+              </button>
+
               {/* Season Selector for TV */}
               {type === 'tv' && seasons.length > 1 && (
                 <select
@@ -1926,7 +1894,7 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                   />
                 </button>
                 <p className="text-xs text-muted-foreground/70 mt-1.5 leading-relaxed">
-                  Playback picks a working source automatically. Only switch here if the video won't load.
+                  Select your preferred streaming server below. Server switching is manual and stays stable during playback.
                 </p>
 
                 {/* State-driven, rather than reaching into
@@ -1957,9 +1925,14 @@ export function PlayerPage({ type, id, season, episode }: PlayerPageProps) {
                             <span className="flex flex-col gap-1.5 min-w-0">
                               <span className="font-medium text-sm leading-none flex items-center gap-2 truncate">
                                 {entry.name}
-                                {isPreferred && (
+                                {active && (
                                   <span className="text-[9px] px-1.5 py-0.5 rounded bg-brand/20 text-brand uppercase font-bold tracking-wider">
-                                    Last used
+                                    Active
+                                  </span>
+                                )}
+                                {isPreferred && !active && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-muted-foreground uppercase font-bold tracking-wider">
+                                    Preferred
                                   </span>
                                 )}
                               </span>
